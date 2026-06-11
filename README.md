@@ -1,0 +1,7 @@
+1. **Simulatore di Streaming (Go App):** Un'applicazione scritta in Go legge un dataset statico (es. file CSV, JSON o Parquet). Il simulatore invia i record riga per riga a Kafka, simulando il comportamento di una sorgente in tempo reale ( preservando la distanza temporale originale tra i timestamp dei dati ma con un acceleratore).
+2. **Ingestione (Kafka Input Topic):** Il topic `raw-events` riceve i dati grezzi dal simulatore.
+3. **Elaborazione (Apache Flink):** Flink è registrato come *subscriber* del topic di input. Esegue le analisi, i calcoli sulle finestre temporali e le aggregazioni in streaming basandosi sull'*Event Time* (YEAR, MONTH, DAY_OF_MONTH, CRS_DEP_TIME).
+4. **Disaccoppiamento dei Risultati (Kafka Output Topic):** Flink scrive i risultati dell'elaborazione direttamente su un secondo topic di output. 
+5. **Persistenza analitica (InfluxDB):** Un consumatore dedicato (o un connettore Kafka Connect) legge dal topic di output e memorizza i record in InfluxDB, database ottimizzato per serie temporali.
+6. **Persistenza performance:** Utilizziamo Redis come nel primo progetto per archiviare i risutlati delle performance.
+7. **Visualizzazione (Grafana):** Grafana interroga InfluxDB per mostrare metriche, trend e grafici in tempo reale su dashboard dedicate.
