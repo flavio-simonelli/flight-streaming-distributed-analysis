@@ -35,14 +35,37 @@ jobs:
         echo "INFLUXDB_TOKEN=$TOKEN" >> $GITHUB_ENV
 
     - name: Configure local hostnames
-
       run: |
-        # Map the local hostnames expected by application.yaml
+        # Map the local hostnames expected by application.yaml and simulator
         sudo echo "127.0.0.1 kafka.flight-analysis.local" | sudo tee -a /etc/hosts
         sudo echo "127.0.0.1 flink.flight-analysis.local" | sudo tee -a /etc/hosts
         sudo echo "127.0.0.1 influxdb.flight-analysis.local" | sudo tee -a /etc/hosts
 
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+        cache-dependency-path: simulator/go.sum
+
+    - name: Build and Run Simulator
+      run: |
+        cd simulator
+        go build -o simulator main.go
+        
+        # Run simulator to populate Kafka
+        # MAX_RECORDS=50 limits the records
+        # OUTPUT_TYPE=kafka ensures it sends to Kafka instead of just terminal
+        # KAFKA_BROKERS matches the hostname mapped in /etc/hosts
+        OUTPUT_TYPE=kafka \
+        KAFKA_BROKERS=kafka.flight-analysis.local:9094 \
+        MAX_RECORDS=50 \
+        SPEEDUP_FACTOR=1000000 \
+        ./simulator
+      env:
+        KAFKA_TOPIC: "flights-stream"
+
     - name: Build and Run Tests with Maven
+
       run: |
         mvn test -Dtest=SystemIntegrationTest -f flink/pom.xml \
           -DINFLUXDB_TOKEN=${{ env.INFLUXDB_TOKEN }} \
