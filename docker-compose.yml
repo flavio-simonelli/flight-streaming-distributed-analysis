@@ -81,13 +81,13 @@ services:
       entrypoint: [ "/bin/sh", "-c" ]
       command:
         - |
-          echo "Waiting for InfluxDB v3 to respond on port 8181..."
-          until influxdb3 show databases --host http://influxdb.flight-analysis.local:8181 --token ${INFLUXDB_TOKEN} > /dev/null 2>&1; do
+          echo "Waiting for InfluxDB v3 to respond on port ${INFLUXDB_PORT}..."
+          until influxdb3 show databases --host http://influxdb.flight-analysis.local:${INFLUXDB_PORT} --token ${INFLUXDB_TOKEN} > /dev/null 2>&1; do
             echo "InfluxDB is not ready yet, sleeping 2s..."
             sleep 2
           done
           echo "InfluxDB is UP. Creating database ${INFLUXDB_BUCKET}..."
-          influxdb3 create database ${INFLUXDB_BUCKET} --host http://influxdb.flight-analysis.local:8181 --token ${INFLUXDB_TOKEN}
+          influxdb3 create database ${INFLUXDB_BUCKET} --host http://influxdb.flight-analysis.local:${INFLUXDB_PORT} --token ${INFLUXDB_TOKEN}
           echo "Database created successfully."
 
     redis:

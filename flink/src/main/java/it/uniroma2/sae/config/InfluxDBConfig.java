@@ -12,12 +12,30 @@ public class InfluxDBConfig {
     public String getUrl() { return url; }
     public void setUrl(String url) { this.url = url; }
 
-    public String getToken() { return token; }
+    public String getToken() {
+        String prop = System.getProperty("INFLUXDB_TOKEN");
+        if (prop != null) return prop;
+        String env = System.getenv("INFLUXDB_TOKEN");
+        if (env != null) return env;
+        return token;
+    }
     public void setToken(String token) { this.token = token; }
 
-    public String getOrg() { return org; }
+    public String getOrg() {
+        String prop = System.getProperty("INFLUXDB_ORG");
+        if (prop != null) return prop;
+        String env = System.getenv("INFLUXDB_ORG");
+        if (env != null) return env;
+        return org;
+    }
     public void setOrg(String org) { this.org = org; }
 
-    public String getBucket() { return bucket; }
+    public String getBucket() {
+        String prop = System.getProperty("INFLUXDB_BUCKET");
+        if (prop != null) return prop;
+        String env = System.getenv("INFLUXDB_BUCKET");
+        if (env != null) return env;
+        return bucket;
+    }
     public void setBucket(String bucket) { this.bucket = bucket; }
 }

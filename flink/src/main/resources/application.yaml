@@ -10,6 +10,6 @@ flink:
 
 influxdb:
   url: "http://influxdb.flight-analysis.local:8181"
-  token: "apiv3_5C0GLRl9n4gviNmyGc4wtlALsMEaP804VBIJlLvSvBjxDB0_1QHiC8B6_i8kxnkRryAnXW8f9uSn9HANm1_5cA"
+  token: "apiv3_wpHVNpzEjmz6OesPH5Hd1GRPO4ZoWMciQBrnITzrcN-LDyl0A_8t0sTkFIkNeQA7EW6c9V1LzKWMldrH_OqZYg"
   org: "-"
   bucket: "flights-data"
