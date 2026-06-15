@@ -1,1 +1,15 @@
+.idea
 
+# Deployment
+.env
+data/grafana
+data/influxdb
+data/redis
+
+# Simulator
+simulator.iml
+go.sum
+simulator/*.exe
+
+# Processing
+flink/target

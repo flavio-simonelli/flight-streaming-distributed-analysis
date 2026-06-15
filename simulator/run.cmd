@@ -14,10 +14,12 @@ echo Checking for old container...
 docker rm -f %CONTAINER_NAME% 2>nul
 
 echo Starting Flight Simulator Container...
-docker run -it ^
+docker run -it --network sae-net ^
   --name %CONTAINER_NAME% ^
   -e INPUT_PARQUET_PATH="/app/data/flights.parquets" ^
-  -e OUTPUT_TYPE="terminal" ^
+  -e OUTPUT_TYPE="kafka" ^
+  -e KAFKA_BROKERS="kafka.flight-analysis.local:9092" ^
+  -e KAFKA_TOPIC="flights-stream" ^
   -e MAX_RECORDS=50 ^
   -v "%cd%/data:/app/data" ^
   %IMAGE_NAME%
