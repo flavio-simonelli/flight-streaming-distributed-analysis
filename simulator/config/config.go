@@ -14,6 +14,7 @@ type Config struct {
 	KafkaTopic       string // Kafka topic to which the flight records will be sent if using Kafka output
 	MaxRecords       int    // Maximum number of records to process (0 means no limit)
 	SpeedupFactor    int    // Factor to accelerate the timing of flight events (e.g., 100000 means 100,000 times faster than real time)
+	SpinThresholdMs  int    // Active spin threshold in milliseconds for final precision (e.g., 2)
 }
 
 // LoadConfig reads configuration settings from environment variables and returns a Config struct.
@@ -23,6 +24,7 @@ func LoadConfig() *Config {
 	// Convert MaxRecords and SpeedupFactor from string to int, using default values if not set.
 	maxRecs, _ := strconv.Atoi(getEnv("MAX_RECORDS", "0"))
 	speedup, _ := strconv.Atoi(getEnv("SPEEDUP_FACTOR", "100000")) // Default: speeds up the simulation by 100,000x
+	spinMs, _ := strconv.Atoi(getEnv("SPIN_THRESHOLD_MS", "2"))
 
 	// Create and return a Config struct populated with values from environment variables or defaults.
 	return &Config{
@@ -32,6 +34,7 @@ func LoadConfig() *Config {
 		KafkaTopic:       getEnv("KAFKA_TOPIC", "flights-stream"),
 		MaxRecords:       maxRecs,
 		SpeedupFactor:    speedup,
+		SpinThresholdMs:  spinMs,
 	}
 }
 
