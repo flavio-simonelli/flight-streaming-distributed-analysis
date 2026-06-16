@@ -23,8 +23,14 @@ func LoadConfig() *Config {
 
 	// Convert MaxRecords and SpeedupFactor from string to int, using default values if not set.
 	maxRecs, _ := strconv.Atoi(getEnv("MAX_RECORDS", "0"))
-	speedup, _ := strconv.Atoi(getEnv("SPEEDUP_FACTOR", "100000")) // Default: speeds up the simulation by 100,000x
+	speedup, _ := strconv.Atoi(getEnv("SPEEDUP_FACTOR", "100000"))
+	if speedup <= 0 {
+		speedup = 1
+	}
 	spinMs, _ := strconv.Atoi(getEnv("SPIN_THRESHOLD_MS", "2"))
+	if spinMs < 0 {
+		spinMs = 0
+	}
 
 	// Create and return a Config struct populated with values from environment variables or defaults.
 	return &Config{

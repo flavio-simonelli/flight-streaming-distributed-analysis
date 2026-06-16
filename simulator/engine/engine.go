@@ -33,12 +33,6 @@ func NewEngine(cfg *config.Config, sink output.Sink) *Engine {
 // Run starts the simulation by reading records from the Parquet file, simulating the timing based on the flight times,
 // and sending the records to the output sink. It respects the MaxRecords limit and can be interrupted via the context.
 func (e *Engine) Run(ctx context.Context) error {
-	// Guard against division by zero or negative speedup factor
-	speedup := e.Config.SpeedupFactor
-	if speedup <= 0 {
-		speedup = 1
-	}
-
 	fr, err := local.NewLocalFileReader(e.Config.InputParquetPath)
 	if err != nil {
 		return fmt.Errorf("impossibile aprire il file parquet: %w", err)
@@ -94,7 +88,7 @@ func (e *Engine) Run(ctx context.Context) error {
 			} else {
 				diffReal := flightTime.Sub(previousTime)
 				if diffReal > 0 {
-					targetWait := diffReal / time.Duration(speedup)
+					targetWait := diffReal / time.Duration(e.Config.SpeedupFactor)
 					remaining := targetWait - time.Since(lastEventTime)
 
 					slog.Debug("Timing computation",
