@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"runtime"
 	"time"
 
 	"simulator/config"
@@ -51,19 +50,30 @@ func (e *Engine) Run(ctx context.Context) error {
 
 	numRows := int(pr.GetNumRows())
 	recordsProcessed := 0
+
+	// previousTime stores the logical timestamp of the last successfully simulated flight.
+	// It is used to calculate the real time delta between consecutive events.
 	var previousTime time.Time
+
+	// lastEventTime tracks the physical (real) timestamp of when the last event was sent or waited for.
+	// It serves as a unified reference point to measure the actual elapsed processing time.
 	var lastEventTime time.Time
+
+	// isFirstRecord flags whether we are processing the first record of the file,
+	// for which no simulated waiting is needed.
 	isFirstRecord := true
 
-	// Pre-allocate slice for reading single records
+	// Pre-allocate slice to prevent heap allocations during each read cycle.
 	rows := make([]models.FlightRecord, 1)
 
 	for i := 0; i < numRows; i++ {
+		// Check the maximum records limit if configured
 		if e.Config.MaxRecords > 0 && recordsProcessed >= e.Config.MaxRecords {
 			slog.Info("Raggiunto il limite", "MaxRecords", e.Config.MaxRecords)
 			break
 		}
 
+		// Handle graceful shutdown via context cancellation
 		select {
 		case <-ctx.Done():
 			slog.Info("Simulazione interrotta dal context")
@@ -81,14 +91,20 @@ func (e *Engine) Run(ctx context.Context) error {
 
 		if timeFound {
 			if isFirstRecord {
+				// The first record establishes the starting point both logically and physically
 				previousTime = flightTime
 				lastEventTime = time.Now()
 				isFirstRecord = false
 				slog.Debug("First record processed", "flight_time", flightTime.Format("2006-01-02 15:04"))
 			} else {
+				// Calculate the logical time difference between the current event and the previous one
 				diffReal := flightTime.Sub(previousTime)
 				if diffReal > 0 {
+					// targetWait represents the theoretical wait time scaled by the speedup factor
 					targetWait := diffReal / time.Duration(e.Config.SpeedupFactor)
+
+					// remaining is the actual remaining wait time, obtained by subtracting the elapsed
+					// physical time (time.Since(lastEventTime)) spent on reading, parsing, and the previous write
 					remaining := targetWait - time.Since(lastEventTime)
 
 					slog.Debug("Timing computation",
@@ -97,10 +113,11 @@ func (e *Engine) Run(ctx context.Context) error {
 						"remaining", remaining.String())
 
 					if remaining > 0 {
+						// Calculate the absolute physical deadline to complete the wait
 						deadline := time.Now().Add(remaining)
 						spinThreshold := time.Duration(e.Config.SpinThresholdMs) * time.Millisecond
 
-						// 1. Sleep phase for the majority of the duration
+						// Phase 1: Low-CPU sleep phase for the majority of the wait duration
 						if remaining > spinThreshold {
 							select {
 							case <-time.After(remaining - spinThreshold):
@@ -110,7 +127,7 @@ func (e *Engine) Run(ctx context.Context) error {
 							}
 						}
 
-						// 2. Precise active-spin phase until the target deadline
+						// Phase 2: High-precision active spinlock to cover the remaining time up to the deadline
 						for time.Now().Before(deadline) {
 							select {
 							case <-ctx.Done():
@@ -118,9 +135,9 @@ func (e *Engine) Run(ctx context.Context) error {
 								return nil
 							default:
 							}
-							runtime.Gosched()
 						}
 					}
+					// Update time references for the next iteration
 					previousTime = flightTime
 					lastEventTime = time.Now()
 				}
