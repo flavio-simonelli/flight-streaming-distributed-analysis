@@ -1,15 +1,11 @@
 kafka:
   host: "kafka.flight-analysis.local"
-  port: 9094
-  topic: "flights-stream"
+  internalPort: 9092
+  externalPort: 9094
+  inputTopic: "flights-stream"
+  sinkTopic: "flights-results"
   groupId: "flink-system-test-group"
 
 flink:
   host: "flink.flight-analysis.local"
   port: 8081
-
-influxdb:
-  url: "http://influxdb.flight-analysis.local:8181"
-  token: "apiv3_wpHVNpzEjmz6OesPH5Hd1GRPO4ZoWMciQBrnITzrcN-LDyl0A_8t0sTkFIkNeQA7EW6c9V1LzKWMldrH_OqZYg"
-  org: "-"
-  bucket: "flights-data"

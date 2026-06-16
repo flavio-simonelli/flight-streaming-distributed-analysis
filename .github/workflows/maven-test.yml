@@ -24,22 +24,16 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Start Infrastructure and Generate Token
+    - name: Start Infrastructure
       run: |
         cp example.env .env
-        chmod +x setup-infra.sh
-        ./setup-infra.sh
-
-        # Load the generated token into the GitHub Actions environment for Maven
-        TOKEN=$(grep "INFLUXDB_TOKEN=" .env | cut -d'=' -f2)
-        echo "INFLUXDB_TOKEN=$TOKEN" >> $GITHUB_ENV
+        docker compose up -d
 
     - name: Configure local hostnames
       run: |
         # Map the local hostnames expected by application.yaml and simulator
         sudo echo "127.0.0.1 kafka.flight-analysis.local" | sudo tee -a /etc/hosts
         sudo echo "127.0.0.1 flink.flight-analysis.local" | sudo tee -a /etc/hosts
-        sudo echo "127.0.0.1 influxdb.flight-analysis.local" | sudo tee -a /etc/hosts
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -68,10 +62,8 @@ jobs:
     - name: Build and Run Tests with Maven
 
       run: |
-        mvn test -Dtest=SystemIntegrationTest -f flink/pom.xml \
-          -DINFLUXDB_TOKEN=${{ env.INFLUXDB_TOKEN }} \
-          -DINFLUXDB_ORG="-" \
-          -DINFLUXDB_BUCKET="flights-data"
+        mvn clean package -DskipTests -f flink/pom.xml
+        mvn surefire:test -Dtest=SystemIntegrationTest -f flink/pom.xml
 
     - name: Stop Infrastructure
       if: always()

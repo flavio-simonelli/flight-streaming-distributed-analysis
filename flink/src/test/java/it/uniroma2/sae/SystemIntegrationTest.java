@@ -1,28 +1,12 @@
 package it.uniroma2.sae;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.influxdb.client.InfluxDBClient;
-import com.influxdb.client.InfluxDBClientFactory;
-import com.influxdb.client.InfluxDBClientOptions;
-import com.influxdb.client.WriteApiBlocking;
-import com.influxdb.client.domain.WritePrecision;
-import com.influxdb.client.write.Point;
 import it.uniroma2.sae.config.ApplicationConfig;
-import it.uniroma2.sae.model.FlightRecord;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connector.kafka.source.KafkaSource;
-import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,154 +16,100 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.time.Instant;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Properties;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * System test for calculating average departure delays and saving results to InfluxDB.
+ * System integration test using dynamic configuration and batch mode.
  */
 public class SystemIntegrationTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(SystemIntegrationTest.class);
     private static ApplicationConfig config;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @BeforeAll
     public static void setup() {
         config = ApplicationConfig.load("application.yaml");
-    }
-
-    private boolean isReachable(String url) {
-        url = url.replace("https://", "").replace("http://", "");
-        String[] split = url.split(":");
-        String host = split[0];
-        int port = Integer.parseInt(split[1]);
-        return isReachable(host, port);
+        LOG.info("Configuration loaded: Flink={}:{}, Kafka={}:{}", 
+                config.getFlink().getHost(), config.getFlink().getPort(),
+                config.getKafka().getHost(), config.getKafka().getPort());
     }
 
     private boolean isReachable(String host, int port) {
+        LOG.info("Checking connectivity to {}:{}...", host, port);
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), 2000);
+            socket.connect(new InetSocketAddress(host, port), 3000);
             return true;
         } catch (IOException e) {
+            LOG.warn("Host {}:{} is not reachable: {}", host, port, e.getMessage());
             return false;
         }
     }
 
     @Test
     public void testDelayAverage() throws Exception {
-        String kafkaHost = config.getKafka().getHost();
-        int kafkaPort = config.getKafka().getPort();
-        String influxUrl = config.getInfluxdb().getUrl();
-        String flinkUrl = config.getFlink().getHost();
+        String flinkHost = config.getFlink().getHost();
         int flinkPort = config.getFlink().getPort();
+        String kafkaHost = config.getKafka().getHost();
+        int kafkaPort = config.getKafka().getExternalPort();
 
-        // Check infrastructure using localhost
-        Assumptions.assumeTrue(isReachable(kafkaHost, kafkaPort), "Kafka is required");
-        Assumptions.assumeTrue(isReachable(influxUrl), "InfluxDB is required");
-        Assumptions.assumeTrue(isReachable(flinkUrl, flinkPort), "Flink is required");
+        // Ensure cluster and kafka are UP using values from ApplicationConfig
+        Assumptions.assumeTrue(isReachable(flinkHost, flinkPort), "Flink JobManager MUST be reachable at " + flinkHost + ":" + flinkPort);
+        Assumptions.assumeTrue(isReachable(kafkaHost, kafkaPort), "Kafka MUST be reachable at " + kafkaHost + ":" + kafkaPort);
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        env.setParallelism(1);
+        // createRemoteEnvironment is AutoCloseable in Flink 1.15+
+        try (StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
+                flinkHost,
+                flinkPort,
+                "target/flight-analysis-1.0.jar",
+                "target/flight-analysis-1.0-tests.jar"
+        )) {
+            LOG.info("Initializing and submitting BATCH job to cluster {}...", flinkHost);
+            FlightDelayJob job = new FlightDelayJob(config);
+            job.defineJob(env);
+            
+            env.execute("Flight Delay Average System Test");
+            LOG.info("Flink BATCH execution finished.");
 
-        KafkaSource<String> source = KafkaSource.<String>builder()
-                .setBootstrapServers(kafkaHost + ":" + kafkaPort)
-                .setTopics(config.getKafka().getTopic())
-                .setGroupId(config.getKafka().getGroupId())
-                .setStartingOffsets(OffsetsInitializer.earliest())
-                .setBounded(OffsetsInitializer.latest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
-                .build();
+        } catch (Exception e) {
+            LOG.error("Flink job submission/execution failed: {}", e.getMessage(), e);
+            throw e;
+        }
 
-        LOG.info("Starting delay average processing...");
-
-        String token = config.getInfluxdb().getToken();
-        String organization = config.getInfluxdb().getOrg();
-        String bucketName = config.getInfluxdb().getBucket();
-
-        env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source")
-                .map(json -> {
-                    try {
-                        return OBJECT_MAPPER.readValue(json, FlightRecord.class);
-                    } catch (Exception e) {
-                        return null;
-                    }
-                })
-                .filter(record -> record != null && record.getDepDelay() != null)
-                .map(record -> new Tuple2<>(record.getDepDelay(), 1L))
-                .returns(TypeInformation.of(new TypeHint<Tuple2<Double, Long>>(){}))
-                .keyBy(t -> "global")
-                .reduce((t1, t2) -> new Tuple2<>(t1.f0 + t2.f0, t1.f1 + t2.f1))
-                .map(new MapFunction<Tuple2<Double, Long>, Double>() {
-                    @Override
-                    public Double map(Tuple2<Double, Long> result) {
-                        double avg = result.f0 / result.f1;
-                        LOG.info("Calculated Average Delay: {}", avg);
-                        return avg;
-                    }
-                })
-                .addSink(new InfluxDBCustomSink(influxUrl, token, organization, bucketName));
-
-        env.execute("Flight Delay Average System Test");
-        LOG.info("System test completed.");
+        // Final verification by consuming from Kafka results topic
+        verifyResults(kafkaHost, kafkaPort);
     }
 
-    /**
-     * Custom Sink using InfluxDB 2 Java client with InfluxDB 3 compatibility.
-     */
-    public static class InfluxDBCustomSink extends RichSinkFunction<Double> {
-        private final String url;
-        private final String token;
-        private final String org;
-        private final String bucket;
-        private transient InfluxDBClient client;
+    private void verifyResults(String host, int port) {
+        LOG.info("Consuming results from Kafka at {}:{} for validation...", host, port);
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, host + ":" + port);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "verifier-group-" + System.currentTimeMillis());
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        public InfluxDBCustomSink(String url, String token, String org, String bucket) {
-            this.url = url;
-            this.token = token;
-            this.org = org;
-            this.bucket = bucket;
-        }
-
-        @Override
-        public void open(OpenContext context) {
-            LOG.info("Opening InfluxDB connection to {} (org={}, bucket={})", url, org, bucket);
+        try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
+            consumer.subscribe(Collections.singletonList(config.getKafka().getSinkTopic()));
             
-            // InfluxDB 3-core requires 'Bearer' prefix and often ignores 'org' (can use '-').
-            OkHttpClient.Builder httpClient = new OkHttpClient.Builder()
-                    .addInterceptor(chain -> {
-                        Request authenticatedRequest = chain.request().newBuilder()
-                                .header("Authorization", "Bearer " + token)
-                                .build();
-                        return chain.proceed(authenticatedRequest);
-                    });
-
-            InfluxDBClientOptions options = InfluxDBClientOptions.builder()
-                    .url(url)
-                    .okHttpClient(httpClient)
-                    .org(org)
-                    .bucket(bucket)
-                    .build();
-
-            client = InfluxDBClientFactory.create(options);
-        }
-
-        @Override
-        public void invoke(Double avgDelay, Context context) {
-            WriteApiBlocking writeApi = client.getWriteApiBlocking();
-            Point point = Point.measurement("flight_metrics")
-                    .addTag("source", "flink_system_test")
-                    .addField("avg_dep_delay", avgDelay)
-                    .time(Instant.now(), WritePrecision.NS);
-            writeApi.writePoint(point);
-            LOG.info("Successfully wrote average delay {} to InfluxDB", avgDelay);
-        }
-
-        @Override
-        public void close() {
-            if (client != null) {
-                client.close();
+            double lastValue = -1.0;
+            long deadline = System.currentTimeMillis() + 15000;
+            
+            while (System.currentTimeMillis() < deadline) {
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+                for (ConsumerRecord<String, String> record : records) {
+                    lastValue = Double.parseDouble(record.value());
+                }
+                if (lastValue > 0) break;
             }
+
+            assertTrue(lastValue > 0, "No results found in Kafka topic " + config.getKafka().getSinkTopic());
+            LOG.debug("Validation: Expected=9.32, Actual={}", lastValue);
+            assertEquals(9.32, lastValue, 0.02, "Final average delay mismatch!");
         }
     }
 }

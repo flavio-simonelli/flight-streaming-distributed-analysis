@@ -11,16 +11,12 @@ public class ApplicationConfig {
 
     private KafkaConfig kafka;
     private FlinkConfig flink;
-    private InfluxDBConfig influxdb;
 
     public KafkaConfig getKafka() { return kafka; }
     public void setKafka(KafkaConfig kafka) { this.kafka = kafka; }
 
     public FlinkConfig getFlink() { return flink; }
     public void setFlink(FlinkConfig flink) { this.flink = flink; }
-
-    public InfluxDBConfig getInfluxdb() { return influxdb; }
-    public void setInfluxdb(InfluxDBConfig influxdb) { this.influxdb = influxdb; }
 
     /**
      * Loads the configuration from the specified YAML file in the classpath.

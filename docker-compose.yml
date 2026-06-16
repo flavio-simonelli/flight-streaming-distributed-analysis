@@ -48,6 +48,7 @@ services:
             sleep 2
           done
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-stream --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-results --replication-factor 1 --partitions 1
 
     influxdb:
       image: influxdb:3-core
