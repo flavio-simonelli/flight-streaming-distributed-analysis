@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Simulation" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="simulator" />
+    <working_directory value="$PROJECT_DIR$/simulator" />
+    <envs>
+      <env name="MAX_RECORDS" value="10" />
+    </envs>
+    <EXTENSION ID="software.aws.toolkits.jetbrains.core.execution.GoAwsConnectionRunConfigurationExtension">
+      <option name="credential" />
+      <option name="region" />
+      <option name="useCurrentConnection" value="false" />
+    </EXTENSION>
+    <kind value="PACKAGE" />
+    <package value="simulator" />
+    <directory value="$PROJECT_DIR$" />
+    <pty_enabled value="true" />
+    <auto_managed_config_id value="$PROJECT_DIR$/simulator" />
+    <method v="2" />
+  </configuration>
+</component>
