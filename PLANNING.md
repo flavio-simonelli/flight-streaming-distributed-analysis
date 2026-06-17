@@ -86,3 +86,72 @@ Strategia per misurare latenza, throughput e comportamento del sistema durante i
 - **Throughput**: `numRecordsInPerSecond` e `numRecordsOutPerSecond` per valutare la scalabilità al variare del parallelismo.
 - **Latenza**: calcolata tramite i *Latency Markers* di Flink (`latencyTrackingInterval`) dall'ingresso nel sistema fino al sink.
 - **Stato**: `isBackPressured`, `outPoolUsage` e `inPoolUsage` per individuare l'origine di eventuali colli di bottiglia e documentare l'insorgenza della backpressure.
+
+---
+
+# Specifica Implementativa Query 1
+
+La Query 1 effettua il monitoraggio in tempo reale dello stato operativo delle principali compagnie aeree: American Airlines (AA), Delta (DL), United (UA) e Southwest (WN). Gli eventi vengono aggregati usando finestre di tipo Tumbling basate sull'Event Time, con una durata di 1 ora logica.
+
+## Topologia del Flusso
+Per implementare questa query si utilizza la DataStream API di Flink. La topologia del flusso è definita come segue:
+
+```java
+DataStream<Q1OutputRecord> q1ResultStream = mainStream
+    .filter(event -> Arrays.asList("AA", "DL", "UA", "WN").contains(event.getAirline()))
+    .keyBy(FlightEvent::getAirline)
+    .window(TumblingEventTimeWindows.of(Duration.ofHours(1)))
+    .aggregate(new Q1Aggregator(), new Q1WindowProcessor());
+```
+
+### Scelte di Progettazione
+- **Uso delle Window API**: si è preferito l'uso delle API nativamente fornite da Flink rispetto a una gestione manuale dello stato e dei timer tramite `KeyedProcessFunction` (basso livello), riducendo la complessità del codice e garantendo la corretta gestione integrata di dati tardivi (*late data*) e avanzamento dei watermark. non riusciremmo ad introdurre ottimizzazioni usando le API di più basso livello, anzi probabilmente sarebbero più ottimizzate quelle datastreams.
+- **Partizionamento per Carrier**: la chiave di partizionamento (`keyBy`) basata sulla compagnia aerea (`airline`) distribuisce il carico di lavoro in modo bilanciato sui nodi del cluster, evitando i colli di bottiglia e l'overhead di serializzazione legati a un'aggregazione globale non chiavata.
+- **Gestione dei ritardi e Short-Circuit**: in accordo con le specifiche, le statistiche sui ritardi devono escludere i voli cancellati o deviati. Invece di filtrare a monte l'intero flusso (il che impedirebbe di conteggiare il numero di voli cancellati o deviati richiesti per la metrica), tutti i record entrano nella finestra. Il filtro viene applicato all'interno dell'aggregatore con una logica a corto circuito.
+- **Gestione dei valori null**: eventuali anomalie o valori nulli sul ritardo di partenza (`DEP_DELAY`) vengono convertiti a `0.0` prima dei calcoli per evitare eccezioni a runtime (`NullPointerException`).
+
+## Ottimizzazione dello Stato e Aggregazione Incrementale
+L'operatore `.aggregate()` combina due fasi per ottimizzare l'occupazione di memoria:
+
+### A. Aggregazione Incrementale (`Q1Aggregator`)
+Utilizza un'implementazione di `AggregateFunction` per elaborare i record riga per riga man mano che arrivano, invece di accumularli in memoria fino alla scadenza della finestra.
+Lo stato occupato per ogni chiave è costante $O(1)$ (rappresentato da un singolo accumulatore `Q1Accumulator` per compagnia aerea).
+
+Logica di aggiornamento dell'accumulatore:
+```java
+public Q1Accumulator add(FlightEvent event, Q1Accumulator acc) {
+    acc.numFlights++;
+
+    if (event.getCancelled() == 1) {
+        acc.cancelled++;
+        return acc; // Short-circuit: evita controlli sui ritardi per voli cancellati
+    }
+    
+    if (event.getDiverted() == 1) {
+        acc.diverted++;
+        return acc; // Short-circuit: i voli deviati sono esclusi dalle statistiche sui ritardi
+    }
+
+    // Voli completati con successo
+    acc.completed++;
+    double depDelay = event.getDepDelay() != null ? event.getDepDelay() : 0.0;
+    acc.sumDepDelay += depDelay;
+    acc.countDepDelay++;
+
+    if (depDelay > 15.0) {
+        acc.lateDepartures++;
+    }
+    return acc;
+}
+```
+
+### B. Processore di Finestra (`Q1WindowProcessor`)
+La componente `ProcessWindowFunction` si attiva solo alla chiusura della finestra temporale (quando il Watermark supera la barriera dell'ora logica).
+Ha il compito di estrarre i timestamp di inizio/fine finestra dal contesto della finestra e calcolare le metriche derivate:
+* `dep_delay_mean = sum_dep_delay / count_dep_delay`
+* `cancellation_rate = (cancelled / num_flights) * 100`
+* `late_departure_rate = (late_departures / num_flights) * 100`
+
+## Strategia di Sink ed Ingestion
+- **Scrittura su Kafka**: i risultati finali vengono scritti sul topic `flights-q1-results`. Poiché vengono emessi solo 4 record ad ogni chiusura di finestra (uno per compagnia), la scrittura avviene senza chiave per distribuire in modo uniforme i messaggi sulle partizioni del topic di output.
+- **Integrazione con Telegraf**: Telegraf consuma dal topic `flights-q1-results`, esegue il parsing dei messaggi e scrive i dati su InfluxDB nella tabella dedicata alla Query 1.
