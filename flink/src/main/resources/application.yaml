@@ -4,7 +4,8 @@ kafka:
   externalPort: 9094
   inputTopic: "flights-stream"
   sinkTopic: "flights-results"
-  groupId: "flink-system-test-group"
+  q1OutputTopic: "flights-q1-results"
+  groupId: "flink-analysis-group"
 
 flink:
   host: "flink.flight-analysis.local"

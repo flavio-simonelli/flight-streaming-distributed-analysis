@@ -10,6 +10,7 @@ public class KafkaConfig {
     private Integer externalPort;
     private String inputTopic;
     private String sinkTopic;
+    private String q1OutputTopic;
     private String groupId;
 
     public String getHost() { return host; }
@@ -33,6 +34,9 @@ public class KafkaConfig {
 
     public String getSinkTopic() { return sinkTopic; }
     public void setSinkTopic(String sinkTopic) { this.sinkTopic = sinkTopic; }
+
+    public String getQ1OutputTopic() { return q1OutputTopic; }
+    public void setQ1OutputTopic(String q1OutputTopic) { this.q1OutputTopic = q1OutputTopic; }
 
     public String getGroupId() { return groupId; }
     public void setGroupId(String groupId) { this.groupId = groupId; }
