@@ -21,8 +21,37 @@ public class FlightRecord {
     @JsonProperty("OP_UNIQUE_CARRIER")
     private String carrier;
 
+    @JsonProperty("CRS_DEP_TIME")
+    private int crsDepTime;
+
     @JsonProperty("DEP_DELAY")
     private Double depDelay;
+
+    @JsonProperty("ARR_DELAY")
+    private Double arrDelay;
+
+    @JsonProperty("CANCELLED")
+    private Double cancelled;
+
+    @JsonProperty("DIVERTED")
+    private Double diverted;
+
+    @JsonProperty("CARRIER_DELAY")
+    private Double carrierDelay;
+
+    @JsonProperty("WEATHER_DELAY")
+    private Double weatherDelay;
+
+    @JsonProperty("NAS_DELAY")
+    private Double nasDelay;
+
+    @JsonProperty("SECURITY_DELAY")
+    private Double securityDelay;
+
+    @JsonProperty("LATE_AIRCRAFT_DELAY")
+    private Double lateAircraftDelay;
+
+    // Getters and Setters
 
     public int getYear() { return year; }
     public void setYear(int year) { this.year = year; }
@@ -36,6 +65,57 @@ public class FlightRecord {
     public String getCarrier() { return carrier; }
     public void setCarrier(String carrier) { this.carrier = carrier; }
 
+    // Helper alias getter for carrier to match standard airline terminology
+    public String getAirline() { return carrier; }
+    public void setAirline(String airline) { this.carrier = airline; }
+
+    public int getCrsDepTime() { return crsDepTime; }
+    public void setCrsDepTime(int crsDepTime) { this.crsDepTime = crsDepTime; }
+
     public Double getDepDelay() { return depDelay; }
     public void setDepDelay(Double depDelay) { this.depDelay = depDelay; }
+
+    public Double getArrDelay() { return arrDelay; }
+    public void setArrDelay(Double arrDelay) { this.arrDelay = arrDelay; }
+
+    public Double getCancelled() { return cancelled; }
+    public void setCancelled(Double cancelled) { this.cancelled = cancelled; }
+
+    public Double getDiverted() { return diverted; }
+    public void setDiverted(Double diverted) { this.diverted = diverted; }
+
+    public Double getCarrierDelay() { return carrierDelay; }
+    public void setCarrierDelay(Double carrierDelay) { this.carrierDelay = carrierDelay; }
+
+    public Double getWeatherDelay() { return weatherDelay; }
+    public void setWeatherDelay(Double weatherDelay) { this.weatherDelay = weatherDelay; }
+
+    public Double getNasDelay() { return nasDelay; }
+    public void setNasDelay(Double nasDelay) { this.nasDelay = nasDelay; }
+
+    public Double getSecurityDelay() { return securityDelay; }
+    public void setSecurityDelay(Double securityDelay) { this.securityDelay = securityDelay; }
+
+    public Double getLateAircraftDelay() { return lateAircraftDelay; }
+    public void setLateAircraftDelay(Double lateAircraftDelay) { this.lateAircraftDelay = lateAircraftDelay; }
+
+    @Override
+    public String toString() {
+        return "FlightRecord{" +
+                "year=" + year +
+                ", month=" + month +
+                ", dayOfMonth=" + dayOfMonth +
+                ", carrier='" + carrier + '\'' +
+                ", crsDepTime=" + crsDepTime +
+                ", depDelay=" + depDelay +
+                ", arrDelay=" + arrDelay +
+                ", cancelled=" + cancelled +
+                ", diverted=" + diverted +
+                ", carrierDelay=" + carrierDelay +
+                ", weatherDelay=" + weatherDelay +
+                ", nasDelay=" + nasDelay +
+                ", securityDelay=" + securityDelay +
+                ", lateAircraftDelay=" + lateAircraftDelay +
+                '}';
+    }
 }
