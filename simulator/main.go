@@ -58,13 +58,15 @@ func main() {
 		cancel()
 	}()
 
-	// Initialize and run the simulation engine with the loaded configuration and selected output sink.
-	simEngine := engine.NewEngine(cfg, sink)
+	// Build the simulation engine by wiring its components via the Builder.
+	// Components (Loader, Scheduler, Waiter) are resolved from the configuration
+	// automatically; individual overrides can be applied via With* methods.
+	simEngine := engine.NewBuilder(cfg, sink).Build()
 
 	// Run the simulation engine.
 	// If it returns an error, log the error and exit with a non-zero status code.
 	if err := simEngine.Run(ctx); err != nil {
-		slog.Error("La simulazione è terminata con un errore", "err", err)
+		slog.Error("La simulazione e' terminata con un errore", "err", err)
 		os.Exit(1)
 	}
 }

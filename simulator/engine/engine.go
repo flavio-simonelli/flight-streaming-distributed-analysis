@@ -2,130 +2,110 @@ package engine
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"math/rand"
 	"sort"
 	"time"
 
 	"simulator/config"
-	"simulator/models"
 	"simulator/output"
-
-	"github.com/xitongsys/parquet-go-source/local"
-	"github.com/xitongsys/parquet-go/reader"
 )
 
-// Engine is the core component of the flight simulator. It reads flight records from a Parquet file,
-// sorts them by event time, and sends them to an output sink while simulating the original timing.
+// Engine is the orchestrator of the flight simulation pipeline. It coordinates
+// three injected components - Loader, Scheduler, Waiter - to replay a dataset
+// while faithfully simulating the original inter-event timing.
+//
+// The simulation pipeline consists of two phases:
+//  1. Load & Schedule: records are loaded from the data source, each one assigned
+//     a publishAt timestamp by the Scheduler, and the resulting entries are sorted
+//     by publishAt in a single pass.
+//  2. Publish: entries are iterated in publishAt order; the Waiter enforces the
+//     simulated inter-event gap before each record is forwarded to the Sink.
 type Engine struct {
-	Config *config.Config
-	Sink   output.Sink
+	config    *config.Config
+	sink      output.Sink
+	loader    Loader
+	scheduler Scheduler
+	waiter    Waiter
 }
 
-// NewEngine creates a new instance of Engine with the provided configuration and output sink.
-func NewEngine(cfg *config.Config, sink output.Sink) *Engine {
-	return &Engine{
-		Config: cfg,
-		Sink:   sink,
-	}
-}
-
-// Run starts the simulation. It first loads and sorts all records from the Parquet file by event time,
-// then replays them in order while simulating the original timing and optionally injecting out-of-order delays.
+// Run executes the full simulation pipeline and blocks until all records have
+// been published or the context is cancelled.
 func (e *Engine) Run(ctx context.Context) error {
-	slog.Info("Phase 1: loading and sorting dataset...")
-	records, err := e.loadAndSort()
+	slog.Info("Phase 1: loading and scheduling dataset...")
+	entries, err := e.loadAndSchedule()
 	if err != nil {
 		return err
 	}
-	slog.Info("Dataset loaded and sorted", "total_records", len(records))
+	slog.Info("Dataset loaded and scheduled", "total_records", len(entries))
 
 	slog.Info("Phase 2: starting timed publish...")
-	return e.publish(ctx, records)
+	return e.publish(ctx, entries)
 }
 
-// loadAndSort reads all records from the Parquet file into memory and sorts them
-// by (Year, Month, DayOfMonth, CrsDepTime), which represents the scheduled departure time.
-// Records without a valid event time are placed at the end of the slice.
-func (e *Engine) loadAndSort() ([]models.FlightRecord, error) {
-	fr, err := local.NewLocalFileReader(e.Config.InputParquetPath)
+// loadAndSchedule loads all records via the Loader, delegates publishAt assignment
+// to the Scheduler, and sorts the entries by publishAt in a single pass.
+//
+// Because the Scheduler guarantees publishAt >= eventTime, one sort by publishAt
+// is sufficient: in-order records sort by their natural event time, while records
+// selected for out-of-order injection are pushed past the records they logically precede.
+func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
+	limit := e.config.MaxRecords // <= 0 means load all
+
+	records, err := e.loader.Load(limit)
 	if err != nil {
-		return nil, fmt.Errorf("could not open parquet file: %w", err)
-	}
-	defer func() {
-		if err := fr.Close(); err != nil {
-			slog.Warn("Error closing parquet file", "err", err)
-		}
-	}()
-
-	pr, err := reader.NewParquetReader(fr, new(models.FlightRecord), 4)
-	if err != nil {
-		return nil, fmt.Errorf("could not initialize parquet reader: %w", err)
-	}
-	defer pr.ReadStop()
-
-	numRows := int(pr.GetNumRows())
-	limit := numRows
-	if e.Config.MaxRecords > 0 && e.Config.MaxRecords < numRows {
-		limit = e.Config.MaxRecords
+		return nil, err
 	}
 
-	records := make([]models.FlightRecord, 0, limit)
-	rows := make([]models.FlightRecord, 1)
-
-	for i := 0; i < limit; i++ {
-		if err := pr.Read(&rows); err != nil {
-			slog.Error("Error reading row", "index", i, "err", err)
-			continue
-		}
-		records = append(records, rows[0])
+	entries := make([]publishEntry, 0, len(records))
+	for _, rec := range records {
+		eventTime, _ := rec.ExtractTime()
+		entries = append(entries, publishEntry{
+			record:    rec,
+			eventTime: eventTime,
+			publishAt: e.scheduler.Schedule(rec, eventTime),
+		})
 	}
 
-	// Sort records by their logical event time (scheduled departure).
-	// Records with no valid time (Year/Month/Day == 0) are sorted to the end.
-	sort.SliceStable(records, func(i, j int) bool {
-		ti, okI := records[i].ExtractTime()
-		tj, okJ := records[j].ExtractTime()
-
-		if !okI && !okJ {
-			return false // Both invalid: preserve relative order
+	// Single sort by publishAt produces the final publish order.
+	// Records without a valid event time (publishAt is zero) are placed at the end.
+	sort.SliceStable(entries, func(i, j int) bool {
+		zi := entries[i].publishAt.IsZero()
+		zj := entries[j].publishAt.IsZero()
+		if zi || zj {
+			return zj // zero entries sink to the bottom
 		}
-		if !okI {
-			return false // i is invalid: push to end
-		}
-		if !okJ {
-			return true // j is invalid: push to end
-		}
-		return ti.Before(tj)
+		return entries[i].publishAt.Before(entries[j].publishAt)
 	})
 
-	return records, nil
+	return entries, nil
 }
 
-// publish iterates over the sorted records and sends each one to the output sink,
-// simulating the original timing between events. Optionally, a configurable fraction
-// of records receives an artificial publication delay to simulate out-of-order arrival
-// from geographically distributed sensors.
-func (e *Engine) publish(ctx context.Context, records []models.FlightRecord) error {
+// publish iterates over the scheduled entries and sends each record to the Sink
+// while simulating the inter-event timing of the original dataset.
+//
+// Timing is driven by the logical event times (not publishAt), so the simulated
+// pace always reflects the real-world flight schedule. Out-of-order records
+// (whose eventTime is earlier than the previous record's) produce a negative
+// diff and are sent immediately: the consumer receives a stale record with no pause,
+// which is the correct behaviour for a late-arriving event.
+func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 	recordsProcessed := 0
 
-	// previousTime stores the logical timestamp of the last successfully simulated flight.
-	// It is used to calculate the real time delta between consecutive events.
+	// previousTime stores the logical event time of the last published record.
+	// It is used to calculate the inter-event wait. When an out-of-order record
+	// arrives its eventTime is earlier than previousTime, diffReal is negative,
+	// and the record is sent immediately with no wait.
 	var previousTime time.Time
 
-	// lastEventTime tracks the physical (real) timestamp of when the last event was sent or waited for.
-	// It serves as a unified reference point to measure the actual elapsed processing time.
+	// lastEventTime tracks the physical wall-clock timestamp of when the last
+	// timed event completed (wait + write). It is used to subtract already-elapsed
+	// processing time from the next wait so that the actual publish moment lands
+	// as close as possible to the simulated target time.
 	var lastEventTime time.Time
 
-	// isFirstRecord flags whether we are processing the first record of the dataset,
-	// for which no simulated waiting is needed.
 	isFirstRecord := true
 
-	outOfOrderEnabled := e.Config.OutOfOrderFactor > 0 && e.Config.OutOfOrderMaxDelayMinutes > 0
-
-	for i := range records {
-		// Handle graceful shutdown via context cancellation
+	for i := range entries {
 		select {
 		case <-ctx.Done():
 			slog.Info("Simulation interrupted by context")
@@ -133,26 +113,21 @@ func (e *Engine) publish(ctx context.Context, records []models.FlightRecord) err
 		default:
 		}
 
-		record := records[i]
-		flightTime, timeFound := record.ExtractTime()
+		entry := entries[i]
+		timeFound := !entry.eventTime.IsZero()
 
-		// === Timing simulation ===
 		if timeFound {
 			if isFirstRecord {
-				// The first record establishes the starting point both logically and physically
-				previousTime = flightTime
+				previousTime = entry.eventTime
 				lastEventTime = time.Now()
 				isFirstRecord = false
-				slog.Debug("First record", "flight_time", flightTime.Format("2006-01-02 15:04"))
+				slog.Debug("First record", "event_time", entry.eventTime.Format("2006-01-02 15:04"))
 			} else {
-				// Calculate the logical time difference between the current event and the previous one
-				diffReal := flightTime.Sub(previousTime)
+				// diffReal is the logical time gap between this record's event and the previous one.
+				// A negative value means this is an out-of-order record: it is published immediately.
+				diffReal := entry.eventTime.Sub(previousTime)
 				if diffReal > 0 {
-					// targetWait represents the theoretical wait time scaled by the speedup factor
-					targetWait := diffReal / time.Duration(e.Config.SpeedupFactor)
-
-					// remaining is the actual remaining wait time, obtained by subtracting the elapsed
-					// physical time (time.Since(lastEventTime)) spent on reading, parsing, and the previous write
+					targetWait := diffReal / time.Duration(e.config.SpeedupFactor)
 					remaining := targetWait - time.Since(lastEventTime)
 
 					slog.Debug("Timing computation",
@@ -161,47 +136,32 @@ func (e *Engine) publish(ctx context.Context, records []models.FlightRecord) err
 						"remaining", remaining.String())
 
 					if remaining > 0 {
-						if err := e.hybridWait(ctx, remaining); err != nil {
+						if err := e.waiter.Wait(ctx, remaining); err != nil {
 							return nil // context cancelled
 						}
 					}
-					previousTime = flightTime
-					lastEventTime = time.Now()
+				} else {
+					slog.Debug("Out-of-order record: publishing immediately",
+						"event_time", entry.eventTime.Format("2006-01-02 15:04"),
+						"previous_time", previousTime.Format("2006-01-02 15:04"),
+						"late_by_minutes", int(previousTime.Sub(entry.eventTime).Minutes()))
 				}
+				previousTime = entry.eventTime
+				lastEventTime = time.Now()
 			}
 		} else {
 			slog.Debug("Record has no valid time fields, sending immediately")
 		}
 
-		// === Out-of-order injection ===
-		// With probability OutOfOrderFactor, apply a random delay before publishing
-		// this record to simulate late arrival from a geographically distant sensor.
-		// The delay is expressed in logical event-time minutes (matching the minute-level
-		// granularity of flight timestamps) and then scaled by SpeedupFactor, exactly
-		// as normal inter-event timing is scaled.
-		//   real_delay = rand(OutOfOrderMaxDelayMinutes) * 60s / SpeedupFactor
-		if outOfOrderEnabled && rand.Float64() < e.Config.OutOfOrderFactor {
-			logicalMinutes := rand.Intn(e.Config.OutOfOrderMaxDelayMinutes + 1)
-			logicalDelay := time.Duration(logicalMinutes) * time.Minute
-			realDelay := logicalDelay / time.Duration(e.Config.SpeedupFactor)
-			slog.Debug("Injecting out-of-order delay",
-				"logical_minutes", logicalMinutes,
-				"real_delay", realDelay.String())
-			select {
-			case <-time.After(realDelay):
-			case <-ctx.Done():
-				slog.Info("Simulation interrupted during out-of-order delay")
-				return nil
-			}
-		}
-
-		// === Publish record to sink ===
-		if err := e.Sink.Write(ctx, record); err != nil {
+		if err := e.sink.Write(ctx, entry.record); err != nil {
 			slog.Error("Error writing record to sink", "err", err)
 		} else {
 			recordsProcessed++
 			if timeFound {
-				slog.Info("Record sent", "count", recordsProcessed, "flight_time", flightTime.Format("2006-01-02 15:04"))
+				slog.Info("Record sent",
+					"count", recordsProcessed,
+					"event_time", entry.eventTime.Format("2006-01-02 15:04"),
+					"out_of_order", entry.publishAt.After(entry.eventTime))
 			} else {
 				slog.Info("Record sent", "count", recordsProcessed)
 			}
@@ -212,33 +172,64 @@ func (e *Engine) publish(ctx context.Context, records []models.FlightRecord) err
 	return nil
 }
 
-// hybridWait waits for the given duration using a two-phase strategy:
-//  1. Low-CPU sleep for the majority of the wait (all but the spin threshold).
-//  2. High-precision busy-wait spinlock for the final sub-millisecond window.
+// Builder constructs an Engine by progressively wiring its component dependencies.
+// It applies the GoF Builder pattern, separating the construction of a complex object
+// from its representation and allowing the caller to override individual components
+// (e.g. replace the Loader for testing) without changing the Engine itself.
 //
-// Returns a non-nil error if the context is cancelled during the wait.
-func (e *Engine) hybridWait(ctx context.Context, d time.Duration) error {
-	deadline := time.Now().Add(d)
-	spinThreshold := time.Duration(e.Config.SpinThresholdMs) * time.Millisecond
+// Default components are inferred from the provided Config:
+//   - Loader:    ParquetLoader reading from Config.InputParquetPath
+//   - Scheduler: InOrderScheduler, or OutOfOrderScheduler if out-of-order is configured
+//   - Waiter:    HybridWaiter with Config.SpinThresholdMs
+type Builder struct {
+	cfg       *config.Config
+	sink      output.Sink
+	loader    Loader
+	scheduler Scheduler
+	waiter    Waiter
+}
 
-	// Phase 1: Low-CPU sleep phase for the majority of the wait duration
-	if d > spinThreshold {
-		select {
-		case <-time.After(d - spinThreshold):
-		case <-ctx.Done():
-			slog.Info("Context cancelled during sleep")
-			return ctx.Err()
-		}
+// NewBuilder initialises a Builder with sensible defaults derived from cfg.
+func NewBuilder(cfg *config.Config, sink output.Sink) *Builder {
+	var sched Scheduler = &InOrderScheduler{}
+	if cfg.OutOfOrderFactor > 0 && cfg.OutOfOrderMaxDelayMinutes > 0 {
+		sched = NewOutOfOrderScheduler(&InOrderScheduler{}, cfg.OutOfOrderFactor, cfg.OutOfOrderMaxDelayMinutes)
 	}
 
-	// Phase 2: High-precision active spinlock to cover the remaining time up to the deadline
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			slog.Info("Context cancelled during active wait")
-			return ctx.Err()
-		default:
-		}
+	return &Builder{
+		cfg:       cfg,
+		sink:      sink,
+		loader:    NewParquetLoader(cfg.InputParquetPath),
+		scheduler: sched,
+		waiter:    NewHybridWaiter(cfg.SpinThresholdMs),
 	}
-	return nil
+}
+
+// WithLoader overrides the default Loader.
+func (b *Builder) WithLoader(l Loader) *Builder {
+	b.loader = l
+	return b
+}
+
+// WithScheduler overrides the default Scheduler.
+func (b *Builder) WithScheduler(s Scheduler) *Builder {
+	b.scheduler = s
+	return b
+}
+
+// WithWaiter overrides the default Waiter.
+func (b *Builder) WithWaiter(w Waiter) *Builder {
+	b.waiter = w
+	return b
+}
+
+// Build assembles and returns the configured Engine.
+func (b *Builder) Build() *Engine {
+	return &Engine{
+		config:    b.cfg,
+		sink:      b.sink,
+		loader:    b.loader,
+		scheduler: b.scheduler,
+		waiter:    b.waiter,
+	}
 }
