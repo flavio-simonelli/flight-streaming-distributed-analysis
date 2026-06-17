@@ -1,103 +1,127 @@
 package it.uniroma2.sae.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 
 /**
- * Data model representing a flight record from Kafka.
+ * Clean data model representing a flight record for Flink processing.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class FlightRecord {
+public class FlightRecord implements Serializable {
+    private static final long serialVersionUID = 1L;
 
-    @JsonProperty("YEAR")
-    private int year;
+    // Campi temporali e identificativi nativi
+    private final int year;
+    private final int month;
+    private final int dayOfMonth;
+    private final String airline;
+    private final int crsDepTime;
 
-    @JsonProperty("MONTH")
-    private int month;
+    // Metriche di performance convertite in primitivi (sicure contro i NullPointerException)
+    private final double depDelay;
+    private final double arrDelay;
 
-    @JsonProperty("DAY_OF_MONTH")
-    private int dayOfMonth;
+    // Flag di stato convertiti nel tipo booleano logico appropriato
+    private final boolean cancelled;
+    private final boolean diverted;
 
-    @JsonProperty("OP_UNIQUE_CARRIER")
-    private String carrier;
+    // Cause del ritardo
+    private final double carrierDelay;
+    private final double weatherDelay;
+    private final double nasDelay;
+    private final double securityDelay;
+    private final double lateAircraftDelay;
 
-    @JsonProperty("CRS_DEP_TIME")
-    private int crsDepTime;
+    /**
+     * Constructs a clean FlightRecord from a RawFlightRecord.
+     * Performs missing value handling and type conversions.
+     */
+    public FlightRecord(RawFlightRecord raw) {
+        this.year = raw.getYear();
+        this.month = raw.getMonth();
+        this.dayOfMonth = raw.getDayOfMonth();
+        this.airline = raw.getCarrier(); // Mappa OP_UNIQUE_CARRIER direttamente su airline
+        this.crsDepTime = raw.getCrsDepTime();
 
-    @JsonProperty("DEP_DELAY")
-    private Double depDelay;
+        // 1. GESTIONE VALORI MANCANTI: Trattati come 0.0
+        this.depDelay = raw.getDepDelay() != null ? raw.getDepDelay() : 0.0;
+        this.arrDelay = raw.getArrDelay() != null ? raw.getArrDelay() : 0.0;
 
-    @JsonProperty("ARR_DELAY")
-    private Double arrDelay;
+        // 2. CONVERSIONE DEI TIPI DI STATO: Trasformazione da Double (1.0 / 0.0) a boolean
+        this.cancelled = raw.getCancelled() != null && raw.getCancelled() == 1.0;
+        this.diverted = raw.getDiverted() != null && raw.getDiverted() == 1.0;
 
-    @JsonProperty("CANCELLED")
-    private Double cancelled;
+        // 3. PULIZIA DELLE CAUSE SPECIFICHE DI RITARDO
+        this.carrierDelay = raw.getCarrierDelay() != null ? raw.getCarrierDelay() : 0.0;
+        this.weatherDelay = raw.getWeatherDelay() != null ? raw.getWeatherDelay() : 0.0;
+        this.nasDelay = raw.getNasDelay() != null ? raw.getNasDelay() : 0.0;
+        this.securityDelay = raw.getSecurityDelay() != null ? raw.getSecurityDelay() : 0.0;
+        this.lateAircraftDelay = raw.getLateAircraftDelay() != null ? raw.getLateAircraftDelay() : 0.0;
+    }
 
-    @JsonProperty("DIVERTED")
-    private Double diverted;
+    // Getters
 
-    @JsonProperty("CARRIER_DELAY")
-    private Double carrierDelay;
+    public int getYear() {
+        return year;
+    }
 
-    @JsonProperty("WEATHER_DELAY")
-    private Double weatherDelay;
+    public int getMonth() {
+        return month;
+    }
 
-    @JsonProperty("NAS_DELAY")
-    private Double nasDelay;
+    public int getDayOfMonth() {
+        return dayOfMonth;
+    }
 
-    @JsonProperty("SECURITY_DELAY")
-    private Double securityDelay;
+    public String getAirline() {
+        return airline;
+    }
 
-    @JsonProperty("LATE_AIRCRAFT_DELAY")
-    private Double lateAircraftDelay;
+    public int getCrsDepTime() {
+        return crsDepTime;
+    }
 
-    // Getters and Setters
+    public double getDepDelay() {
+        return depDelay;
+    }
 
-    public int getYear() { return year; }
-    public void setYear(int year) { this.year = year; }
+    public double getArrDelay() {
+        return arrDelay;
+    }
 
-    public int getMonth() { return month; }
-    public void setMonth(int month) { this.month = month; }
+    public boolean isCancelled() {
+        return cancelled;
+    }
 
-    public int getDayOfMonth() { return dayOfMonth; }
-    public void setDayOfMonth(int dayOfMonth) { this.dayOfMonth = dayOfMonth; }
+    public boolean getCancelled() {
+        return cancelled;
+    }
 
-    public String getCarrier() { return carrier; }
-    public void setCarrier(String carrier) { this.carrier = carrier; }
+    public boolean isDiverted() {
+        return diverted;
+    }
 
-    // Helper alias getter for carrier to match standard airline terminology
-    public String getAirline() { return carrier; }
-    public void setAirline(String airline) { this.carrier = airline; }
+    public boolean getDiverted() {
+        return diverted;
+    }
 
-    public int getCrsDepTime() { return crsDepTime; }
-    public void setCrsDepTime(int crsDepTime) { this.crsDepTime = crsDepTime; }
+    public double getCarrierDelay() {
+        return carrierDelay;
+    }
 
-    public Double getDepDelay() { return depDelay; }
-    public void setDepDelay(Double depDelay) { this.depDelay = depDelay; }
+    public double getWeatherDelay() {
+        return weatherDelay;
+    }
 
-    public Double getArrDelay() { return arrDelay; }
-    public void setArrDelay(Double arrDelay) { this.arrDelay = arrDelay; }
+    public double getNasDelay() {
+        return nasDelay;
+    }
 
-    public Double getCancelled() { return cancelled; }
-    public void setCancelled(Double cancelled) { this.cancelled = cancelled; }
+    public double getSecurityDelay() {
+        return securityDelay;
+    }
 
-    public Double getDiverted() { return diverted; }
-    public void setDiverted(Double diverted) { this.diverted = diverted; }
-
-    public Double getCarrierDelay() { return carrierDelay; }
-    public void setCarrierDelay(Double carrierDelay) { this.carrierDelay = carrierDelay; }
-
-    public Double getWeatherDelay() { return weatherDelay; }
-    public void setWeatherDelay(Double weatherDelay) { this.weatherDelay = weatherDelay; }
-
-    public Double getNasDelay() { return nasDelay; }
-    public void setNasDelay(Double nasDelay) { this.nasDelay = nasDelay; }
-
-    public Double getSecurityDelay() { return securityDelay; }
-    public void setSecurityDelay(Double securityDelay) { this.securityDelay = securityDelay; }
-
-    public Double getLateAircraftDelay() { return lateAircraftDelay; }
-    public void setLateAircraftDelay(Double lateAircraftDelay) { this.lateAircraftDelay = lateAircraftDelay; }
+    public double getLateAircraftDelay() {
+        return lateAircraftDelay;
+    }
 
     @Override
     public String toString() {
@@ -105,7 +129,7 @@ public class FlightRecord {
                 "year=" + year +
                 ", month=" + month +
                 ", dayOfMonth=" + dayOfMonth +
-                ", carrier='" + carrier + '\'' +
+                ", airline='" + airline + '\'' +
                 ", crsDepTime=" + crsDepTime +
                 ", depDelay=" + depDelay +
                 ", arrDelay=" + arrDelay +

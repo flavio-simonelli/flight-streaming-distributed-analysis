@@ -3,6 +3,7 @@ package it.uniroma2.sae;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.model.RawFlightRecord;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -66,7 +67,7 @@ public class FlightDelayJob implements Serializable {
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source")
                 .map(new JsonMapper())
-                .filter(record -> record != null && record.getDepDelay() != null)
+                .filter(record -> record != null)
                 .map(new FlightToTupleMapper())
                 .returns(TypeInformation.of(new TypeHint<Tuple2<Double, Long>>(){}))
                 .keyBy(t -> "global")
@@ -101,7 +102,8 @@ public class FlightDelayJob implements Serializable {
         @Override
         public FlightRecord map(String json) {
             try {
-                return MAPPER.readValue(json, FlightRecord.class);
+                RawFlightRecord raw = MAPPER.readValue(json, RawFlightRecord.class);
+                return raw != null ? new FlightRecord(raw) : null;
             } catch (Exception e) {
                 return null;
             }
