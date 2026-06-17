@@ -17,6 +17,7 @@ type Config struct {
 	SpinThresholdMs           int     // Active spin threshold in milliseconds for final precision (e.g., 2)
 	OutOfOrderFactor          float64 // Probability [0.0, 1.0] that a record is published out of order to simulate multi-sensor latency
 	OutOfOrderMaxDelayMinutes int     // Maximum out-of-order delay expressed in logical event-time minutes, scaled by SpeedupFactor at publish time
+	ParquetReaderConcurrency  int64   // Number of parallel reader goroutines for loading Parquet data
 }
 
 // LoadConfig reads configuration settings from environment variables and returns a Config struct.
@@ -50,6 +51,11 @@ func LoadConfig() *Config {
 		ooMaxDelayMinutes = 0
 	}
 
+	parquetConcurrency, _ := strconv.ParseInt(getEnv("PARQUET_READER_CONCURRENCY", "4"), 10, 64)
+	if parquetConcurrency <= 0 {
+		parquetConcurrency = 4
+	}
+
 	// Create and return a Config struct populated with values from environment variables or defaults.
 	return &Config{
 		InputParquetPath:          getEnv("INPUT_PARQUET_PATH", "./data/flights.parquets"),
@@ -61,6 +67,7 @@ func LoadConfig() *Config {
 		SpinThresholdMs:           spinMs,
 		OutOfOrderFactor:          ooFactor,
 		OutOfOrderMaxDelayMinutes: ooMaxDelayMinutes,
+		ParquetReaderConcurrency:  parquetConcurrency,
 	}
 }
 

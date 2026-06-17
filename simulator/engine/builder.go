@@ -35,7 +35,7 @@ func NewBuilder(cfg *config.Config, sink output.Sink) *Builder {
 	return &Builder{
 		cfg:       cfg,
 		sink:      sink,
-		loader:    loader.NewParquetLoader(cfg.InputParquetPath),
+		loader:    loader.NewParquetLoader(cfg.InputParquetPath, cfg.ParquetReaderConcurrency),
 		scheduler: sched,
 		waiter:    waiter.NewHybridWaiter(cfg.SpinThresholdMs),
 	}
