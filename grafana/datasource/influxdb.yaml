@@ -1,15 +1,29 @@
 apiVersion: 1
 
 datasources:
-  - name: InfluxDB
+  - name: InfluxDB Results
     type: influxdb
-    uid: influxdb-v2
+    uid: influxdb-results
     access: proxy
     url: http://influxdb.flight-analysis.local:8086
     jsonData:
       version: Flux
       organization: sae-org
       defaultBucket: flights-data
+    secureJsonData:
+      token: $INFLUXDB_TOKEN
+    version: 1
+    editable: true
+
+  - name: InfluxDB Metrics
+    type: influxdb
+    uid: influxdb-metrics
+    access: proxy
+    url: http://influxdb.flight-analysis.local:8086
+    jsonData:
+      version: Flux
+      organization: sae-org
+      defaultBucket: flink-metrics
     secureJsonData:
       token: $INFLUXDB_TOKEN
     version: 1

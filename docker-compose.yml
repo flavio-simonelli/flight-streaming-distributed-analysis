@@ -28,6 +28,11 @@ services:
         KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
         KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
         KAFKA_NUM_PARTITIONS: 1
+      healthcheck:
+        test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+        interval: 5s
+        timeout: 10s
+        retries: 5
       networks:
         sae-net:
           aliases:
@@ -37,17 +42,15 @@ services:
       image: apache/kafka:4.3.1-rc
       container_name: init-kafka
       depends_on:
-        - kafka
+        kafka:
+          condition: service_healthy
       networks:
         - sae-net
       entrypoint: [ "/bin/sh", "-c" ]
       command:
         - |
-          echo "Waiting for Kafka..."
-          until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --list > /dev/null 2>&1; do
-            sleep 2
-          done
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-stream --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-results --replication-factor 1 --partitions 1
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q1-results --replication-factor 1 --partitions 1
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q2-results --replication-factor 1 --partitions 1
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q3-results --replication-factor 1 --partitions 1
@@ -62,10 +65,17 @@ services:
         - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USER}
         - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASS}
         - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
-        - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+        - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_RESULTS_BUCKET}
         - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+        - INFLUXDB_METRICS_BUCKET=${INFLUXDB_METRICS_BUCKET}
       volumes:
         - influxdb-data:/var/lib/influxdb2
+        - ./influxdb/influx-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
       networks:
         sae-net:
           aliases:
@@ -101,9 +111,9 @@ services:
           metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
           metrics.reporter.influxdb.host: influxdb.flight-analysis.local
           metrics.reporter.influxdb.port: 8086
-          metrics.reporter.influxdb.db: flights-data
+          metrics.reporter.influxdb.db: ${INFLUXDB_METRICS_BUCKET}
           metrics.reporter.influxdb.username: ${INFLUXDB_USER}
-          metrics.reporter.influxdb.password: ${INFLUXDB_PASS}
+          metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
           metrics.latency.interval: 1000
       networks:
         sae-net:
@@ -124,8 +134,8 @@ services:
           metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
           metrics.reporter.influxdb.host: influxdb.flight-analysis.local
           metrics.reporter.influxdb.port: 8086
-          metrics.reporter.influxdb.db: flights-data
-          metrics.reporter.influxdb.username: admin
+          metrics.reporter.influxdb.db: ${INFLUXDB_METRICS_BUCKET}
+          metrics.reporter.influxdb.username: ${INFLUXDB_USER}
           metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
           metrics.latency.interval: 1000
       networks:
@@ -151,7 +161,43 @@ services:
       networks:
         - sae-net
 
+    telegraf:
+      image: telegraf:1.31
+      container_name: telegraf
+      restart: on-failure
+      depends_on:
+        kafka:
+          condition: service_healthy
+        influxdb:
+          condition: service_healthy
+      volumes:
+        - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      environment:
+        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+        - INFLUXDB_ORG=${INFLUXDB_ORG}
+        - INFLUXDB_RESULTS_BUCKET=${INFLUXDB_RESULTS_BUCKET}
+      networks:
+        - sae-net
+
+
 volumes:
   influxdb-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/influxdb
+
   redis-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/redis
+
   grafana-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/grafana
