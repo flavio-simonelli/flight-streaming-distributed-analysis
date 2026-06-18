@@ -4,27 +4,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.model.RawFlightRecord;
+import it.uniroma2.sae.sink.SinkBuilder;
+import it.uniroma2.sae.source.SourceBuilder;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serial;
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Flink Test Job logic. Runs in BATCH mode using ApplicationConfig.
@@ -40,30 +36,16 @@ public class FlightDelayJob implements Serializable {
     }
 
     public void defineJob(StreamExecutionEnvironment env) {
-        String kafkaBootstrap = config.getKafka().getHost() + ":" + config.getKafka().getInternalPort();
-        String inputTopic = config.getKafka().getInputTopic();
-        String sinkTopic = config.getKafka().getSinkTopic();
-        String groupId = config.getKafka().getGroupId();
-
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setParallelism(1);
 
-        KafkaSource<String> source = KafkaSource.<String>builder()
-                .setBootstrapServers(kafkaBootstrap)
-                .setTopics(inputTopic)
-                .setGroupId(groupId)
-                .setStartingOffsets(OffsetsInitializer.earliest())
+        KafkaSource<String> source = new SourceBuilder(config.getKafka())
                 .setBounded(OffsetsInitializer.latest())
-                .setValueOnlyDeserializer(new SimpleStringSchema())
                 .build();
 
-        KafkaSink<String> sink = KafkaSink.<String>builder()
-                .setBootstrapServers(kafkaBootstrap)
-                .setRecordSerializer(new RecordSerializer(sinkTopic))
-                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-                .build();
+        KafkaSink<String> sink = new SinkBuilder(config.getKafka()).build();
 
-        LOG.info("Defining BATCH job: Source={} -> Sink={}", inputTopic, sinkTopic);
+        LOG.info("Defining BATCH job: Source={} -> Sink={}", config.getKafka().getInputTopic(), config.getKafka().getSinkTopic());
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source")
                 .map(new JsonMapper())
@@ -74,27 +56,6 @@ public class FlightDelayJob implements Serializable {
                 .reduce(new SumReducer())
                 .map(new ResultMapper())
                 .sinkTo(sink);
-    }
-
-    public static class RecordSerializer implements KafkaRecordSerializationSchema<String>, Serializable {
-        @Serial
-        private static final long serialVersionUID = 1L;
-        private final String topic;
-
-        public RecordSerializer(String topic) {
-            this.topic = topic;
-        }
-
-        @Override
-        public ProducerRecord<byte[], byte[]> serialize(String element, KafkaSinkContext context, Long timestamp) {
-            return new ProducerRecord<>(
-                    this.topic,
-                    null,
-                    null,
-                    null,
-                    element.getBytes(StandardCharsets.UTF_8)
-            );
-        }
     }
 
     public static class JsonMapper implements MapFunction<String, FlightRecord> {

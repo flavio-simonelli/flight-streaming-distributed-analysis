@@ -48,48 +48,28 @@ services:
             sleep 2
           done
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-stream --replication-factor 1 --partitions 1
-          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-results --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q1-results --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q2-results --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q3-results --replication-factor 1 --partitions 1
 
     influxdb:
-      image: influxdb:3-core
+      image: influxdb:2.7
       container_name: influxdb
-      user: "0"
       ports:
-        - "${INFLUXDB_PORT}:8181"
+        - "${INFLUXDB_PORT}:8086"
       environment:
-        - INFLUXDB3_AUTH_TOKEN=${INFLUXDB_TOKEN}
-        - INFLUXDB3_DATA_DIR=/var/lib/influxdb3/data
-      command:
-        - influxdb3
-        - serve
-        - --node-id=node0
-        - --object-store=file
-        - --data-dir=/var/lib/influxdb3/data
+        - DOCKER_INFLUXDB_INIT_MODE=setup
+        - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USER}
+        - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASS}
+        - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+        - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+        - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
       volumes:
-        - influxdb-data:/var/lib/influxdb3/data
+        - influxdb-data:/var/lib/influxdb2
       networks:
         sae-net:
           aliases:
             - influxdb.flight-analysis.local
-
-    init-influxdb:
-      image: influxdb:3-core
-      container_name: init-influxdb
-      depends_on:
-        - influxdb
-      networks:
-        - sae-net
-      entrypoint: [ "/bin/sh", "-c" ]
-      command:
-        - |
-          echo "Waiting for InfluxDB v3 to respond on port ${INFLUXDB_PORT}..."
-          until influxdb3 show databases --host http://influxdb.flight-analysis.local:${INFLUXDB_PORT} --token ${INFLUXDB_TOKEN} > /dev/null 2>&1; do
-            echo "InfluxDB is not ready yet, sleeping 2s..."
-            sleep 2
-          done
-          echo "InfluxDB is UP. Creating database ${INFLUXDB_BUCKET}..."
-          influxdb3 create database ${INFLUXDB_BUCKET} --host http://influxdb.flight-analysis.local:${INFLUXDB_PORT} --token ${INFLUXDB_TOKEN}
-          echo "Database created successfully."
 
     redis:
       image: redis/redis-stack:latest
@@ -113,11 +93,18 @@ services:
       container_name: jobmanager
       ports:
         - "${FLINK_PORT}:8081"
-      command: jobmanager
+      command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh jobmanager"
       environment:
         - |
           FLINK_PROPERTIES=
           jobmanager.rpc.address: jobmanager
+          metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+          metrics.reporter.influxdb.host: influxdb.flight-analysis.local
+          metrics.reporter.influxdb.port: 8086
+          metrics.reporter.influxdb.db: flights-data
+          metrics.reporter.influxdb.username: ${INFLUXDB_USER}
+          metrics.reporter.influxdb.password: ${INFLUXDB_PASS}
+          metrics.latency.interval: 1000
       networks:
         sae-net:
           aliases:
@@ -128,12 +115,19 @@ services:
       container_name: taskmanager
       depends_on:
         - jobmanager
-      command: taskmanager
+      command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh taskmanager"
       environment:
         - |
           FLINK_PROPERTIES=
           jobmanager.rpc.address: jobmanager
           taskmanager.numberOfTaskSlots: 2
+          metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+          metrics.reporter.influxdb.host: influxdb.flight-analysis.local
+          metrics.reporter.influxdb.port: 8086
+          metrics.reporter.influxdb.db: flights-data
+          metrics.reporter.influxdb.username: admin
+          metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
+          metrics.latency.interval: 1000
       networks:
         - sae-net
 
@@ -151,6 +145,9 @@ services:
         - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
       volumes:
         - grafana-data:/var/lib/grafana
+        - ./data/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+        - ./data/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+        - ./data/grafana/dashboards:/var/lib/grafana/dashboards
       networks:
         - sae-net
 

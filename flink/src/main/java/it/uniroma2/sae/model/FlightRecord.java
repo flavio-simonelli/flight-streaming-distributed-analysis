@@ -1,5 +1,10 @@
 package it.uniroma2.sae.model;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.util.Collector;
+
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -8,6 +13,7 @@ import java.time.ZoneOffset;
  * Clean data model representing a flight record for Flink processing.
  */
 public class FlightRecord implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     // Campi temporali e identificativi nativi
@@ -107,5 +113,30 @@ public class FlightRecord implements Serializable {
                 ", cancelled=" + cancelled +
                 ", diverted=" + diverted +
                 '}';
+    }
+
+    /**
+     * FlatMapFunction that deserializes a raw JSON string from Kafka into a clean FlightRecord.
+     * Uses flatMap instead of map to silently discard malformed records without failing the job.
+     */
+    public static class RawToFlightMapper implements FlatMapFunction<String, FlightRecord> {
+
+        private final ObjectMapper mapper;
+
+        public RawToFlightMapper(ObjectMapper mapper) {
+            this.mapper = mapper;
+        }
+
+        @Override
+        public void flatMap(String json, Collector<FlightRecord> out) {
+            try {
+                RawFlightRecord raw = mapper.readValue(json, RawFlightRecord.class);
+                if (raw != null) {
+                    out.collect(new FlightRecord(raw));
+                }
+            } catch (Exception e) {
+                // Swallow parse errors: malformed records are discarded
+            }
+        }
     }
 }
