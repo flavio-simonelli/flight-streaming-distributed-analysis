@@ -11,7 +11,7 @@ datasources:
       organization: sae-org
       defaultBucket: flights-data
     secureJsonData:
-      token: $INFLUXDB_TOKEN
+      token: apiv3_5C0GLRl9n4gviNmyGc4wtlALsMEaP804VBIJlLvSvBjxDB0_1QHiC8B6_i8kxnkRryAnXW8f9uSn9HANm1_5cA
     version: 1
     editable: true
 
@@ -25,6 +25,6 @@ datasources:
       organization: sae-org
       defaultBucket: flink-metrics
     secureJsonData:
-      token: $INFLUXDB_TOKEN
+      token: apiv3_5C0GLRl9n4gviNmyGc4wtlALsMEaP804VBIJlLvSvBjxDB0_1QHiC8B6_i8kxnkRryAnXW8f9uSn9HANm1_5cA
     version: 1
     editable: true

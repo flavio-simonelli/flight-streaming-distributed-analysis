@@ -22,11 +22,10 @@ if exist .env (
 echo Starting Flight Simulator Container...
 docker run -it --network sae-net ^
   --name %CONTAINER_NAME% ^
-  -e INPUT_PARQUET_PATH="/app/data/flights.parquets" ^
+  -e INPUT_PARQUET_PATH="/app/data/flights.parquet" ^
   -e OUTPUT_TYPE="kafka" ^
   -e KAFKA_BROKERS="kafka.flight-analysis.local:9092" ^
   -e KAFKA_TOPIC="flights-stream" ^
-  -e MAX_RECORDS=50 ^
   -e PARQUET_READER_CONCURRENCY="%PARQUET_READER_CONCURRENCY%" ^
   -v "%cd%/data:/app/data" ^
   %IMAGE_NAME%

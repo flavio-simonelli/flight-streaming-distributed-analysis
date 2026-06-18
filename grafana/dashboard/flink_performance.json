@@ -4,25 +4,19 @@
   "metadata": {
     "name": "flink-perf-metrics",
     "namespace": "default",
-    "uid": "87e218a0-eae1-4f59-b23d-5c4e8aba4398",
-    "resourceVersion": "1781792508097002",
-    "generation": 4,
-    "creationTimestamp": "2026-06-18T13:35:14Z",
+    "uid": "0935700b-3bde-4173-97c6-08c6ee020f71",
+    "resourceVersion": "1781805380380994",
+    "generation": 7,
+    "creationTimestamp": "2026-06-18T17:40:25Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "449809053655040"
+      "grafana.app/deprecatedInternalID": "511509949829120"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/folder": "",
-      "grafana.app/managedBy": "classic-file-provisioning",
-      "grafana.app/managerAllowsEdits": "true",
-      "grafana.app/managerId": "Flink Metrics",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/sourceChecksum": "5c8bd04124eb5ec59e5c913d665c8215",
-      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/flink_performance.json",
-      "grafana.app/sourceTimestamp": "1781751267000",
-      "grafana.app/updatedBy": "user:ffpifp7rrr01sa",
-      "grafana.app/updatedTimestamp": "2026-06-18T14:21:48Z"
+      "grafana.app/updatedBy": "user:efpj1mbyy720wb",
+      "grafana.app/updatedTimestamp": "2026-06-18T17:56:20Z"
     }
   },
   "spec": {
@@ -69,10 +63,10 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "influxdb-v2"
+                        "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /^taskmanager_job_task_numRecordsOutPerSecond$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"_measurement\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\n  |> yield(name: \"Throughput\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /^taskmanager_job_task_numRecordsOutPerSecond$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\n  |> yield(name: \"Throughput\")"
                       }
                     },
                     "refId": "A",
@@ -108,6 +102,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "Throughput Totale",
                   "unit": "rps",
                   "thresholds": {
                     "mode": "absolute",
@@ -143,6 +138,13 @@
                     },
                     "insertNulls": false,
                     "lineInterpolation": "linear",
+                    "lineStyle": {
+                      "dash": [
+                        0,
+                        10
+                      ],
+                      "fill": "dot"
+                    },
                     "lineWidth": 2,
                     "pointSize": 5,
                     "scaleDistribution": {
@@ -185,10 +187,134 @@
                       "group": "influxdb",
                       "version": "v0",
                       "datasource": {
-                        "name": "influxdb-v2"
+                        "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*latency.*/)\n|> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"mean\" or r[\"_field\"] == \"max\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p95\" or r[\"_field\"] == \"p999\")  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"_measurement\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Latenza\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*latency.*/)\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"mean\" or r[\"_field\"] == \"max\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p95\" or r[\"_field\"] == \"p999\")\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Latency\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__field.name}",
+                  "unit": "ms",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 10,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineStyle": {
+                      "dash": [
+                        10,
+                        10
+                      ],
+                      "fill": "dash"
+                    },
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-3": {
+        "kind": "Panel",
+        "spec": {
+          "id": 3,
+          "title": "Flink Backpressure Status",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-metrics"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*isBackPressured$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: if r._value == \"true\" then 1 else 0 }))\n  |> yield(name: \"Backpressure\")"
                       }
                     },
                     "refId": "A",
@@ -224,7 +350,128 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "unit": "ms",
+                  "displayName": "Stato Backpressure",
+                  "unit": "bool_yes_no",
+                  "decimals": 0,
+                  "min": 0,
+                  "max": 1,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 1,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 5,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "stepAfter",
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-4": {
+        "kind": "Panel",
+        "spec": {
+          "id": 4,
+          "title": "Flink Buffer Pool Usage",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-metrics"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*PoolUsage$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> keep(columns: [\"_time\", \"_value\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Pool Usage\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__field.name}",
+                  "unit": "percentunit",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -293,7 +540,7 @@
               "x": 0,
               "y": 0,
               "width": 12,
-              "height": 9,
+              "height": 8,
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-1"
@@ -306,10 +553,36 @@
               "x": 12,
               "y": 0,
               "width": 12,
-              "height": 9,
+              "height": 8,
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-2"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
+              "y": 8,
+              "width": 12,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-3"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 12,
+              "y": 8,
+              "width": 12,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-4"
               }
             }
           }
@@ -325,7 +598,7 @@
     ],
     "timeSettings": {
       "timezone": "browser",
-      "from": "now-5m",
+      "from": "now-15m",
       "to": "now",
       "autoRefresh": "5s",
       "autoRefreshIntervals": [

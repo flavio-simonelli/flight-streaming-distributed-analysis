@@ -58,7 +58,7 @@ func LoadConfig() *Config {
 
 	// Create and return a Config struct populated with values from environment variables or defaults.
 	return &Config{
-		InputParquetPath:          getEnv("INPUT_PARQUET_PATH", "./data/flights.parquets"),
+		InputParquetPath:          getEnv("INPUT_PARQUET_PATH", "./data/flights.parquet"),
 		OutputType:                getEnv("OUTPUT_TYPE", "terminal"),
 		KafkaBrokers:              getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaTopic:                getEnv("KAFKA_TOPIC", "flights-stream"),

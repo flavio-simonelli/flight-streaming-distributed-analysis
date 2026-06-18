@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"simulator/models"
 	"strings"
+	"time"
 
 	"simulator/output"
 
@@ -20,9 +21,11 @@ type KafkaSink struct {
 // NewKafkaSink creates a new instance of KafkaSink with the specified brokers and topic.
 func NewKafkaSink(brokers string, topic string) output.Sink {
 	w := &kafka.Writer{
-		Addr:     kafka.TCP(strings.Split(brokers, ",")...),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{},
+		Addr:         kafka.TCP(strings.Split(brokers, ",")...),
+		Topic:        topic,
+		Balancer:     &kafka.LeastBytes{},
+		BatchSize:    1,
+		BatchTimeout: 10 * time.Millisecond,
 	}
 	return &KafkaSink{writer: w}
 }
