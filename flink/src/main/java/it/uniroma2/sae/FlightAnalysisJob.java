@@ -49,8 +49,9 @@ public class FlightAnalysisJob {
 
             // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
             // BoundedOutOfOrderness accounts for late-arriving events injected by the simulator.
+            // The watermark strategy is MIN from all parallel sources and wait all the sources to emit a watermark before advancing the global watermark.
             WatermarkStrategy<FlightRecord> watermarkStrategy = WatermarkStrategy
-                    .<FlightRecord>forBoundedOutOfOrderness(Duration.ofMinutes(10)) // Impostare questo ad un parametro paragonabile al ritardo 
+                    .<FlightRecord>forBoundedOutOfOrderness(Duration.ofMinutes(10)) //TODO: fine tuning
                     .withTimestampAssigner((event, ts) -> event.getEventTimeMillis());
             
             KafkaSource<FlightRecord> source = new SourceBuilder<FlightRecord>(
