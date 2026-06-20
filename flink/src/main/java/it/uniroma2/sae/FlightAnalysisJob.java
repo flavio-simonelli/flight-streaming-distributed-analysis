@@ -71,7 +71,9 @@ public class FlightAnalysisJob {
                     .build();
 
             // --- Shared KafkaSink ---
-            q1Stream.sinkTo(sink).name("Q1: Kafka Sink -> " + config.getKafka().getOutputTopic("q1"));
+            q1Stream.sinkTo(sink)
+                    .name("Q1: Kafka Sink -> " + config.getKafka().getOutputTopic("q1"))
+                    .slotSharingGroup("q1");
 
             LOG.info("Submitting Flight Analysis Job...");
             env.execute("Flight Streaming Distributed Analysis");
