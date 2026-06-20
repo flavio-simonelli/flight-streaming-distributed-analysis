@@ -5,33 +5,47 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 
 /**
- * Simplified SourceBuilder using composition to wrap Flink's KafkaSourceBuilder with project defaults.
- * Direct inheritance is not possible due to package-private constructors in Flink.
+ * Generic SourceBuilder wrapping Flink's KafkaSourceBuilder to enforce project defaults.
+ * @param <T> The type of record produced by this source.
  */
-public class SourceBuilder {
+public class SourceBuilder<T> {
 
-    private final KafkaSourceBuilder<String> builder;
+    private final KafkaSourceBuilder<T> builder;
 
-    public SourceBuilder(KafkaConfig config) {
-        this.builder = KafkaSource.<String>builder()
+    /**
+     * Main constructor requiring an explicit deserialization schema.
+     */
+    public SourceBuilder(KafkaConfig config, KafkaRecordDeserializationSchema<T> deserializer) {
+        this.builder = KafkaSource.<T>builder()
             .setBootstrapServers(config.getBootstrapServers())
             .setTopics(config.getInputTopic())
             .setGroupId(config.getGroupId())
             .setStartingOffsets(OffsetsInitializer.earliest())
-            .setValueOnlyDeserializer(new SimpleStringSchema());
+            .setDeserializer(deserializer); // Attaches the user-defined deserializer
+    }
+
+    /**
+     * Static factory method to maintain backward compatibility with legacy String sources.
+     */
+    public static SourceBuilder<String> createStringSource(KafkaConfig config) {
+        return new SourceBuilder<>(config, KafkaRecordDeserializationSchema.valueOnly(new SimpleStringSchema()));
     }
 
     /**
      * Sets bounded offsets for BATCH mode.
      */
-    public SourceBuilder setBounded(OffsetsInitializer offsets) {
+    public SourceBuilder<T> setBounded(OffsetsInitializer offsets) {
         this.builder.setBounded(offsets);
         return this;
     }
 
-    public KafkaSource<String> build() {
+    /**
+     * Builds and returns the configured KafkaSource instance.
+     */
+    public KafkaSource<T> build() {
         return this.builder.build();
     }
 }

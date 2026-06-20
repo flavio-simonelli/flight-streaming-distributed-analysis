@@ -6,6 +6,8 @@ import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.query.q1.Query1;
 import it.uniroma2.sae.sink.SinkBuilder;
 import it.uniroma2.sae.source.SourceBuilder;
+import it.uniroma2.sae.source.deserializer.FlightRecordDeserializationSchema;
+
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -44,23 +46,21 @@ public class FlightAnalysisJob {
         }
 
         try (StreamExecutionEnvironment envToClose = env) {
-            // --- Shared KafkaSource ---
-            KafkaSource<String> source = new SourceBuilder(config.getKafka()).build();
 
             // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
             // BoundedOutOfOrderness accounts for late-arriving events injected by the simulator.
             WatermarkStrategy<FlightRecord> watermarkStrategy = WatermarkStrategy
-                    .<FlightRecord>forBoundedOutOfOrderness(Duration.ofMinutes(10))
+                    .<FlightRecord>forBoundedOutOfOrderness(Duration.ofMinutes(10)) // Impostare questo ad un parametro paragonabile al ritardo 
                     .withTimestampAssigner((event, ts) -> event.getEventTimeMillis());
+            
+            KafkaSource<FlightRecord> source = new SourceBuilder<FlightRecord>(
+                    config.getKafka(), 
+                    new FlightRecordDeserializationSchema()
+            ).build();
 
-            // --- Shared clean stream: raw JSON -> RawFlightRecord -> FlightRecord ---
-            ObjectMapper mapper = new ObjectMapper();
             DataStream<FlightRecord> flightStream = env
-                    .fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka: flights-stream")
-                    .flatMap(new FlightRecord.RawToFlightMapper(mapper))
-                    .name("Deserialize & Clean")
-                    .assignTimestampsAndWatermarks(watermarkStrategy)
-                    .name("Watermark Assignment");
+                .fromSource(source, watermarkStrategy, "Kafka: flights-stream")
+                .name("Kafka Source & Watermarks");
 
             // --- Attach query pipelines ---
             Query1 query1 = new Query1();
