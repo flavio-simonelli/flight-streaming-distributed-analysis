@@ -8,7 +8,6 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.io.Serial;
-import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Set;
@@ -44,6 +43,7 @@ public class Query1 {
                 .name("Q1: Filter Airlines")
                 .keyBy(FlightRecord::getAirline)
                 .window(TumblingEventTimeWindows.of(WINDOW_SIZE))
+                .allowedLateness(Duration.ofMinutes(5)) //TODO: fine tuning
                 .aggregate(new Q1Aggregator(), new Q1WindowProcessor())
                 .name("Q1: Aggregate (1h Tumbling Window)");
     }
@@ -52,7 +52,7 @@ public class Query1 {
      * Serializer: encodes a JSON string result as a Kafka message without a business key
      * (round-robin distribution across partitions, appropriate for the low-volume Q1 output).
      */
-    public static class Q1RecordSerializer implements KafkaRecordSerializationSchema<String>, Serializable {
+    public static class Q1RecordSerializer implements KafkaRecordSerializationSchema<String> {
 
         @Serial
         private static final long serialVersionUID = 1L;
