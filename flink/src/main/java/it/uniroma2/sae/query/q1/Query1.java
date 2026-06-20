@@ -17,6 +17,15 @@ import java.util.Set;
  * Query 1 pipeline assembler.
  *
  * Builds the Flink sub-DAG for Query 1 starting from the shared FlightRecord stream.
+ * Follows the Builder pattern: construction is encapsulated here and the caller
+ * only invokes build(stream), keeping FlightAnalysisJob clean of query logic.
+ *
+ * Pipeline:
+ *   mainStream
+ *     -> filter (AA, DL, UA, WN)
+ *     -> keyBy(airline)
+ *     -> TumblingEventTimeWindow(1h)
+ *     -> aggregate(Q1Aggregator, Q1WindowProcessor)
  */
 public class Query1 {
 
