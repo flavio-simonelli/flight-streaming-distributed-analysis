@@ -17,26 +17,31 @@ public class FlightRecord implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // Campi temporali e identificativi nativi
-    private final int year;
-    private final int month;
-    private final int dayOfMonth;
-    private final String airline;
-    private final int crsDepTime;
+    private int year;
+    private int month;
+    private int dayOfMonth;
+    private String airline;
+    private int crsDepTime;
 
     // Metriche di performance convertite in primitivi (sicure contro i NullPointerException)
-    private final double depDelay;
-    private final double arrDelay;
+    private double depDelay;
+    private double arrDelay;
 
     // Flag di stato convertiti nel tipo booleano logico appropriato
-    private final boolean cancelled;
-    private final boolean diverted;
+    private boolean cancelled;
+    private boolean diverted;
 
     // Cause del ritardo
-    private final double carrierDelay;
-    private final double weatherDelay;
-    private final double nasDelay;
-    private final double securityDelay;
-    private final double lateAircraftDelay;
+    private double carrierDelay;
+    private double weatherDelay;
+    private double nasDelay;
+    private double securityDelay;
+    private double lateAircraftDelay;
+
+    /**
+     * No-argument constructor required by Flink's POJO serializer.
+     */
+    public FlightRecord() {}
 
     /**
      * Constructs a clean FlightRecord from a RawFlightRecord.
@@ -99,6 +104,23 @@ public class FlightRecord implements Serializable {
     public double getNasDelay()          { return nasDelay; }
     public double getSecurityDelay()     { return securityDelay; }
     public double getLateAircraftDelay() { return lateAircraftDelay; }
+
+    // Setters required by Flink's POJO serializer
+
+    public void setYear(int year) { this.year = year; }
+    public void setMonth(int month) { this.month = month; }
+    public void setDayOfMonth(int dayOfMonth) { this.dayOfMonth = dayOfMonth; }
+    public void setAirline(String airline) { this.airline = airline; }
+    public void setCrsDepTime(int crsDepTime) { this.crsDepTime = crsDepTime; }
+    public void setDepDelay(double depDelay) { this.depDelay = depDelay; }
+    public void setArrDelay(double arrDelay) { this.arrDelay = arrDelay; }
+    public void setCancelled(boolean cancelled) { this.cancelled = cancelled; }
+    public void setDiverted(boolean diverted) { this.diverted = diverted; }
+    public void setCarrierDelay(double carrierDelay) { this.carrierDelay = carrierDelay; }
+    public void setWeatherDelay(double weatherDelay) { this.weatherDelay = weatherDelay; }
+    public void setNasDelay(double nasDelay) { this.nasDelay = nasDelay; }
+    public void setSecurityDelay(double securityDelay) { this.securityDelay = securityDelay; }
+    public void setLateAircraftDelay(double lateAircraftDelay) { this.lateAircraftDelay = lateAircraftDelay; }
 
     @Override
     public String toString() {
