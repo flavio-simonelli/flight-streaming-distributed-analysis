@@ -81,16 +81,21 @@ services:
           aliases:
             - influxdb.flight-analysis.local
 
-    redis:
-      image: redis/redis-stack:latest
-      container_name: redis-stack
-      ports:
-        - "${REDIS_PORT}:6379"
-        - "8001:8001"
-      environment:
-        - REDISTIMESERIES_ARGS=RETENTION_POLICY=60000 
+    telegraf:
+      image: telegraf:1.31
+      container_name: telegraf
+      restart: on-failure
+      depends_on:
+        kafka:
+          condition: service_healthy
+        influxdb:
+          condition: service_healthy
       volumes:
-        - redis-data:/data
+        - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      environment:
+        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+        - INFLUXDB_ORG=${INFLUXDB_ORG}
+        - INFLUXDB_RESULTS_BUCKET=${INFLUXDB_RESULTS_BUCKET}
       networks:
         - sae-net
 
@@ -158,24 +163,6 @@ services:
         - ./data/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
         - ./data/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
         - ./data/grafana/dashboards:/var/lib/grafana/dashboards
-      networks:
-        - sae-net
-
-    telegraf:
-      image: telegraf:1.31
-      container_name: telegraf
-      restart: on-failure
-      depends_on:
-        kafka:
-          condition: service_healthy
-        influxdb:
-          condition: service_healthy
-      volumes:
-        - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-      environment:
-        - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-        - INFLUXDB_ORG=${INFLUXDB_ORG}
-        - INFLUXDB_RESULTS_BUCKET=${INFLUXDB_RESULTS_BUCKET}
       networks:
         - sae-net
 
