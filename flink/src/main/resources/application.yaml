@@ -7,7 +7,9 @@ kafka:
   groupId: "flink-analysis-group"
   outputTopics:
     q1: "flights-q1-results"
-    q2: "flights-q2-results"
+    q2_1h: "flights-q2-1h-results"
+    q2_6h: "flights-q2-6h-results"
+    q2_global: "flights-q2-global-results"
     q3: "flights-q3-results"
 
 flink:

@@ -51,6 +51,12 @@ public class RawFlightRecord {
     @JsonProperty("LATE_AIRCRAFT_DELAY")
     private Double lateAircraftDelay;
 
+    @JsonProperty("ORIGIN_AIRPORT_ID")
+    private Integer originAirportId;
+
+    @JsonProperty("DEST")
+    private String dest;
+
     // Getters and Setters
 
     public int getYear() { return year; }
@@ -95,6 +101,12 @@ public class RawFlightRecord {
     public Double getLateAircraftDelay() { return lateAircraftDelay; }
     public void setLateAircraftDelay(Double lateAircraftDelay) { this.lateAircraftDelay = lateAircraftDelay; }
 
+    public Integer getOriginAirportId() { return originAirportId; }
+    public void setOriginAirportId(Integer originAirportId) { this.originAirportId = originAirportId; }
+
+    public String getDest() { return dest; }
+    public void setDest(String dest) { this.dest = dest; }
+
     @Override
     public String toString() {
         return "RawFlightRecord{" +
@@ -112,6 +124,8 @@ public class RawFlightRecord {
                 ", nasDelay=" + nasDelay +
                 ", securityDelay=" + securityDelay +
                 ", lateAircraftDelay=" + lateAircraftDelay +
+                ", originAirportId=" + originAirportId +
+                ", dest='" + dest + '\'' +
                 '}';
     }
 }

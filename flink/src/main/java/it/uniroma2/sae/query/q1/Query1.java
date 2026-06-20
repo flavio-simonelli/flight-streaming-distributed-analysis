@@ -45,8 +45,7 @@ public class Query1 {
                 .window(TumblingEventTimeWindows.of(WINDOW_SIZE))
                 .allowedLateness(Duration.ofMinutes(5)) //TODO: fine tuning
                 .aggregate(new Q1Aggregator(), new Q1WindowProcessor())
-                .name("Q1: Aggregate (1h Tumbling Window)")
-                .slotSharingGroup("q1");
+                .name("Q1: Aggregate (1h Tumbling Window)");
     }
 
     /**

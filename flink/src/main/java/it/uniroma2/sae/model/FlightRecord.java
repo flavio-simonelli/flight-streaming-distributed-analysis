@@ -38,6 +38,9 @@ public class FlightRecord implements Serializable {
     private double securityDelay;
     private double lateAircraftDelay;
 
+    private int originAirportId;
+    private String dest;
+
     /**
      * No-argument constructor required by Flink's POJO serializer.
      */
@@ -68,6 +71,9 @@ public class FlightRecord implements Serializable {
         this.nasDelay          = raw.getNasDelay()          != null ? raw.getNasDelay()          : 0.0;
         this.securityDelay     = raw.getSecurityDelay()     != null ? raw.getSecurityDelay()     : 0.0;
         this.lateAircraftDelay = raw.getLateAircraftDelay() != null ? raw.getLateAircraftDelay() : 0.0;
+
+        this.originAirportId   = raw.getOriginAirportId()   != null ? raw.getOriginAirportId()   : 0;
+        this.dest              = raw.getDest()              != null ? raw.getDest()              : "UNKNOWN";
     }
 
     /**
@@ -104,6 +110,8 @@ public class FlightRecord implements Serializable {
     public double getNasDelay()          { return nasDelay; }
     public double getSecurityDelay()     { return securityDelay; }
     public double getLateAircraftDelay() { return lateAircraftDelay; }
+    public int getOriginAirportId()      { return originAirportId; }
+    public String getDest()              { return dest; }
 
     // Setters required by Flink's POJO serializer
 
@@ -121,6 +129,8 @@ public class FlightRecord implements Serializable {
     public void setNasDelay(double nasDelay) { this.nasDelay = nasDelay; }
     public void setSecurityDelay(double securityDelay) { this.securityDelay = securityDelay; }
     public void setLateAircraftDelay(double lateAircraftDelay) { this.lateAircraftDelay = lateAircraftDelay; }
+    public void setOriginAirportId(int originAirportId) { this.originAirportId = originAirportId; }
+    public void setDest(String dest) { this.dest = dest; }
 
     @Override
     public String toString() {

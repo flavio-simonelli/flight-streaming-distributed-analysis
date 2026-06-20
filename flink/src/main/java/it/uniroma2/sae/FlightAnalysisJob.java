@@ -3,6 +3,7 @@ package it.uniroma2.sae;
 import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.query.q1.Query1;
+import it.uniroma2.sae.query.q2.Query2;
 import it.uniroma2.sae.sink.SinkBuilder;
 import it.uniroma2.sae.source.SourceBuilder;
 import it.uniroma2.sae.source.deserializer.FlightRecordDeserializationSchema;
@@ -66,14 +67,37 @@ public class FlightAnalysisJob {
             Query1 query1 = new Query1();
             DataStream<String> q1Stream = query1.build(flightStream);
 
-            KafkaSink<String> sink = new SinkBuilder(config.getKafka())
+            Query2 query2 = new Query2();
+            Query2.Q2Pipelines q2Pipelines = query2.build(flightStream);
+
+            // --- Shared KafkaSinks ---
+            KafkaSink<String> sink1 = new SinkBuilder(config.getKafka())
                     .withRecordSerializer(new Query1.Q1RecordSerializer(config.getKafka()))
                     .build();
 
-            // --- Shared KafkaSink ---
-            q1Stream.sinkTo(sink)
-                    .name("Q1: Kafka Sink -> " + config.getKafka().getOutputTopic("q1"))
-                    .slotSharingGroup("q1");
+            KafkaSink<String> sink2_1h = new SinkBuilder(config.getKafka())
+                    .withRecordSerializer(new Query2.Q2RecordSerializer(config.getKafka(), "q2_1h"))
+                    .build();
+
+            KafkaSink<String> sink2_6h = new SinkBuilder(config.getKafka())
+                    .withRecordSerializer(new Query2.Q2RecordSerializer(config.getKafka(), "q2_6h"))
+                    .build();
+
+            KafkaSink<String> sink2_global = new SinkBuilder(config.getKafka())
+                    .withRecordSerializer(new Query2.Q2RecordSerializer(config.getKafka(), "q2_global"))
+                    .build();
+
+            q1Stream.sinkTo(sink1)
+                    .name("Q1: Kafka Sink -> " + config.getKafka().getOutputTopic("q1"));
+
+            q2Pipelines.getW1().sinkTo(sink2_1h)
+                    .name("Q2 1h: Kafka Sink -> " + config.getKafka().getOutputTopic("q2_1h"));
+
+            q2Pipelines.getW6().sinkTo(sink2_6h)
+                    .name("Q2 6h: Kafka Sink -> " + config.getKafka().getOutputTopic("q2_6h"));
+
+            q2Pipelines.getWGlobal().sinkTo(sink2_global)
+                    .name("Q2 Global: Kafka Sink -> " + config.getKafka().getOutputTopic("q2_global"));
 
             LOG.info("Submitting Flight Analysis Job...");
             env.execute("Flight Streaming Distributed Analysis");
