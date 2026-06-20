@@ -2,7 +2,8 @@ package it.uniroma2.sae.query.q1;
 
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import it.uniroma2.sae.sink.SinkBuilder;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -16,15 +17,6 @@ import java.util.Set;
  * Query 1 pipeline assembler.
  *
  * Builds the Flink sub-DAG for Query 1 starting from the shared FlightRecord stream.
- * Follows the Builder pattern: construction is encapsulated here and the caller
- * only invokes build(stream), keeping FlightAnalysisJob clean of query logic.
- *
- * Pipeline:
- *   mainStream
- *     -> filter (AA, DL, UA, WN)
- *     -> keyBy(airline)
- *     -> TumblingEventTimeWindow(1h)
- *     -> aggregate(Q1Aggregator, Q1WindowProcessor)
  */
 public class Query1 {
 
@@ -32,13 +24,14 @@ public class Query1 {
     private static final Duration WINDOW_SIZE = Duration.ofHours(1);
 
     /**
-     * Attaches the Query 1 pipeline to the provided shared stream.
+     * Attaches the Query 1 pipeline and its Kafka sink to the provided shared stream.
      *
      * @param mainStream shared, watermarked DataStream of clean FlightRecord events
+     * @param kafkaConfig Configuration for building the output Kafka Sink
      */
-    public DataStream<String> build(DataStream<FlightRecord> mainStream) {
+    public void buildAndAttach(DataStream<FlightRecord> mainStream, KafkaConfig kafkaConfig) {
 
-        return mainStream
+        DataStream<String> q1Stream = mainStream
                 .filter(event -> TARGET_AIRLINES.contains(event.getAirline()))
                 .name("Q1: Filter Airlines")
                 .keyBy(FlightRecord::getAirline)
@@ -46,6 +39,13 @@ public class Query1 {
                 .allowedLateness(Duration.ofMinutes(5)) //TODO: fine tuning
                 .aggregate(new Q1Aggregator(), new Q1WindowProcessor())
                 .name("Q1: Aggregate (1h Tumbling Window)");
+
+        KafkaSink<String> sink = new SinkBuilder(kafkaConfig)
+                .withRecordSerializer(new Q1RecordSerializer(kafkaConfig))
+                .build();
+
+        q1Stream.sinkTo(sink)
+                .name("Q1: Kafka Sink -> " + kafkaConfig.getOutputTopic("q1"));
     }
 
     /**

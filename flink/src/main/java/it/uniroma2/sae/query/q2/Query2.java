@@ -2,7 +2,8 @@ package it.uniroma2.sae.query.q2;
 
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
-import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import it.uniroma2.sae.sink.SinkBuilder;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -18,23 +19,7 @@ import java.time.Duration;
  */
 public class Query2 {
 
-    public static class Q2Pipelines {
-        private final DataStream<String> w1;
-        private final DataStream<String> w6;
-        private final DataStream<String> wGlobal;
-
-        public Q2Pipelines(DataStream<String> w1, DataStream<String> w6, DataStream<String> wGlobal) {
-            this.w1 = w1;
-            this.w6 = w6;
-            this.wGlobal = wGlobal;
-        }
-
-        public DataStream<String> getW1() { return w1; }
-        public DataStream<String> getW6() { return w6; }
-        public DataStream<String> getWGlobal() { return wGlobal; }
-    }
-
-    public Q2Pipelines build(DataStream<FlightRecord> mainStream) {
+    public void buildAndAttach(DataStream<FlightRecord> mainStream, KafkaConfig kafkaConfig) {
         
         // Optimize network transfer: key the raw stream once and reuse it across all pipelines
         // to avoid redundant network shuffles (network serialization/deserialization) of the raw events.
@@ -69,7 +54,27 @@ public class Query2 {
                 .process(new Q2RankProcessor())
                 .name("Q2: Global Rank");
 
-        return new Q2Pipelines(w1, w6, wGlobal);
+        // Sinks
+        KafkaSink<String> sink2_1h = new SinkBuilder(kafkaConfig)
+                .withRecordSerializer(new Q2RecordSerializer(kafkaConfig, "q2_1h"))
+                .build();
+
+        KafkaSink<String> sink2_6h = new SinkBuilder(kafkaConfig)
+                .withRecordSerializer(new Q2RecordSerializer(kafkaConfig, "q2_6h"))
+                .build();
+
+        KafkaSink<String> sink2_global = new SinkBuilder(kafkaConfig)
+                .withRecordSerializer(new Q2RecordSerializer(kafkaConfig, "q2_global"))
+                .build();
+
+        w1.sinkTo(sink2_1h)
+                .name("Q2 1h: Kafka Sink -> " + kafkaConfig.getOutputTopic("q2_1h"));
+
+        w6.sinkTo(sink2_6h)
+                .name("Q2 6h: Kafka Sink -> " + kafkaConfig.getOutputTopic("q2_6h"));
+
+        wGlobal.sinkTo(sink2_global)
+                .name("Q2 Global: Kafka Sink -> " + kafkaConfig.getOutputTopic("q2_global"));
     }
 
     /**

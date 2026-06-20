@@ -65,39 +65,10 @@ public class FlightAnalysisJob {
 
             // --- Attach query pipelines ---
             Query1 query1 = new Query1();
-            DataStream<String> q1Stream = query1.build(flightStream);
+            query1.buildAndAttach(flightStream, config.getKafka());
 
             Query2 query2 = new Query2();
-            Query2.Q2Pipelines q2Pipelines = query2.build(flightStream);
-
-            // --- Shared KafkaSinks ---
-            KafkaSink<String> sink1 = new SinkBuilder(config.getKafka())
-                    .withRecordSerializer(new Query1.Q1RecordSerializer(config.getKafka()))
-                    .build();
-
-            KafkaSink<String> sink2_1h = new SinkBuilder(config.getKafka())
-                    .withRecordSerializer(new Query2.Q2RecordSerializer(config.getKafka(), "q2_1h"))
-                    .build();
-
-            KafkaSink<String> sink2_6h = new SinkBuilder(config.getKafka())
-                    .withRecordSerializer(new Query2.Q2RecordSerializer(config.getKafka(), "q2_6h"))
-                    .build();
-
-            KafkaSink<String> sink2_global = new SinkBuilder(config.getKafka())
-                    .withRecordSerializer(new Query2.Q2RecordSerializer(config.getKafka(), "q2_global"))
-                    .build();
-
-            q1Stream.sinkTo(sink1)
-                    .name("Q1: Kafka Sink -> " + config.getKafka().getOutputTopic("q1"));
-
-            q2Pipelines.getW1().sinkTo(sink2_1h)
-                    .name("Q2 1h: Kafka Sink -> " + config.getKafka().getOutputTopic("q2_1h"));
-
-            q2Pipelines.getW6().sinkTo(sink2_6h)
-                    .name("Q2 6h: Kafka Sink -> " + config.getKafka().getOutputTopic("q2_6h"));
-
-            q2Pipelines.getWGlobal().sinkTo(sink2_global)
-                    .name("Q2 Global: Kafka Sink -> " + config.getKafka().getOutputTopic("q2_global"));
+            query2.buildAndAttach(flightStream, config.getKafka());
 
             LOG.info("Submitting Flight Analysis Job...");
             env.execute("Flight Streaming Distributed Analysis");
