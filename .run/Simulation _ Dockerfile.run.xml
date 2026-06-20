@@ -4,37 +4,13 @@
       <settings>
         <option name="imageTag" value="flight-simulator" />
         <option name="containerName" value="simulator" />
-        <option name="envVars">
-          <list>
-            <DockerEnvVarImpl>
-              <option name="name" value="INPUT_PARQUET_PATH" />
-              <option name="value" value="/app/data/flights.parquets" />
-            </DockerEnvVarImpl>
-            <DockerEnvVarImpl>
-              <option name="name" value="KAFKA_BROKERS" />
-              <option name="value" value="kafka.flight-analysis.local:9092" />
-            </DockerEnvVarImpl>
-            <DockerEnvVarImpl>
-              <option name="name" value="KAFKA_TOPIC" />
-              <option name="value" value="flights-stream" />
-            </DockerEnvVarImpl>
-            <DockerEnvVarImpl>
-              <option name="name" value="MAX_RECORDS" />
-              <option name="value" value="50" />
-            </DockerEnvVarImpl>
-            <DockerEnvVarImpl>
-              <option name="name" value="OUTPUT_TYPE" />
-              <option name="value" value="kafka" />
-            </DockerEnvVarImpl>
-          </list>
-        </option>
-        <option name="commandLineOptions" value="--network sae-net" />
+        <option name="commandLineOptions" value="--network sae-net --env-file D:\progetti_uni\sistemi_architetture_bd\proj_stream\simulator\.env" />
         <option name="sourceFilePath" value="simulator/Dockerfile" />
         <option name="volumeBindings">
           <list>
             <DockerVolumeBindingImpl>
               <option name="containerPath" value="/app/data" />
-              <option name="hostPath" value="simulator_simulator-data" />
+              <option name="hostPath" value="D:\progetti_uni\sistemi_architetture_bd\proj_stream\simulator\data" />
               <option name="readOnly" value="true" />
             </DockerVolumeBindingImpl>
           </list>

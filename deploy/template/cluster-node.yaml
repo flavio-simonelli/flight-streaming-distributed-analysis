@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EC2 Node for Flink Flight Stream Analysis with Docker and Private DNS'
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t3.small
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0c02fb55956c7d316
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  HostedZoneId:
+    Type: String
+    Description: ID of the Private Hosted Zone
+  NodeHostname:
+    Type: String
+    Description: Node hostname (e.g., jobmanager.flight-analysis.local or kafka-1.flight-analysis.local)
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceName:
+    Type: String
+    Default: ClusterNode
+  S3Bucket:
+    Type: String
+  InitScripts:
+    Type: String
+    Default: docker-install.sh
+  DeployScripts:
+    Type: String
+  EnvironmentFile:
+    Type: String
+    Description: Specific .env file for this node
+
+Resources:
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - LabRole
+
+  ClusterInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref ImageId
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref InstanceProfile
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref SubnetId
+          GroupSet:
+            - !Ref SecurityGroupId
+      Tags:
+        - Key: Name
+          Value: !Ref InstanceName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          LOG_FILE="/var/log/user-data.log"
+          exec > >(tee -a $LOG_FILE) 2>&1
+          echo "UserData started $(date)"
+
+          # Install AWS CLI v2 if not present
+          if ! command -v aws &> /dev/null; then
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+              yum install -y unzip
+              unzip /tmp/awscliv2.zip -d /tmp
+              /tmp/aws/install
+          fi
+
+          # Execute init scripts (Docker install, etc.)
+          for script in ${InitScripts}; do
+              aws s3 cp "s3://${S3Bucket}/deploy/init/$script" "/tmp/$script"
+              chmod +x "/tmp/$script"
+              /tmp/$script
+          done
+          
+          cd /home/ec2-user
+          
+          # Download environment file
+          aws s3 cp "s3://${S3Bucket}/deploy/envs/${EnvironmentFile}" "/home/ec2-user/.env"
+          
+          # Dynamically discover and append PUBLIC_IP to .env
+          IMDS_TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+          if [ -z "$PUBLIC_IP" ] || [ "$PUBLIC_IP" == "None" ]; then
+              PUBLIC_IP=$(curl -s http://checkip.amazonaws.com)
+          fi
+          echo "PUBLIC_IP=$PUBLIC_IP" >> /home/ec2-user/.env
+          
+          # Execute deploy scripts (Docker Compose up, etc.)
+          for script in ${DeployScripts}; do
+              aws s3 cp "s3://${S3Bucket}/deploy/scripts/$script" "/home/ec2-user/$script"
+              chmod +x "/home/ec2-user/$script"
+              /home/ec2-user/$script
+          done
+
+          echo "UserData completed $(date)"
+
+  NodeDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref NodeHostname
+      Type: A
+      TTL: 60
+      ResourceRecords:
+        - !GetAtt ClusterInstance.PrivateIp
+
+Outputs:
+  InstanceId:
+    Value: !Ref ClusterInstance
+  PublicIp:
+    Value: !GetAtt ClusterInstance.PublicIp
+  PrivateIp:
+    Value: !GetAtt ClusterInstance.PrivateIp
+  DnsHostname:
+    Value: !Ref NodeHostname

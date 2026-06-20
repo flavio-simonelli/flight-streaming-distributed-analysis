@@ -30,13 +30,20 @@ public class FlightAnalysisJob {
         String flinkHost = config.getFlink().getHost();
         int flinkPort = config.getFlink().getPort();
 
-        LOG.info("Connecting to Flink cluster at {}:{}...", flinkHost, flinkPort);
+        StreamExecutionEnvironment env;
+        if (System.getenv("FLINK_CONF_DIR") != null) {
+            LOG.info("Detected Flink cluster environment.");
+            env = StreamExecutionEnvironment.getExecutionEnvironment();
+        } else {
+            LOG.info("No Flink cluster environment detected. Connecting to Flink cluster at {}:{} to submit remotely...", flinkHost, flinkPort);
+            env = StreamExecutionEnvironment.createRemoteEnvironment(
+                    flinkHost,
+                    flinkPort,
+                    "target/flight-analysis-1.0.jar"
+            );
+        }
 
-        try (StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-                flinkHost,
-                flinkPort,
-                "target/flight-analysis-1.0.jar"
-        )) {
+        try (StreamExecutionEnvironment envToClose = env) {
             // --- Shared KafkaSource ---
             KafkaSource<String> source = new SourceBuilder(config.getKafka()).build();
 

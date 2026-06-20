@@ -1,0 +1,39 @@
+name: flight-analysis-influxdb-telegraf
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    network_mode: host
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASS}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_RESULTS_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_METRICS_BUCKET=${INFLUXDB_METRICS_BUCKET}
+    volumes:
+      - ./data/influxdb:/var/lib/influxdb2
+      - ./influxdb/influx-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  telegraf:
+    image: telegraf:1.31
+    container_name: telegraf
+    network_mode: host
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    environment:
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_RESULTS_BUCKET=${INFLUXDB_RESULTS_BUCKET}
+    restart: always

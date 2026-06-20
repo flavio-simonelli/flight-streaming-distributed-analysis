@@ -1,0 +1,19 @@
+name: flight-analysis-metrics
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    network_mode: host
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    restart: always
+
+volumes:
+  grafana-data:

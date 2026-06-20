@@ -1,0 +1,24 @@
+name: flight-analysis-flink-master
+
+services:
+  jobmanager:
+    image: apache/flink:2.2.1-java21
+    container_name: jobmanager
+    network_mode: host
+    command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh jobmanager"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: ${NODE_HOSTNAME}
+        metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+        metrics.reporter.influxdb.host: influxdb.flight-analysis.local
+        metrics.reporter.influxdb.port: 8086
+        metrics.reporter.influxdb.db: ${INFLUXDB_METRICS_BUCKET}
+        metrics.reporter.influxdb.username: ${INFLUXDB_USER}
+        metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
+        metrics.latency.interval: 1000
+        rest.bind-address: 0.0.0.0
+        jobmanager.bind-host: 0.0.0.0
+    volumes:
+      - ./flink:/opt/flink/flink-jobs
+    restart: always

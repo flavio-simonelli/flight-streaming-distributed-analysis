@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Network Infrastructure with Private DNS for Flink/Kafka Flight Stream Analysis'
+
+Parameters:
+  VpcName:
+    Type: String
+    Description: Name tag for the VPC
+  SubnetName:
+    Type: String
+    Description: Name tag for the Public Subnet
+  VpcCIDR:
+    Type: String
+    Default: 10.0.0.0/16
+  PublicSubnetCIDR:
+    Type: String
+    Default: 10.0.1.0/24
+  PrivateDomainName:
+    Type: String
+    Default: flight-analysis.local
+    Description: Domain name for the private hosted zone
+  SgName:
+    Type: String
+    Default: Flight-Stream-SG
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+  ClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref SgName
+      GroupDescription: Allow internal cluster traffic and external UI access
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # SSH access
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        # Flink Web UI
+        - IpProtocol: tcp
+          FromPort: 8081
+          ToPort: 8081
+          CidrIp: 0.0.0.0/0
+        # InfluxDB
+        - IpProtocol: tcp
+          FromPort: 8086
+          ToPort: 8086
+          CidrIp: 0.0.0.0/0
+        # Grafana Dashboard
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+        # Kafka External access (Simulator)
+        - IpProtocol: tcp
+          FromPort: 9094
+          ToPort: 9094
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Ref SgName
+
+  SgInternalIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ClusterSecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref ClusterSecurityGroup
+
+  PrivateHostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref PrivateDomainName
+      VPCs:
+        - VPCId: !Ref VPC
+          VPCRegion: !Ref "AWS::Region"
+      HostedZoneConfig:
+        Comment: "Private zone for Flink Flight Stream Analysis internal networking"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${VpcName}-IGW"
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      CidrBlock: !Ref PublicSubnetCIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Ref SubnetName
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${SubnetName}-RT"
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+Outputs:
+  VpcId:
+    Description: "VPC ID"
+    Value: !Ref VPC
+  SubnetId:
+    Description: "Public Subnet ID"
+    Value: !Ref PublicSubnet
+  HostedZoneId:
+    Description: "ID of the Private Hosted Zone"
+    Value: !Ref PrivateHostedZone
+    Export:
+      Name: !Sub "${VpcName}-HostedZoneId"
+  DomainName:
+    Description: "Internal Domain Name"
+    Value: !Ref PrivateDomainName
