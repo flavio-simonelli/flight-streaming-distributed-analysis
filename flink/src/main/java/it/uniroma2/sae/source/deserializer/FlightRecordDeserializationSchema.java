@@ -1,6 +1,7 @@
 package it.uniroma2.sae.source.deserializer;
 
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.model.RawFlightRecord;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -24,6 +25,13 @@ public class FlightRecordDeserializationSchema implements KafkaRecordDeserializa
     // Marked transient to prevent serialization issues across the distributed Flink cluster
     private transient ObjectMapper mapper;
 
+    private ObjectMapper getMapper() {
+        if (mapper == null) {
+            mapper = new ObjectMapper();
+        }
+        return mapper;
+    }
+
     @Override
     public void open(DeserializationSchema.InitializationContext context) throws Exception {
         // Initialize the ObjectMapper inside the open method, which executes on the TaskManagers
@@ -38,8 +46,10 @@ public class FlightRecordDeserializationSchema implements KafkaRecordDeserializa
         }
         
         try {
-            // Direct byte-to-object deserialization via Jackson
-            FlightRecord flight = mapper.readValue(record.value(), FlightRecord.class);
+            // First deserialize to RawFlightRecord which has the correct Jackson annotations
+            RawFlightRecord raw = getMapper().readValue(record.value(), RawFlightRecord.class);
+            // Construct the clean FlightRecord using the raw record
+            FlightRecord flight = new FlightRecord(raw);
             
             // Emit the deserialized object into the Flink stream
             out.collect(flight);

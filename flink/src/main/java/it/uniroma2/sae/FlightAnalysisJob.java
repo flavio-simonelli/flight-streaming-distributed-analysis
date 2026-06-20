@@ -1,6 +1,5 @@
 package it.uniroma2.sae;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.query.q1.Query1;
