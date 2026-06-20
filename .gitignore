@@ -5,6 +5,7 @@
 data/grafana
 data/influxdb
 data/redis
+keys
 
 # Simulator
 simulator.iml
