@@ -69,7 +69,8 @@ public class FlightAnalysisJob {
             KafkaSink<String> sink = new SinkBuilder(config.getKafka())
                     .withRecordSerializer(new Query1.Q1RecordSerializer(config.getKafka()))
                     .build();
-            
+
+            // --- Shared KafkaSink ---
             q1Stream.sinkTo(sink).name("Q1: Kafka Sink -> " + config.getKafka().getOutputTopic("q1"));
 
             LOG.info("Submitting Flight Analysis Job...");

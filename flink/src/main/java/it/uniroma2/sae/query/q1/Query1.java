@@ -26,7 +26,6 @@ import java.util.Set;
  *     -> keyBy(airline)
  *     -> TumblingEventTimeWindow(1h)
  *     -> aggregate(Q1Aggregator, Q1WindowProcessor)
- *     -> KafkaSink(flights-q1-results)
  */
 public class Query1 {
 
