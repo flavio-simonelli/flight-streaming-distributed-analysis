@@ -1,11 +1,10 @@
 package it.uniroma2.sae;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
-import it.uniroma2.sae.model.RawFlightRecord;
 import it.uniroma2.sae.sink.SinkBuilder;
 import it.uniroma2.sae.source.SourceBuilder;
+import it.uniroma2.sae.source.deserializer.FlightRecordDeserializationSchema;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -39,16 +38,18 @@ public class FlightDelayJob implements Serializable {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setParallelism(1);
 
-        KafkaSource<String> source = new SourceBuilder(config.getKafka())
-                .setBounded(OffsetsInitializer.latest())
-                .build();
+        KafkaSource<FlightRecord> source = new SourceBuilder<FlightRecord>(
+                config.getKafka(),
+                new FlightRecordDeserializationSchema()
+        )
+        .setBounded(OffsetsInitializer.latest())
+        .build();
 
         KafkaSink<String> sink = new SinkBuilder(config.getKafka()).build();
 
         LOG.info("Defining BATCH job: Source={} -> Sink={}", config.getKafka().getInputTopic(), config.getKafka().getSinkTopic());
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source")
-                .map(new JsonMapper())
                 .filter(record -> record != null)
                 .map(new FlightToTupleMapper())
                 .returns(TypeInformation.of(new TypeHint<Tuple2<Double, Long>>(){}))
@@ -56,19 +57,6 @@ public class FlightDelayJob implements Serializable {
                 .reduce(new SumReducer())
                 .map(new ResultMapper())
                 .sinkTo(sink);
-    }
-
-    public static class JsonMapper implements MapFunction<String, FlightRecord> {
-        private static final ObjectMapper MAPPER = new ObjectMapper();
-        @Override
-        public FlightRecord map(String json) {
-            try {
-                RawFlightRecord raw = MAPPER.readValue(json, RawFlightRecord.class);
-                return raw != null ? new FlightRecord(raw) : null;
-            } catch (Exception e) {
-                return null;
-            }
-        }
     }
 
     public static class FlightToTupleMapper implements MapFunction<FlightRecord, Tuple2<Double, Long>> {
