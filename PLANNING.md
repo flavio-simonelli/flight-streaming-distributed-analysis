@@ -89,7 +89,7 @@ Strategia per misurare latenza, throughput e comportamento del sistema durante i
 
 ---
 
-# Specifica Implementativa Query 1
+# Specifica Implementativa AirlinePerformanceQuery (Query 1)
 
 La Query 1 effettua il monitoraggio in tempo reale dello stato operativo delle principali compagnie aeree: American Airlines (AA), Delta (DL), United (UA) e Southwest (WN). Gli eventi vengono aggregati usando finestre di tipo Tumbling basate sull'Event Time, con una durata di 1 ora logica.
 
@@ -97,15 +97,16 @@ La Query 1 effettua il monitoraggio in tempo reale dello stato operativo delle p
 Per implementare questa query si utilizza la DataStream API di Flink. La topologia del flusso è definita come segue:
 
 ```java
-DataStream<Q1OutputRecord> q1ResultStream = mainStream
-    .filter(event -> Arrays.asList("AA", "DL", "UA", "WN").contains(event.getAirline()))
-    .keyBy(FlightEvent::getAirline)
-    .window(TumblingEventTimeWindows.of(Duration.ofHours(1)))
-    .aggregate(new Q1Aggregator(), new Q1WindowProcessor());
+DataStream<String> stream = targetAirlinesStream
+        .keyBy(FlightRecord::getAirline)
+        .window(TumblingEventTimeWindows.of(Duration.ofHours(1)))
+        .allowedLateness(Duration.ofMinutes(5))
+        .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor())
+        .name("Q1: Performance (1h)");
 ```
 
 ### Scelte di Progettazione
-- **Uso delle Window API**: si è preferito l'uso delle API nativamente fornite da Flink rispetto a una gestione manuale dello stato e dei timer tramite `KeyedProcessFunction` (basso livello), riducendo la complessità del codice e garantendo la corretta gestione integrata di dati tardivi (*late data*) e avanzamento dei watermark. non riusciremmo ad introdurre ottimizzazioni usando le API di più basso livello, anzi probabilmente sarebbero più ottimizzate quelle datastreams.
+- **Uso delle Window API**: si è preferito l'uso delle API nativamente fornite da Flink rispetto a una gestione manuale dello stato e dei timer tramite `KeyedProcessFunction` (basso livello), riducendo la complessità del codice e garantendo la corretta gestione integrata di dati tardivi (*late data*) e avanzamento dei watermark.
 - **Partizionamento per Carrier**: la chiave di partizionamento (`keyBy`) basata sulla compagnia aerea (`airline`) distribuisce il carico di lavoro in modo bilanciato sui nodi del cluster, evitando i colli di bottiglia e l'overhead di serializzazione legati a un'aggregazione globale non chiavata.
 - **Gestione dei ritardi e Short-Circuit**: in accordo con le specifiche, le statistiche sui ritardi devono escludere i voli cancellati o deviati. Invece di filtrare a monte l'intero flusso (il che impedirebbe di conteggiare il numero di voli cancellati o deviati richiesti per la metrica), tutti i record entrano nella finestra. Il filtro viene applicato all'interno dell'aggregatore con una logica a corto circuito.
 - **Gestione dei valori null**: eventuali anomalie o valori nulli sul ritardo di partenza (`DEP_DELAY`) vengono convertiti a `0.0` prima dei calcoli per evitare eccezioni a runtime (`NullPointerException`).
@@ -113,30 +114,30 @@ DataStream<Q1OutputRecord> q1ResultStream = mainStream
 ## Ottimizzazione dello Stato e Aggregazione Incrementale
 L'operatore `.aggregate()` combina due fasi per ottimizzare l'occupazione di memoria:
 
-### A. Aggregazione Incrementale (`Q1Aggregator`)
+### A. Aggregazione Incrementale (`AirlinePerformanceAggregator`)
 Utilizza un'implementazione di `AggregateFunction` per elaborare i record riga per riga man mano che arrivano, invece di accumularli in memoria fino alla scadenza della finestra.
-Lo stato occupato per ogni chiave è costante $O(1)$ (rappresentato da un singolo accumulatore `Q1Accumulator` per compagnia aerea).
+Lo stato occupato per ogni chiave è costante $O(1)$ (rappresentato da un singolo accumulatore `AirlinePerformanceAccumulator` per compagnia aerea).
 
 Logica di aggiornamento dell'accumulatore:
 ```java
-public Q1Accumulator add(FlightEvent event, Q1Accumulator acc) {
+public AirlinePerformanceAccumulator add(FlightRecord event, AirlinePerformanceAccumulator acc) {
     acc.numFlights++;
 
-    if (event.getCancelled() == 1) {
+    if (event.isCancelled()) {
         acc.cancelled++;
         return acc; // Short-circuit: evita controlli sui ritardi per voli cancellati
     }
     
-    if (event.getDiverted() == 1) {
+    if (event.isDiverted()) {
         acc.diverted++;
         return acc; // Short-circuit: i voli deviati sono esclusi dalle statistiche sui ritardi
     }
 
     // Voli completati con successo
     acc.completed++;
-    double depDelay = event.getDepDelay() != null ? event.getDepDelay() : 0.0;
+    double depDelay = event.getDepDelay();
     acc.sumDepDelay += depDelay;
-    acc.countDepDelay++;
+    acc.countDelay++;
 
     if (depDelay > 15.0) {
         acc.lateDepartures++;
@@ -145,7 +146,7 @@ public Q1Accumulator add(FlightEvent event, Q1Accumulator acc) {
 }
 ```
 
-### B. Processore di Finestra (`Q1WindowProcessor`)
+### B. Processore di Finestra (`AirlinePerformanceWindowProcessor`)
 La componente `ProcessWindowFunction` si attiva solo alla chiusura della finestra temporale (quando il Watermark supera la barriera dell'ora logica).
 Ha il compito di estrarre i timestamp di inizio/fine finestra dal contesto della finestra e calcolare le metriche derivate:
 * `dep_delay_mean = sum_dep_delay / count_dep_delay`
@@ -154,4 +155,235 @@ Ha il compito di estrarre i timestamp di inizio/fine finestra dal contesto della
 
 ## Strategia di Sink ed Ingestion
 - **Scrittura su Kafka**: i risultati finali vengono scritti sul topic `flights-q1-results`. Poiché vengono emessi solo 4 record ad ogni chiusura di finestra (uno per compagnia), la scrittura avviene senza chiave per distribuire in modo uniforme i messaggi sulle partizioni del topic di output.
-- **Integrazione con Telegraf**: Telegraf consuma dal topic `flights-q1-results`, esegue il parsing dei messaggi e scrive i dati su InfluxDB nella tabella dedicata alla Query 1.
+- **Integrazione con Telegraf**: Telegraf consuma dal topic `flights-q1-results`, esegue il parsing dei messaggi e scrive i dati su InfluxDB nella tabella `flights_q1_results`.
+
+---
+
+# Specifica Implementativa RankAirportsQuery (Query 2)
+
+La Query 2 individua in tempo reale i primi 10 aeroporti di partenza maggiormente interessati da ritardi significativi (> 30 minuti), calcolati su finestre di 1 ora, 6 ore e dall'inizio del dataset (globale).
+
+## Topologia del Flusso
+Il flusso si articola in due fasi principali: aggregazione locale in parallelo per ciascun aeroporto di partenza e classificazione globale delle Top-10 basata sul timestamp di fine finestra.
+Per implementare questa query si utilizza la DataStream API di Flink. La topologia del flusso è definita come segue:
+
+```java
+// Partizionamento logico per aeroporto d'origine
+KeyedStream<FlightRecord, Integer> keyedStream = mainStream.keyBy(FlightRecord::getOriginAirportId);
+
+// Ramo 1h e 6h (Finestre Tumbling)
+DataStream<String> w1 = keyedStream
+        .window(TumblingEventTimeWindows.of(Duration.ofHours(1)))
+        .aggregate(new RankAirportsAggregator(), new RankAirportsWindowProcessor("1h"))
+        .name("Q2: Window (1h)")
+        .keyBy(RankAirportsResult::getWindowEnd)
+        .process(new RankAirportsRankProcessor())
+        .name("Q2: Rank (1h)");
+
+// Ramo Globale (Stato Storico Continuo)
+DataStream<String> wGlobal = keyedStream
+        .process(new RankAirportsGlobalStateProcessor())
+        .name("Q2: Global Accum")
+        .keyBy(RankAirportsResult::getWindowEnd)
+        .process(new RankAirportsRankProcessor())
+        .name("Q2: Global Rank");
+```
+
+### Scelte di Progettazione
+- **Separazione delle fasi (Aggregazione vs. Ranking)**: l'ordinamento per determinare la Top-10 richiede una visione globale. Eseguire una partizione globale su tutti i record grezzi causerebbe colli di bottiglia e consumi di I/O insostenibili. La topologia prima aggrega i voli localmente per aeroporto (fase parallela), riducendo drasticamente il volume dei dati, e poi ri-partiziona i record pre-aggregati per timestamp di fine finestra (`keyBy(windowEnd)`) inviandoli ad un singolo operatore di ranking.
+- **Filtro di significatività**: in conformità con i requisiti, vengono inclusi nel ranking solo gli aeroporti che registrano almeno 30 voli completati (non cancellati e non deviati) all'interno dell'intervallo temporale considerato.
+- **Limitazione dello stato (Top-20)**: memorizzare tutti i voli in ritardo per ogni aeroporto saturerebbe la memoria di Flink. L'accumulatore mantiene una coda ordinata limitata al massimo a 20 voli peggiori.
+
+## Ottimizzazione dello Stato e Aggregazione Incrementale
+La pipeline della query 2 combina aggregatori incrementali e operatori di stato personalizzati per garantire un uso efficiente dello stato gestito di Flink.
+
+### A. Aggregazione Incrementale (`RankAirportsAggregator`)
+Utilizza `AggregateFunction` con un accumulatore compatto `RankAirportsAccumulator` per aggiornare i conteggi locali in tempo reale senza accumulare i singoli record in memoria.
+
+Logica di inserimento dei voli e aggiornamento delle statistiche nell'accumulatore:
+```java
+public void add(String carrier, String dest, double depDelay) {
+    this.numFlights++;
+    this.sumDepDelay += depDelay;
+    if (depDelay > this.maxDepDelay) {
+        this.maxDepDelay = depDelay;
+    }
+    if (depDelay > 30.0) {
+        this.severeDelays++;
+        this.delayedFlights.add(new RankAirportsDelayedFlight(carrier, dest, depDelay));
+        Collections.sort(this.delayedFlights);
+        // Mantiene solo i 20 voli con ritardo maggiore
+        if (this.delayedFlights.size() > 20) {
+            this.delayedFlights.remove(this.delayedFlights.size() - 1);
+        }
+    }
+}
+```
+
+### B. Processore del Rank (`RankAirportsRankProcessor`)
+Questo operatore keyed memorizza temporaneamente le metriche pre-aggregate dei vari aeroporti all'interno di un `ListState`. Alla ricezione di un timer di fine finestra (Event Time), ordina gli aeroporti per numero di ritardi gravi decrescenti e assegna le posizioni da 1 a 10:
+
+```java
+public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out) throws Exception {
+    List<RankAirportsResult> list = new ArrayList<>();
+    for (RankAirportsResult res : windowState.get()) {
+        if (res.getNumFlights() >= 30) {
+            list.add(res);
+        }
+    }
+    windowState.clear();
+
+    // Ordinamento principale per ritardi gravi, secondario opzionale
+    list.sort((a, b) -> Integer.compare(b.getSevereDelays(), a.getSevereDelays()));
+
+    int rank = 1;
+    for (int i = 0; i < Math.min(10, list.size()); i++) {
+        RankAirportsResult res = list.get(i);
+        res.setRank(rank++);
+        out.collect(MAPPER.writeValueAsString(res));
+    }
+}
+```
+
+### C. Gestione dello Stato Globale (`RankAirportsGlobalStateProcessor`)
+Per l'orizzonte globale, non è possibile usare finestre temporali classiche. Si implementa un `KeyedProcessFunction` che mantiene lo stato progressivo dell'aeroporto tramite un `ValueState<RankAirportsAccumulator>`.
+Ogni volta che arriva un record, lo stato viene aggiornato e viene registrato un timer per lo scoccare dell'ora logica successiva, al fine di produrre aggiornamenti periodici regolari:
+
+```java
+public void processElement(FlightRecord value, Context ctx, Collector<RankAirportsResult> out) throws Exception {
+    if (value.isCancelled() || value.isDiverted()) {
+        return;
+    }
+    RankAirportsAccumulator acc = state.value();
+    if (acc == null) {
+        acc = new RankAirportsAccumulator();
+    }
+    acc.add(value.getAirline(), value.getDest(), value.getDepDelay());
+    state.update(acc);
+
+    long timestamp = ctx.timestamp();
+    long nextHour = ((timestamp / 3600000) + 1) * 3600000;
+    ctx.timerService().registerEventTimeTimer(nextHour);
+}
+```
+
+## Strategia di Sink ed Ingestion
+- **Scrittura su Kafka con chiave**: i record vengono serializzati in JSON e inviati ai rispettivi topic `flights-q2-1h-results`, `flights-q2-6h-results` e `flights-q2-global-results`. Per garantire l'ordinamento sequenziale e prevenire inconsistenze dovute a corse critiche di rete, la chiave del record Kafka viene estratta dinamicamente come `origin_airport_id` in formato byte array.
+- **Telegraf e InfluxDB**: Telegraf consuma dai tre topic e inserisce le righe all'interno della singola tabella `flights_q2_results` in InfluxDB, impostando `window_type` ("1h", "6h", "global") e `origin_airport_id` come tag di indicizzazione.
+
+---
+
+# Specifica Implementativa DelayDistributionQuery (Query 3)
+
+La Query 3 calcola in tempo reale la distribuzione dei ritardi in partenza per ciascuna compagnia aerea e fascia oraria (24 ore giornaliere ricavate da `CRS_DEP_TIME`), stimando i percentili (25-esimo, 50-esimo/mediana, 75-esimo, 90-esimo), il minimo e il massimo.
+
+## Topologia del Flusso
+Il flusso raggruppa i voli tramite una chiave composta da compagnia aerea e ora del giorno (ottenuta dividendo per 100 il valore `CRS_DEP_TIME`), calcolando le statistiche sulle finestre temporali di 1 giorno, 7 giorni e globale:
+
+```java
+// Chiave composta: Tuple2<Airline, Hour>
+KeyedStream<FlightRecord, Tuple2<String, Integer>> keyedStream = targetAirlinesStream
+        .keyBy(
+                event -> Tuple2.of(event.getAirline(), event.getCrsDepTime() / 100),
+                TypeInformation.of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<String, Integer>>() {})
+        );
+
+// Finestre Tumbling 1 giorno e 7 giorni
+DataStream<String> w1d = keyedStream
+        .window(TumblingEventTimeWindows.of(Duration.ofDays(1)))
+        .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("1d"))
+        .name("Q3: Window (1d)")
+        .map(res -> MAPPER.writeValueAsString(res));
+
+// Aggregazione Globale
+DataStream<String> wGlobal = keyedStream
+        .process(new DelayDistributionGlobalStateProcessor())
+        .name("Q3: Global Accum")
+        .map(res -> MAPPER.writeValueAsString(res));
+```
+
+### Scelte di Progettazione
+- **Percentile Sketch Deterministico ad Alte Prestazioni**: il calcolo esatto dei percentili su finestre lunghe o globali richiede la memorizzazione in stato di tutti i singoli ritardi (milioni di elementi), provocando problemi di memoria ed enormi costi di serializzazione ad ogni checkpoint. Si è implementato un algoritmo di stima deterministico basato su un istogramma a secchielli (*bucketed distribution sketch*) incorporato nell'accumulatore.
+- **Risoluzione a 1 minuto**: l'intervallo coperto dai bucket va da -100 a 2000 minuti con precisione di 1 minuto (2101 bucket totali). Tutti i valori al di fuori di questo intervallo vengono inseriti nei bucket estremi. Lo spazio di memoria occupato dallo stato è costante $O(1)$ (circa 8 KB) per chiave, a prescindere dal volume di eventi processati.
+- **Nessuna libreria esterna**: la logica di stima è sviluppata a mano senza dipendenze per rispettare pienamente le linee guida accademiche del progetto.
+
+## Ottimizzazione dello Stato e Aggregazione Incrementale
+La query 3 sfrutta la struttura dell'istogramma compatto per l'aggregazione incrementale.
+
+### A. Aggregazione Incrementale (`DelayDistributionAccumulator`)
+L'accumulatore memorizza le frequenze dei minuti di ritardo all'interno di un array di dimensioni fisse, oltre a tracciare minimo, massimo e conteggio totale:
+
+```java
+public class DelayDistributionAccumulator implements Serializable {
+    private static final int MIN_VAL = -100;
+    private static final int MAX_VAL = 2000;
+    private static final int NUM_BUCKETS = MAX_VAL - MIN_VAL + 1;
+
+    private final long[] buckets = new long[NUM_BUCKETS];
+    private long count = 0L;
+    private double min = Double.MAX_VALUE;
+    private double max = -Double.MAX_VALUE;
+
+    public void add(double val) {
+        this.count++;
+        if (val < this.min) this.min = val;
+        if (val > this.max) this.max = val;
+
+        int bin = (int) Math.round(val);
+        if (bin < MIN_VAL) {
+            buckets[0]++;
+        } else if (bin > MAX_VAL) {
+            buckets[NUM_BUCKETS - 1]++;
+        } else {
+            buckets[bin - MIN_VAL]++;
+        }
+    }
+}
+```
+
+### B. Calcolo e Stima dei Percentili
+Durante la generazione dei risultati (alla chiusura di una finestra o al trigger di un timer globale), l'accumulatore esegue una scansione cumulativa dell'istogramma per determinare il minuto corrispondente alla frazione target $q$ dei dati totali:
+
+```java
+public double getPercentile(double q) {
+    if (count == 0) return 0.0;
+
+    double targetIndex = q * count;
+    long cumulative = 0;
+
+    for (int i = 0; i < NUM_BUCKETS; i++) {
+        cumulative += buckets[i];
+        if (cumulative >= targetIndex) {
+            return MIN_VAL + i; // Estrapola il valore originario del ritardo
+        }
+    }
+    return MAX_VAL;
+}
+```
+
+### C. Gestione dello Stato Globale (`DelayDistributionGlobalStateProcessor`)
+Analogamente alla query 2, lo stato cumulativo globale per ciascun gruppo (compagnia, fascia oraria) viene memorizzato tramite un `KeyedProcessFunction` all'interno di un `ValueState<DelayDistributionAccumulator>`.
+L'operatore registra un timer giornaliero (Event Time) basato sul timestamp del record in ingresso per emettere periodicamente i percentili consolidati:
+
+```java
+public void processElement(FlightRecord value, Context ctx, Collector<DelayDistributionResult> out) throws Exception {
+    if (value.isCancelled() || value.isDiverted()) {
+        return;
+    }
+    DelayDistributionAccumulator acc = state.value();
+    if (acc == null) {
+        acc = new DelayDistributionAccumulator();
+    }
+    acc.add(value.getDepDelay());
+    state.update(acc);
+
+    long timestamp = ctx.timestamp();
+    // Registra un timer giornaliero per emettere i risultati
+    long nextDay = ((timestamp / 86400000L) + 1) * 86400000L;
+    ctx.timerService().registerEventTimeTimer(nextDay);
+}
+```
+
+## Strategia di Sink ed Ingestion
+- **Scrittura su Kafka**: le statistiche sui percentili calcolate vengono prodotte come messaggi JSON sul topic `flights-q3-results`.
+- **Telegraf e InfluxDB**: Telegraf intercetta i messaggi JSON e li archivia nella tabella `flights_q3_results` di InfluxDB. I campi memorizzati includono i percentili `p25`, `p50`, `p75`, `p90`, `min` e `max`, con `airline`, `hour` e `window_type` ("1d", "7d", "global") configurati come tag per consentire veloci interrogazioni analitiche in Grafana.
