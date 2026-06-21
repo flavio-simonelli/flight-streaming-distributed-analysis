@@ -35,14 +35,13 @@ public class Q1WindowProcessor
 
         // Compute derived metrics; guard against division by zero
         double depDelayMean      = acc.countDelay > 0 ? acc.sumDepDelay / acc.countDelay : 0.0;
-        double arrDelayMean      = acc.countDelay > 0 ? acc.sumArrDelay / acc.countDelay : 0.0;
         double cancellationRate  = acc.numFlights > 0 ? (double) acc.cancelled     / acc.numFlights * 100.0 : 0.0;
         double lateDepartureRate = acc.numFlights > 0 ? (double) acc.lateDepartures / acc.numFlights * 100.0 : 0.0;
 
         Q1OutputRecord result = new Q1OutputRecord(
                 windowStart, windowEnd, airline,
                 acc.numFlights, acc.cancelled, acc.diverted, acc.completed,
-                depDelayMean, arrDelayMean,
+                depDelayMean,
                 cancellationRate, lateDepartureRate);
 
         LOG.info("Q1 window closed: {}", result);

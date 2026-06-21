@@ -18,13 +18,15 @@ type FlightRecord struct {
 	ArrDelay          *float64 `parquet:"name=ARR_DELAY, type=DOUBLE" json:"ARR_DELAY"`
 	Cancelled         *float64 `parquet:"name=CANCELLED, type=DOUBLE" json:"CANCELLED"`
 	Diverted          *float64 `parquet:"name=DIVERTED, type=DOUBLE" json:"DIVERTED"`
+	DepTime           *float64 `json:"DEP_TIME"`
+	ArrTime           *float64 `json:"ARR_TIME"`
 	CarrierDelay      *float64 `parquet:"name=CARRIER_DELAY, type=DOUBLE" json:"CARRIER_DELAY"`
 	WeatherDelay      *float64 `parquet:"name=WEATHER_DELAY, type=DOUBLE" json:"WEATHER_DELAY"`
 	NasDelay          *float64 `parquet:"name=NAS_DELAY, type=DOUBLE" json:"NAS_DELAY"`
 	SecurityDelay     *float64 `parquet:"name=SECURITY_DELAY, type=DOUBLE" json:"SECURITY_DELAY"`
 	LateAircraftDelay *float64 `parquet:"name=LATE_AIRCRAFT_DELAY, type=DOUBLE" json:"LATE_AIRCRAFT_DELAY"`
-	OriginAirportID   *int32   `parquet:"name=ORIGIN_AIRPORT_ID, type=INT32" json:"ORIGIN_AIRPORT_ID"`
-	Dest              *string  `parquet:"name=DEST, type=BYTE_ARRAY, convertedtype=UTF8" json:"DEST"`
+	OriginAirportID   *int32   `json:"ORIGIN_AIRPORT_ID"`
+	Dest              *string  `json:"DEST"`
 }
 
 // ExtractTime is a method of FlightRecord that extracts the departure time as a time.Time object.
@@ -102,6 +104,30 @@ func (r *FlightRecord) Json() ([]byte, error) {
 		}
 		r.Dest = &dest
 	}
+
+	// Calculate DepTime if flight is not cancelled (meaning Cancelled == nil or *Cancelled == 0.0)
+	if r.Cancelled == nil || *r.Cancelled == 0.0 {
+		if r.DepTime == nil {
+			delay := 0.0
+			if r.DepDelay != nil {
+				delay = *r.DepDelay
+			}
+			hour := int(r.CrsDepTime) / 100
+			minute := int(r.CrsDepTime) % 100
+			totalMinutes := hour*60 + minute + int(delay)
+			// wrap around 24 hours
+			totalMinutes = (totalMinutes%1440 + 1440) % 1440
+
+			newHour := totalMinutes / 60
+			newMin := totalMinutes % 60
+			depTimeVal := float64(newHour*100 + newMin)
+			r.DepTime = &depTimeVal
+		}
+	} else {
+		// Cancelled flight must have nil departure time
+		r.DepTime = nil
+	}
+
 	return json.Marshal(r)
 }
 

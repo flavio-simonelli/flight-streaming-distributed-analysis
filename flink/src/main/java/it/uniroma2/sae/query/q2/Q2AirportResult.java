@@ -1,9 +1,16 @@
 package it.uniroma2.sae.query.q2;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 
+/**
+ * Unified messaging POJO holding evaluation results for a distinct airport entity.
+ * Suitable for internal streaming exchanges and subsequent transformation jobs.
+ */
 public class Q2AirportResult implements Serializable {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private long windowStart;

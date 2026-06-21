@@ -40,7 +40,6 @@ public class Q1Aggregator implements AggregateFunction<FlightRecord, Q1Accumulat
         // Completed flight: accumulate delay metrics
         acc.completed++;
         acc.sumDepDelay += event.getDepDelay();
-        acc.sumArrDelay += event.getArrDelay();
         acc.countDelay++;
 
         if (event.getDepDelay() > LATE_THRESHOLD_MINUTES) {
@@ -64,7 +63,6 @@ public class Q1Aggregator implements AggregateFunction<FlightRecord, Q1Accumulat
         a.completed      += b.completed;
         a.lateDepartures += b.lateDepartures;
         a.sumDepDelay    += b.sumDepDelay;
-        a.sumArrDelay    += b.sumArrDelay;
         a.countDelay     += b.countDelay;
         return a;
     }

@@ -18,6 +18,5 @@ public class Q1Accumulator implements Serializable {
 
     // Sums used to compute means at window close
     public double sumDepDelay  = 0.0;
-    public double sumArrDelay  = 0.0;
     public long   countDelay   = 0;    // count of completed flights with valid delay data
 }

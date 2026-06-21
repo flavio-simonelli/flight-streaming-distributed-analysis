@@ -35,9 +35,6 @@ public class Q1OutputRecord implements Serializable {
     @JsonProperty("dep_delay_mean")
     private final double depDelayMean;
 
-    @JsonProperty("arr_delay_mean")
-    private final double arrDelayMean;
-
     @JsonProperty("cancellation_rate")
     private final double cancellationRate;
 
@@ -47,7 +44,7 @@ public class Q1OutputRecord implements Serializable {
     public Q1OutputRecord(
             long windowStart, long windowEnd, String airline,
             long numFlights, long cancelled, long diverted, long completed,
-            double depDelayMean, double arrDelayMean,
+            double depDelayMean,
             double cancellationRate, double lateDepartureRate) {
         this.windowStart       = windowStart;
         this.windowEnd         = windowEnd;
@@ -57,7 +54,6 @@ public class Q1OutputRecord implements Serializable {
         this.diverted          = diverted;
         this.completed         = completed;
         this.depDelayMean      = depDelayMean;
-        this.arrDelayMean      = arrDelayMean;
         this.cancellationRate  = cancellationRate;
         this.lateDepartureRate = lateDepartureRate;
     }
@@ -70,7 +66,6 @@ public class Q1OutputRecord implements Serializable {
     public long getDiverted()         { return diverted; }
     public long getCompleted()        { return completed; }
     public double getDepDelayMean()   { return depDelayMean; }
-    public double getArrDelayMean()   { return arrDelayMean; }
     public double getCancellationRate()  { return cancellationRate; }
     public double getLateDepartureRate() { return lateDepartureRate; }
 

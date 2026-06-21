@@ -2,9 +2,10 @@ package it.uniroma2.sae;
 
 import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
 import it.uniroma2.sae.sink.SinkBuilder;
 import it.uniroma2.sae.source.SourceBuilder;
-import it.uniroma2.sae.source.deserializer.FlightRecordDeserializationSchema;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -38,10 +39,7 @@ public class FlightDelayJob implements Serializable {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setParallelism(1);
 
-        KafkaSource<FlightRecord> source = new SourceBuilder<FlightRecord>(
-                config.getKafka(),
-                new FlightRecordDeserializationSchema()
-        )
+        KafkaSource<FlightRecord> source = new SourceBuilder(config.getKafka())
         .setBounded(OffsetsInitializer.latest())
         .build();
 
@@ -49,8 +47,9 @@ public class FlightDelayJob implements Serializable {
 
         LOG.info("Defining BATCH job: Source={} -> Sink={}", config.getKafka().getInputTopic(), config.getKafka().getSinkTopic());
 
-        env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source")
-                .filter(record -> record != null)
+        DataStream<FlightRecord> rawStream = env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source");
+
+        PipelinePreprocessing.preprocess(rawStream)
                 .map(new FlightToTupleMapper())
                 .returns(TypeInformation.of(new TypeHint<Tuple2<Double, Long>>(){}))
                 .keyBy(t -> "global")

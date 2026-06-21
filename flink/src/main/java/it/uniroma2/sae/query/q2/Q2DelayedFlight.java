@@ -1,8 +1,15 @@
 package it.uniroma2.sae.query.q2;
 
+import java.io.Serial;
 import java.io.Serializable;
 
+/**
+ * Data model representing a delayed flight record details.
+ * Implements Comparable to native support descending sorting based on delay duration.
+ */
 public class Q2DelayedFlight implements Serializable, Comparable<Q2DelayedFlight> {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private String carrier;
@@ -28,7 +35,6 @@ public class Q2DelayedFlight implements Serializable, Comparable<Q2DelayedFlight
 
     @Override
     public int compareTo(Q2DelayedFlight o) {
-        // Sort descending by depDelay
         return Double.compare(o.depDelay, this.depDelay);
     }
 

@@ -3,7 +3,15 @@ package it.uniroma2.sae.query.q2;
 import it.uniroma2.sae.model.FlightRecord;
 import org.apache.flink.api.common.functions.AggregateFunction;
 
+import java.io.Serial;
+
+/**
+ * Incremental serialization aggregator mapping active flight patterns.
+ * Filters out invalid operational flights before computing state data points.
+ */
 public class Q2Aggregator implements AggregateFunction<FlightRecord, Q2Accumulator, Q2Accumulator> {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Override
@@ -13,7 +21,6 @@ public class Q2Aggregator implements AggregateFunction<FlightRecord, Q2Accumulat
 
     @Override
     public Q2Accumulator add(FlightRecord value, Q2Accumulator accumulator) {
-        // Exclude cancelled and diverted flights
         if (value.isCancelled() || value.isDiverted()) {
             return accumulator;
         }

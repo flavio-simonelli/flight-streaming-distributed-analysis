@@ -1,11 +1,18 @@
 package it.uniroma2.sae.query.q2;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Distributed accumulator managing data aggregation profiles for airport records.
+ * Maintains bounded tracking structures of high latency delayed flight events.
+ */
 public class Q2Accumulator implements Serializable {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private int numFlights = 0;

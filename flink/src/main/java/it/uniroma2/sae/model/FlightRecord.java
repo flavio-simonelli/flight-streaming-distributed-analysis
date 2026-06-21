@@ -1,79 +1,109 @@
 package it.uniroma2.sae.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.util.Collector;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 /**
- * Clean data model representing a flight record for Flink processing.
+ * Unified data model representing a flight record for Flink streaming.
+ * Integrates raw JSON deserialization annotations and clean helper methods.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class FlightRecord implements Serializable {
-    @Serial
     private static final long serialVersionUID = 1L;
 
-    // Campi temporali e identificativi nativi
-    private int year;
-    private int month;
-    private int dayOfMonth;
+    @JsonProperty("YEAR")
+    private Integer year;
+
+    @JsonProperty("MONTH")
+    private Integer month;
+
+    @JsonProperty("DAY_OF_MONTH")
+    private Integer dayOfMonth;
+
+    @JsonProperty("OP_UNIQUE_CARRIER")
     private String airline;
-    private int crsDepTime;
 
-    // Metriche di performance convertite in primitivi (sicure contro i NullPointerException)
-    private double depDelay;
-    private double arrDelay;
+    @JsonProperty("CRS_DEP_TIME")
+    private Integer crsDepTime;
 
-    // Flag di stato convertiti nel tipo booleano logico appropriato
-    private boolean cancelled;
-    private boolean diverted;
+    @JsonProperty("DEP_TIME")
+    private Double depTime;
 
-    // Cause del ritardo
-    private double carrierDelay;
-    private double weatherDelay;
-    private double nasDelay;
-    private double securityDelay;
-    private double lateAircraftDelay;
+    @JsonProperty("DEP_DELAY")
+    private Double depDelay;
 
-    private int originAirportId;
+    @JsonProperty("CANCELLED")
+    private Double cancelled;
+
+    @JsonProperty("DIVERTED")
+    private Double diverted;
+
+    @JsonProperty("ORIGIN_AIRPORT_ID")
+    private Integer originAirportId;
+
+    @JsonProperty("DEST")
     private String dest;
 
-    /**
-     * No-argument constructor required by Flink's POJO serializer.
-     */
+    // Default constructor required for Jackson and Flink POJO serialization
     public FlightRecord() {}
 
-    /**
-     * Constructs a clean FlightRecord from a RawFlightRecord.
-     * Performs missing value handling and type conversions.
-     */
-    public FlightRecord(RawFlightRecord raw) {
-        this.year       = raw.getYear();
-        this.month      = raw.getMonth();
-        this.dayOfMonth = raw.getDayOfMonth();
-        this.airline    = raw.getCarrier(); // Mappa OP_UNIQUE_CARRIER direttamente su airline
-        this.crsDepTime = raw.getCrsDepTime();
+    // Getters and Setters
 
-        // 1. GESTIONE VALORI MANCANTI: Trattati come 0.0
-        this.depDelay = raw.getDepDelay() != null ? raw.getDepDelay() : 0.0;
-        this.arrDelay = raw.getArrDelay() != null ? raw.getArrDelay() : 0.0;
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 
-        // 2. CONVERSIONE DEI TIPI DI STATO: Trasformazione da Double (1.0 / 0.0) a boolean
-        this.cancelled = raw.getCancelled() != null && raw.getCancelled() == 1.0;
-        this.diverted  = raw.getDiverted()  != null && raw.getDiverted()  == 1.0;
+    public Integer getMonth() { return month; }
+    public void setMonth(Integer month) { this.month = month; }
 
-        // 3. PULIZIA DELLE CAUSE SPECIFICHE DI RITARDO
-        this.carrierDelay      = raw.getCarrierDelay()      != null ? raw.getCarrierDelay()      : 0.0;
-        this.weatherDelay      = raw.getWeatherDelay()      != null ? raw.getWeatherDelay()      : 0.0;
-        this.nasDelay          = raw.getNasDelay()          != null ? raw.getNasDelay()          : 0.0;
-        this.securityDelay     = raw.getSecurityDelay()     != null ? raw.getSecurityDelay()     : 0.0;
-        this.lateAircraftDelay = raw.getLateAircraftDelay() != null ? raw.getLateAircraftDelay() : 0.0;
+    public Integer getDayOfMonth() { return dayOfMonth; }
+    public void setDayOfMonth(Integer dayOfMonth) { this.dayOfMonth = dayOfMonth; }
 
-        this.originAirportId   = raw.getOriginAirportId()   != null ? raw.getOriginAirportId()   : 0;
-        this.dest              = raw.getDest()              != null ? raw.getDest()              : "UNKNOWN";
+    public String getAirline() { return airline; }
+    public void setAirline(String airline) { this.airline = airline; }
+
+    public Integer getCrsDepTime() { return crsDepTime; }
+    public void setCrsDepTime(Integer crsDepTime) { this.crsDepTime = crsDepTime; }
+
+    public Double getDepTime() { return depTime; }
+    public void setDepTime(Double depTime) { this.depTime = depTime; }
+
+    public Double getDepDelay() { return depDelay != null ? depDelay : 0.0; }
+    public void setDepDelay(Double depDelay) { this.depDelay = depDelay; }
+
+    public Double getCancelled() { return cancelled; }
+    public void setCancelled(Double cancelled) { this.cancelled = cancelled; }
+
+    public Double getDiverted() { return diverted; }
+    public void setDiverted(Double diverted) { this.diverted = diverted; }
+
+    public Integer getOriginAirportId() { return originAirportId; }
+    public void setOriginAirportId(Integer originAirportId) { this.originAirportId = originAirportId; }
+
+    public String getDest() { return dest; }
+    public void setDest(String dest) { this.dest = dest; }
+
+    // Logical wrappers
+
+    public boolean isCancelled() {
+        return cancelled != null && cancelled == 1.0;
+    }
+
+    public boolean isDiverted() {
+        return diverted != null && diverted == 1.0;
     }
 
     /**
@@ -82,8 +112,8 @@ public class FlightRecord implements Serializable {
      * CRS_DEP_TIME format: HHMM (e.g. 1530 = 15:30)
      */
     public long getEventTimeMillis() {
-        if (year == 0 || month == 0 || dayOfMonth == 0) {
-            return Long.MIN_VALUE; // invalid timestamp: Flink will treat as out-of-order
+        if (year == null || month == null || dayOfMonth == null || crsDepTime == null) {
+            return Long.MIN_VALUE;
         }
         int hour   = crsDepTime / 100;
         int minute = crsDepTime % 100;
@@ -91,46 +121,6 @@ public class FlightRecord implements Serializable {
                 .toInstant(ZoneOffset.UTC)
                 .toEpochMilli();
     }
-
-    // Getters
-
-    public int getYear()           { return year; }
-    public int getMonth()          { return month; }
-    public int getDayOfMonth()     { return dayOfMonth; }
-    public String getAirline()     { return airline; }
-    public int getCrsDepTime()     { return crsDepTime; }
-    public double getDepDelay()    { return depDelay; }
-    public double getArrDelay()    { return arrDelay; }
-    public boolean isCancelled()   { return cancelled; }
-    public boolean getCancelled()  { return cancelled; }
-    public boolean isDiverted()    { return diverted; }
-    public boolean getDiverted()   { return diverted; }
-    public double getCarrierDelay()      { return carrierDelay; }
-    public double getWeatherDelay()      { return weatherDelay; }
-    public double getNasDelay()          { return nasDelay; }
-    public double getSecurityDelay()     { return securityDelay; }
-    public double getLateAircraftDelay() { return lateAircraftDelay; }
-    public int getOriginAirportId()      { return originAirportId; }
-    public String getDest()              { return dest; }
-
-    // Setters required by Flink's POJO serializer
-
-    public void setYear(int year) { this.year = year; }
-    public void setMonth(int month) { this.month = month; }
-    public void setDayOfMonth(int dayOfMonth) { this.dayOfMonth = dayOfMonth; }
-    public void setAirline(String airline) { this.airline = airline; }
-    public void setCrsDepTime(int crsDepTime) { this.crsDepTime = crsDepTime; }
-    public void setDepDelay(double depDelay) { this.depDelay = depDelay; }
-    public void setArrDelay(double arrDelay) { this.arrDelay = arrDelay; }
-    public void setCancelled(boolean cancelled) { this.cancelled = cancelled; }
-    public void setDiverted(boolean diverted) { this.diverted = diverted; }
-    public void setCarrierDelay(double carrierDelay) { this.carrierDelay = carrierDelay; }
-    public void setWeatherDelay(double weatherDelay) { this.weatherDelay = weatherDelay; }
-    public void setNasDelay(double nasDelay) { this.nasDelay = nasDelay; }
-    public void setSecurityDelay(double securityDelay) { this.securityDelay = securityDelay; }
-    public void setLateAircraftDelay(double lateAircraftDelay) { this.lateAircraftDelay = lateAircraftDelay; }
-    public void setOriginAirportId(int originAirportId) { this.originAirportId = originAirportId; }
-    public void setDest(String dest) { this.dest = dest; }
 
     @Override
     public String toString() {
@@ -140,35 +130,64 @@ public class FlightRecord implements Serializable {
                 ", dayOfMonth=" + dayOfMonth +
                 ", airline='" + airline + '\'' +
                 ", crsDepTime=" + crsDepTime +
+                ", depTime=" + depTime +
                 ", depDelay=" + depDelay +
-                ", arrDelay=" + arrDelay +
                 ", cancelled=" + cancelled +
                 ", diverted=" + diverted +
+                ", originAirportId=" + originAirportId +
+                ", dest='" + dest + '\'' +
                 '}';
     }
 
     /**
-     * FlatMapFunction that deserializes a raw JSON string from Kafka into a clean FlightRecord.
-     * Uses flatMap instead of map to silently discard malformed records without failing the job.
+     * Custom deserialization schema to map Kafka raw bytes directly into FlightRecord objects.
      */
-    public static class RawToFlightMapper implements FlatMapFunction<String, FlightRecord> {
+    public static class FlightRecordDeserializationSchema implements KafkaRecordDeserializationSchema<FlightRecord> {
 
-        private final ObjectMapper mapper;
+        @Serial
+        private static final long serialVersionUID = 1L;
 
-        public RawToFlightMapper(ObjectMapper mapper) {
-            this.mapper = mapper;
+        private static final Logger LOG = LoggerFactory.getLogger(FlightRecordDeserializationSchema.class);
+
+        // Marked transient to prevent serialization issues across the distributed Flink cluster
+        private transient ObjectMapper mapper;
+
+        private ObjectMapper getMapper() {
+            if (mapper == null) {
+                mapper = new ObjectMapper();
+            }
+            return mapper;
         }
 
         @Override
-        public void flatMap(String json, Collector<FlightRecord> out) {
-            try {
-                RawFlightRecord raw = mapper.readValue(json, RawFlightRecord.class);
-                if (raw != null) {
-                    out.collect(new FlightRecord(raw));
-                }
-            } catch (Exception e) {
-                // Swallow parse errors: malformed records are discarded
+        public void open(DeserializationSchema.InitializationContext context) throws Exception {
+            // Initialize the ObjectMapper inside the open method, which executes on the TaskManagers
+            this.mapper = new ObjectMapper();
+        }
+
+        @Override
+        public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<FlightRecord> out) throws IOException {
+            // Skip tombstone records (empty messages often used in Kafka to signal deletion)
+            if (record.value() == null) {
+                return;
             }
+
+            try {
+                // Deserialize directly to FlightRecord POJO
+                FlightRecord flight = getMapper().readValue(record.value(), FlightRecord.class);
+
+                // Emit the deserialized object into the Flink stream
+                out.collect(flight);
+            } catch (Exception e) {
+                // Fault tolerance: log corrupt JSON payloads and skip them to keep the streaming pipeline alive
+                LOG.error("Failed to deserialize JSON record from partition {} at offset {}. Error: {}", record.partition(), record.offset(), e.getMessage());
+            }
+        }
+
+        @Override
+        public TypeInformation<FlightRecord> getProducedType() {
+            // Informs Flink's type system about the explicit output data type
+            return TypeInformation.of(FlightRecord.class);
         }
     }
 }

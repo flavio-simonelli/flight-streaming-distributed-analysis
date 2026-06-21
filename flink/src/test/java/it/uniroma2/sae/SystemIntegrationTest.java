@@ -108,8 +108,8 @@ public class SystemIntegrationTest {
             }
 
             assertTrue(lastValue > 0, "No results found in Kafka topic " + config.getKafka().getSinkTopic());
-            LOG.debug("Validation: Expected=9.32, Actual={}", lastValue);
-            assertEquals(9.32, lastValue, 0.02, "Final average delay mismatch!");
+            LOG.debug("Validation: Expected=12.4, Actual={}", lastValue);
+            assertEquals(12.4, lastValue, 0.02, "Final average delay mismatch!");
         }
     }
 }

@@ -120,7 +120,7 @@ services:
           metrics.reporter.influxdb.port: 8086
           metrics.reporter.influxdb.db: ${INFLUXDB_METRICS_BUCKET}
           metrics.reporter.influxdb.username: ${INFLUXDB_USER}
-          metrics.reporter.influxdb.password: ${INFLUXDB_PASS}
+          metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
           metrics.latency.interval: 1000
       networks:
         sae-net:
