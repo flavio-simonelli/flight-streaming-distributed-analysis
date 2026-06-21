@@ -1,4 +1,4 @@
-package it.uniroma2.sae.query.q2;
+package it.uniroma2.sae.query.rank;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -7,11 +7,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Distributed accumulator managing data aggregation profiles for airport records.
- * Maintains bounded tracking structures of high latency delayed flight events.
+ * Accumulator managing airport records and maintaining the top 20 delayed flights.
  */
-public class Q2Accumulator implements Serializable {
-
+public class RankAirportsAccumulator implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -19,9 +17,9 @@ public class Q2Accumulator implements Serializable {
     private int severeDelays = 0;
     private double sumDepDelay = 0.0;
     private double maxDepDelay = 0.0;
-    private List<Q2DelayedFlight> delayedFlights = new ArrayList<>();
+    private List<RankAirportsDelayedFlight> delayedFlights = new ArrayList<>();
 
-    public Q2Accumulator() {}
+    public RankAirportsAccumulator() {}
 
     public int getNumFlights() { return numFlights; }
     public void setNumFlights(int numFlights) { this.numFlights = numFlights; }
@@ -35,8 +33,8 @@ public class Q2Accumulator implements Serializable {
     public double getMaxDepDelay() { return maxDepDelay; }
     public void setMaxDepDelay(double maxDepDelay) { this.maxDepDelay = maxDepDelay; }
 
-    public List<Q2DelayedFlight> getDelayedFlights() { return delayedFlights; }
-    public void setDelayedFlights(List<Q2DelayedFlight> delayedFlights) { this.delayedFlights = delayedFlights; }
+    public List<RankAirportsDelayedFlight> getDelayedFlights() { return delayedFlights; }
+    public void setDelayedFlights(List<RankAirportsDelayedFlight> delayedFlights) { this.delayedFlights = delayedFlights; }
 
     public void add(String carrier, String dest, double depDelay) {
         this.numFlights++;
@@ -46,7 +44,7 @@ public class Q2Accumulator implements Serializable {
         }
         if (depDelay > 30.0) {
             this.severeDelays++;
-            this.delayedFlights.add(new Q2DelayedFlight(carrier, dest, depDelay));
+            this.delayedFlights.add(new RankAirportsDelayedFlight(carrier, dest, depDelay));
             Collections.sort(this.delayedFlights);
             if (this.delayedFlights.size() > 20) {
                 this.delayedFlights.remove(this.delayedFlights.size() - 1);
@@ -54,8 +52,8 @@ public class Q2Accumulator implements Serializable {
         }
     }
 
-    public Q2Accumulator merge(Q2Accumulator other) {
-        Q2Accumulator merged = new Q2Accumulator();
+    public RankAirportsAccumulator merge(RankAirportsAccumulator other) {
+        RankAirportsAccumulator merged = new RankAirportsAccumulator();
         merged.numFlights = this.numFlights + other.numFlights;
         merged.severeDelays = this.severeDelays + other.severeDelays;
         merged.sumDepDelay = this.sumDepDelay + other.sumDepDelay;

@@ -1,24 +1,29 @@
-package it.uniroma2.sae.query.q2;
+package it.uniroma2.sae.query.rank;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * Data model representing a delayed flight record details.
- * Implements Comparable to native support descending sorting based on delay duration.
+ * Details of a delayed flight event.
+ * Sorted in descending order of departure delay.
  */
-public class Q2DelayedFlight implements Serializable, Comparable<Q2DelayedFlight> {
-
+public class RankAirportsDelayedFlight implements Serializable, Comparable<RankAirportsDelayedFlight> {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    @JsonProperty("carrier")
     private String carrier;
+
+    @JsonProperty("dest")
     private String dest;
+
+    @JsonProperty("dep_delay")
     private double depDelay;
 
-    public Q2DelayedFlight() {}
+    public RankAirportsDelayedFlight() {}
 
-    public Q2DelayedFlight(String carrier, String dest, double depDelay) {
+    public RankAirportsDelayedFlight(String carrier, String dest, double depDelay) {
         this.carrier = carrier;
         this.dest = dest;
         this.depDelay = depDelay;
@@ -34,7 +39,7 @@ public class Q2DelayedFlight implements Serializable, Comparable<Q2DelayedFlight
     public void setDepDelay(double depDelay) { this.depDelay = depDelay; }
 
     @Override
-    public int compareTo(Q2DelayedFlight o) {
+    public int compareTo(RankAirportsDelayedFlight o) {
         return Double.compare(o.depDelay, this.depDelay);
     }
 

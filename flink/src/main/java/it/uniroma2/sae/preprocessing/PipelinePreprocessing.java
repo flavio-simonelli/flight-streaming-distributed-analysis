@@ -47,15 +47,8 @@ public class PipelinePreprocessing implements Serializable {
             }
 
             // State logic inconsistencies:
-            boolean isCancelled = raw.isCancelled();
-            
-            // A cancelled flight cannot have an actual departure time
-            if (isCancelled && raw.getDepTime() != null) {
-                return false;
-            }
-
-            // An active (non-cancelled) flight must have an actual departure time
-            if (!isCancelled && raw.getDepTime() == null) {
+            // A flight cannot be both cancelled and diverted
+            if (raw.isCancelled() && raw.isDiverted()) {
                 return false;
             }
 

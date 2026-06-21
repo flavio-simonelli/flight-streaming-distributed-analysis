@@ -105,29 +105,6 @@ func (r *FlightRecord) Json() ([]byte, error) {
 		r.Dest = &dest
 	}
 
-	// Calculate DepTime if flight is not cancelled (meaning Cancelled == nil or *Cancelled == 0.0)
-	if r.Cancelled == nil || *r.Cancelled == 0.0 {
-		if r.DepTime == nil {
-			delay := 0.0
-			if r.DepDelay != nil {
-				delay = *r.DepDelay
-			}
-			hour := int(r.CrsDepTime) / 100
-			minute := int(r.CrsDepTime) % 100
-			totalMinutes := hour*60 + minute + int(delay)
-			// wrap around 24 hours
-			totalMinutes = (totalMinutes%1440 + 1440) % 1440
-
-			newHour := totalMinutes / 60
-			newMin := totalMinutes % 60
-			depTimeVal := float64(newHour*100 + newMin)
-			r.DepTime = &depTimeVal
-		}
-	} else {
-		// Cancelled flight must have nil departure time
-		r.DepTime = nil
-	}
-
 	return json.Marshal(r)
 }
 

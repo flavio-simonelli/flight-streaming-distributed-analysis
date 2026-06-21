@@ -1,32 +1,58 @@
-package it.uniroma2.sae.query.q2;
+package it.uniroma2.sae.query.rank;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 
 /**
- * Unified messaging POJO holding evaluation results for a distinct airport entity.
- * Suitable for internal streaming exchanges and subsequent transformation jobs.
+ * Result data model holding metrics for a specific airport.
+ * Serialized as JSON with explicit window type identification and ranking.
  */
-public class Q2AirportResult implements Serializable {
-
+public class RankAirportsResult implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    @JsonProperty("window_start")
     private long windowStart;
+
+    @JsonProperty("window_end")
     private long windowEnd;
+
+    @JsonProperty("window_type")
+    private String windowType; // "1h", "6h", "global"
+
+    @JsonProperty("rank")
+    private int rank;
+
+    @JsonProperty("origin_airport_id")
     private int originAirportId;
+
+    @JsonProperty("num_flights")
     private int numFlights;
+
+    @JsonProperty("severe_delays")
     private int severeDelays;
+
+    @JsonProperty("dep_delay_mean")
     private double depDelayMean;
+
+    @JsonProperty("dep_delay_max")
     private double depDelayMax;
-    private List<Q2DelayedFlight> delayedFlights;
 
-    public Q2AirportResult() {}
+    @JsonProperty("delayed_flights")
+    private List<RankAirportsDelayedFlight> delayedFlights;
 
-    public Q2AirportResult(long windowStart, long windowEnd, int originAirportId, int numFlights, int severeDelays, double depDelayMean, double depDelayMax, List<Q2DelayedFlight> delayedFlights) {
+    public RankAirportsResult() {}
+
+    public RankAirportsResult(
+            long windowStart, long windowEnd, String windowType,
+            int originAirportId, int numFlights, int severeDelays,
+            double depDelayMean, double depDelayMax,
+            List<RankAirportsDelayedFlight> delayedFlights) {
         this.windowStart = windowStart;
         this.windowEnd = windowEnd;
+        this.windowType = windowType;
         this.originAirportId = originAirportId;
         this.numFlights = numFlights;
         this.severeDelays = severeDelays;
@@ -40,6 +66,12 @@ public class Q2AirportResult implements Serializable {
 
     public long getWindowEnd() { return windowEnd; }
     public void setWindowEnd(long windowEnd) { this.windowEnd = windowEnd; }
+
+    public String getWindowType() { return windowType; }
+    public void setWindowType(String windowType) { this.windowType = windowType; }
+
+    public int getRank() { return rank; }
+    public void setRank(int rank) { this.rank = rank; }
 
     public int getOriginAirportId() { return originAirportId; }
     public void setOriginAirportId(int originAirportId) { this.originAirportId = originAirportId; }
@@ -56,6 +88,6 @@ public class Q2AirportResult implements Serializable {
     public double getDepDelayMax() { return depDelayMax; }
     public void setDepDelayMax(double depDelayMax) { this.depDelayMax = depDelayMax; }
 
-    public List<Q2DelayedFlight> getDelayedFlights() { return delayedFlights; }
-    public void setDelayedFlights(List<Q2DelayedFlight> delayedFlights) { this.delayedFlights = delayedFlights; }
+    public List<RankAirportsDelayedFlight> getDelayedFlights() { return delayedFlights; }
+    public void setDelayedFlights(List<RankAirportsDelayedFlight> delayedFlights) { this.delayedFlights = delayedFlights; }
 }

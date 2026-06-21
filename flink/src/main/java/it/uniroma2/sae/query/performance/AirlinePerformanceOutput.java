@@ -1,21 +1,21 @@
-package it.uniroma2.sae.query.q1;
+package it.uniroma2.sae.query.performance;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
- * Output record produced by Query 1 for each airline per tumbling window.
- * Serialized as JSON and written to the Kafka output topic.
+ * Output record representing operational performance metrics for a carrier per tumbling window.
  */
-public class Q1OutputRecord implements Serializable {
+public class AirlinePerformanceOutput implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @JsonProperty("window_start")
-    private final long windowStart;   // epoch millis
+    private final long windowStart;
 
     @JsonProperty("window_end")
-    private final long windowEnd;     // epoch millis
+    private final long windowEnd;
 
     @JsonProperty("airline")
     private final String airline;
@@ -41,7 +41,7 @@ public class Q1OutputRecord implements Serializable {
     @JsonProperty("late_departure_rate")
     private final double lateDepartureRate;
 
-    public Q1OutputRecord(
+    public AirlinePerformanceOutput(
             long windowStart, long windowEnd, String airline,
             long numFlights, long cancelled, long diverted, long completed,
             double depDelayMean,
@@ -71,7 +71,7 @@ public class Q1OutputRecord implements Serializable {
 
     @Override
     public String toString() {
-        return "Q1OutputRecord{" +
+        return "AirlinePerformanceOutput{" +
                 "airline='" + airline + '\'' +
                 ", window=[" + windowStart + "," + windowEnd + "]" +
                 ", numFlights=" + numFlights +
