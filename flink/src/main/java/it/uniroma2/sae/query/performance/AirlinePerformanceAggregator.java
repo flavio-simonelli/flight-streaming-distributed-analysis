@@ -26,17 +26,17 @@ public class AirlinePerformanceAggregator
             return acc;
         }
 
-        if (event.isDiverted()) {
-            acc.diverted++;
-            return acc;
-        }
-
-        acc.completed++;
         acc.sumDepDelay += event.getDepDelay();
         acc.countDelay++;
 
         if (event.getDepDelay() > LATE_THRESHOLD_MINUTES) {
             acc.lateDepartures++;
+        }
+
+        if (event.isDiverted()) {
+            acc.diverted++;
+        } else {
+            acc.completed++;
         }
 
         return acc;

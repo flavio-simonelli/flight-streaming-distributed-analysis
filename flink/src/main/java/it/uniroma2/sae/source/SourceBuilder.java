@@ -2,11 +2,9 @@ package it.uniroma2.sae.source;
 
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 
 /**
  * Generic SourceBuilder wrapping Flink's KafkaSourceBuilder to enforce project defaults.

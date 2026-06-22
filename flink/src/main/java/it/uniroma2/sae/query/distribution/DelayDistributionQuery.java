@@ -1,9 +1,11 @@
 package it.uniroma2.sae.query.distribution;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.query.common.BaseAirlineQuery;
 import it.uniroma2.sae.sink.SinkBuilder;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
@@ -13,7 +15,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.Serial;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -31,11 +33,11 @@ public class DelayDistributionQuery extends BaseAirlineQuery {
      */
     public static List<DataStreamSink<String>> buildAndAttach(DataStream<FlightRecord> targetAirlinesStream, KafkaConfig kafkaConfig) {
         
-        // Key by airline and hour (0-23)
+        // Key by airline and hour
         KeyedStream<FlightRecord, Tuple2<String, Integer>> keyedStream = targetAirlinesStream
                 .keyBy(
                         event -> Tuple2.of(event.getAirline(), event.getCrsDepTime() / 100),
-                        TypeInformation.of(new org.apache.flink.api.common.typeinfo.TypeHint<Tuple2<String, Integer>>() {})
+                        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {})
                 );
 
         DataStream<String> w1d = keyedStream

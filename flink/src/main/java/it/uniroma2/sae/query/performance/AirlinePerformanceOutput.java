@@ -1,8 +1,15 @@
 package it.uniroma2.sae.query.performance;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniroma2.sae.config.KafkaConfig;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
 import java.io.Serial;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Output record representing operational performance metrics for a carrier per tumbling window.
@@ -12,10 +19,10 @@ public class AirlinePerformanceOutput implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @JsonProperty("window_start")
-    private final long windowStart;
+    private final String windowStart;
 
     @JsonProperty("window_end")
-    private final long windowEnd;
+    private final String windowEnd;
 
     @JsonProperty("airline")
     private final String airline;
@@ -23,14 +30,14 @@ public class AirlinePerformanceOutput implements Serializable {
     @JsonProperty("num_flights")
     private final long numFlights;
 
+    @JsonProperty("completed")
+    private final long completed;
+
     @JsonProperty("cancelled")
     private final long cancelled;
 
     @JsonProperty("diverted")
     private final long diverted;
-
-    @JsonProperty("completed")
-    private final long completed;
 
     @JsonProperty("dep_delay_mean")
     private final double depDelayMean;
@@ -42,7 +49,7 @@ public class AirlinePerformanceOutput implements Serializable {
     private final double lateDepartureRate;
 
     public AirlinePerformanceOutput(
-            long windowStart, long windowEnd, String airline,
+            String windowStart, String windowEnd, String airline,
             long numFlights, long cancelled, long diverted, long completed,
             double depDelayMean,
             double cancellationRate, double lateDepartureRate) {
@@ -58,8 +65,8 @@ public class AirlinePerformanceOutput implements Serializable {
         this.lateDepartureRate = lateDepartureRate;
     }
 
-    public long getWindowStart()      { return windowStart; }
-    public long getWindowEnd()        { return windowEnd; }
+    public String getWindowStart()    { return windowStart; }
+    public String getWindowEnd()      { return windowEnd; }
     public String getAirline()        { return airline; }
     public long getNumFlights()       { return numFlights; }
     public long getCancelled()        { return cancelled; }
@@ -81,5 +88,39 @@ public class AirlinePerformanceOutput implements Serializable {
                 ", cancellationRate=" + cancellationRate +
                 ", lateDepartureRate=" + lateDepartureRate +
                 '}';
+    }
+
+    /**
+     * Serializer for sending AirlinePerformance JSON strings to Kafka.
+     */
+    public static class AirlinePerformanceRecordSerializer implements KafkaRecordSerializationSchema<String> {
+        @Serial
+        private static final long serialVersionUID = 1L;
+        private final String topic;
+
+        private static final ObjectMapper objectMapper = new ObjectMapper();
+
+        public AirlinePerformanceRecordSerializer(KafkaConfig config) {
+            this.topic = config.getOutputTopic("q1");
+        }
+
+        @Override
+        public ProducerRecord<byte[], byte[]> serialize(
+                String element, KafkaSinkContext ctx, Long timestamp) {
+
+            byte[] key = null;
+            try {
+                JsonNode root = objectMapper.readTree(element);
+                JsonNode airlineNode = root.get("airline");
+
+                if (airlineNode != null && !airlineNode.isNull()) {
+                    key = airlineNode.asText().getBytes(StandardCharsets.UTF_8);
+                }
+            } catch (Exception e) {
+                // Fallback to null
+            }
+
+            return new ProducerRecord<>(topic, key, element.getBytes(StandardCharsets.UTF_8));
+        }
     }
 }

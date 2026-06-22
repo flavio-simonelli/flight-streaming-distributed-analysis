@@ -4,11 +4,10 @@ import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
 import it.uniroma2.sae.query.common.BaseAirlineQuery;
+import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
 import it.uniroma2.sae.query.performance.AirlinePerformanceQuery;
 import it.uniroma2.sae.query.rank.RankAirportsQuery;
-import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
 import it.uniroma2.sae.source.SourceBuilder;
-
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -61,18 +60,18 @@ public class FlightAnalysisJob {
 
             DataStream<FlightRecord> rawStream = env
                     .fromSource(source, WatermarkStrategy.noWatermarks(), "flights-stream").name("Kafka Source")
-                    .assignTimestampsAndWatermarks(watermarkStrategy).name("Watermarks");;
+                    .assignTimestampsAndWatermarks(watermarkStrategy).name("Watermarks");
 
             DataStream<FlightRecord> preprocessedStream = PipelinePreprocessing.preprocess(rawStream);
 
             // Share the filtered airline stream between AirlinePerformanceQuery and DelayDistributionQuery
             DataStream<FlightRecord> targetAirlinesStream = preprocessedStream
                     .filter(new BaseAirlineQuery.TargetAirlineFilter())
-                    .name("Filter Target Airlines (AA, DL, UA, WN)")
+                    .name("Filter Target Airlines")
                     .startNewChain();
 
             // --- Attach query pipelines ---
-            DataStreamSink<String> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(targetAirlinesStream, config.getKafka());
+            List<DataStreamSink<String>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(targetAirlinesStream, config.getKafka());
 
             List<DataStreamSink<String>> q2Pipelines = RankAirportsQuery.buildAndAttach(preprocessedStream, config.getKafka());
 
