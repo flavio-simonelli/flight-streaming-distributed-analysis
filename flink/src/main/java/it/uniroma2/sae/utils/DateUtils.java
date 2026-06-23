@@ -33,4 +33,21 @@ public class DateUtils {
         if(instant == null) throw new IllegalArgumentException("Instant cannot be null");
         return FORMATTER.format(instant);
     }
+
+    /**
+     * Parses a formatted date string in UTC into a Unix timestamp in milliseconds.
+     *
+     * @param timestampStr the formatted date string
+     * @return the timestamp in milliseconds
+     */
+    public static long parseTimestamp(String timestampStr) {
+        if (timestampStr == null) {
+            return 0L;
+        }
+        java.time.LocalDateTime ldt = java.time.LocalDateTime.parse(
+                timestampStr,
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        );
+        return ldt.toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+    }
 }

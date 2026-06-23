@@ -23,7 +23,7 @@ public class RankAirportsAggregator
         if (value.isCancelled() || value.isDiverted()) {
             return accumulator;
         }
-        accumulator.add(value.getAirline(), value.getDest(), value.getDepDelay());
+        accumulator.add(value.getAirline(), String.valueOf(value.getDestinationAirportId()), value.getDepDelay());
         return accumulator;
     }
 

@@ -1,77 +1,143 @@
 package it.uniroma2.sae.query.distribution;
 
+import com.datadoghq.sketch.ddsketch.DDSketch;
+import com.datadoghq.sketch.ddsketch.DDSketches;
+import com.datadoghq.sketch.ddsketch.store.Bin;
+import com.datadoghq.sketch.ddsketch.store.Store;
+
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * Accumulator for DelayDistributionQuery.
- * Implements a hand-coded fixed-bucket histogram sketch to approximate percentiles in O(1) space.
- * Covers delays from -100 to 2000 minutes with 1-minute bins.
+ * Uses Datadog's DDSketch to approximate percentiles with relative-error guarantees.
+ * Implements custom writeObject/readObject serialization to safely persist DDSketch bins.
  */
 public class DelayDistributionAccumulator implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private static final int MIN_VAL = -100;
-    private static final int MAX_VAL = 2000;
-    private static final int NUM_BUCKETS = MAX_VAL - MIN_VAL + 1;
+    private static final double RELATIVE_ACCURACY = 0.01; // 1% relative accuracy
 
-    private final long[] buckets = new long[NUM_BUCKETS];
-    private long count = 0L;
-    private double min = Double.MAX_VALUE;
-    private double max = -Double.MAX_VALUE;
+    private transient DDSketch sketch;
 
-    public DelayDistributionAccumulator() {}
+    public DelayDistributionAccumulator() {
+        this.sketch = DDSketches.unboundedDense(RELATIVE_ACCURACY);
+    }
 
     /**
-     * Records a delay event into the histogram.
+     * Records a delay event into the DDSketch.
      */
     public void add(double val) {
-        this.count++;
-        if (val < this.min) this.min = val;
-        if (val > this.max) this.max = val;
-
-        int bin = (int) Math.round(val);
-        if (bin < MIN_VAL) {
-            buckets[0]++;
-        } else if (bin > MAX_VAL) {
-            buckets[NUM_BUCKETS - 1]++;
-        } else {
-            buckets[bin - MIN_VAL]++;
-        }
+        this.sketch.accept(val);
     }
 
-    public long getCount() { return count; }
-    public double getMin() { return count > 0 ? min : 0.0; }
-    public double getMax() { return count > 0 ? max : 0.0; }
+    public long getCount() {
+        return (long) this.sketch.getCount();
+    }
+
+    public double getMin() {
+        return this.sketch.isEmpty() ? 0.0 : this.sketch.getMinValue();
+    }
+
+    public double getMax() {
+        return this.sketch.isEmpty() ? 0.0 : this.sketch.getMaxValue();
+    }
 
     /**
-     * Estimates the given percentile from the cumulative histogram counts.
+     * Estimates the given percentile from the DDSketch.
      */
     public double getPercentile(double q) {
-        if (count == 0) return 0.0;
-
-        double targetIndex = q * count;
-        long cumulative = 0;
-
-        for (int i = 0; i < NUM_BUCKETS; i++) {
-            cumulative += buckets[i];
-            if (cumulative >= targetIndex) {
-                return MIN_VAL + i;
-            }
-        }
-        return MAX_VAL;
+        return this.sketch.isEmpty() ? 0.0 : this.sketch.getValueAtQuantile(q);
     }
 
     /**
-     * Merges another histogram accumulator into this one.
+     * Merges another DDSketch accumulator into this one.
      */
     public void merge(DelayDistributionAccumulator other) {
-        this.count += other.count;
-        this.min = Math.min(this.min, other.min);
-        this.max = Math.max(this.max, other.max);
-        for (int i = 0; i < NUM_BUCKETS; i++) {
-            this.buckets[i] += other.buckets[i];
+        this.sketch.mergeWith(other.sketch);
+    }
+
+    @Serial
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+        out.defaultWriteObject();
+        
+        // Write zero count (read via reflection due to package-private access in getZeroCount)
+        double zeroCount = 0.0;
+        try {
+            java.lang.reflect.Field field = sketch.getClass().getDeclaredField("zeroCount");
+            field.setAccessible(true);
+            zeroCount = field.getDouble(sketch);
+        } catch (Exception e) {
+            // Ignore/fallback
+        }
+        out.writeDouble(zeroCount);
+        
+        // Write index mapping accuracy
+        out.writeDouble(RELATIVE_ACCURACY);
+
+        // Serialize positive store
+        Store positiveStore = sketch.getPositiveValueStore();
+        List<Bin> positiveBins = new java.util.ArrayList<>();
+        java.util.Iterator<?> posIt = positiveStore.getAscendingIterator();
+        while (posIt.hasNext()) {
+            positiveBins.add((com.datadoghq.sketch.ddsketch.store.Bin) posIt.next());
+        }
+        out.writeInt(positiveBins.size());
+        for (com.datadoghq.sketch.ddsketch.store.Bin bin : positiveBins) {
+            out.writeInt(bin.getIndex());
+            out.writeDouble(bin.getCount());
+        }
+
+        // Serialize negative store
+        com.datadoghq.sketch.ddsketch.store.Store negativeStore = sketch.getNegativeValueStore();
+        java.util.List<com.datadoghq.sketch.ddsketch.store.Bin> negativeBins = new java.util.ArrayList<>();
+        java.util.Iterator<?> negIt = negativeStore.getAscendingIterator();
+        while (negIt.hasNext()) {
+            negativeBins.add((com.datadoghq.sketch.ddsketch.store.Bin) negIt.next());
+        }
+        out.writeInt(negativeBins.size());
+        for (com.datadoghq.sketch.ddsketch.store.Bin bin : negativeBins) {
+            out.writeInt(bin.getIndex());
+            out.writeDouble(bin.getCount());
+        }
+    }
+
+    @Serial
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+        in.defaultReadObject();
+
+        double zeroCount = in.readDouble();
+        double accuracy = in.readDouble();
+        
+        this.sketch = DDSketches.unboundedDense(accuracy);
+        if (zeroCount > 0) {
+            try {
+                java.lang.reflect.Field field = sketch.getClass().getDeclaredField("zeroCount");
+                field.setAccessible(true);
+                field.setDouble(sketch, zeroCount);
+            } catch (Exception e) {
+                // Ignore/fallback
+            }
+        }
+
+        com.datadoghq.sketch.ddsketch.mapping.IndexMapping mapping = this.sketch.getIndexMapping();
+
+        int positiveBinsCount = in.readInt();
+        for (int i = 0; i < positiveBinsCount; i++) {
+            int index = in.readInt();
+            double count = in.readDouble();
+            double val = mapping.value(index);
+            this.sketch.accept(val, count);
+        }
+
+        int negativeBinsCount = in.readInt();
+        for (int i = 0; i < negativeBinsCount; i++) {
+            int index = in.readInt();
+            double count = in.readDouble();
+            double val = -mapping.value(index);
+            this.sketch.accept(val, count);
         }
     }
 }

@@ -1,6 +1,5 @@
 package it.uniroma2.sae.query.performance;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.utils.DateUtils;
 import it.uniroma2.sae.utils.MathUtils;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
@@ -13,17 +12,16 @@ import org.slf4j.LoggerFactory;
  * Fires at window end to compute rates and average delays, outputting a JSON string.
  */
 public class AirlinePerformanceWindowProcessor
-        extends ProcessWindowFunction<AirlinePerformanceAccumulator, String, String, TimeWindow> {
+        extends ProcessWindowFunction<AirlinePerformanceAccumulator, AirlinePerformanceResult, String, TimeWindow> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AirlinePerformanceWindowProcessor.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
     public void process(
             String airline,
             Context ctx,
             Iterable<AirlinePerformanceAccumulator> accumulators,
-            Collector<String> out) throws Exception {
+            Collector<AirlinePerformanceResult> out) throws Exception {
 
         AirlinePerformanceAccumulator acc = accumulators.iterator().next();
         double depDelayMean      = MathUtils.safeDivideRounded(acc.sumDepDelay, acc.countDelay);
@@ -38,13 +36,13 @@ public class AirlinePerformanceWindowProcessor
         String windowStartStr = DateUtils.formatTimestamp(windowStartRaw);
         String windowEndStr   = DateUtils.formatTimestamp(windowEndRaw);
 
-        AirlinePerformanceOutput result = new AirlinePerformanceOutput(
+        AirlinePerformanceResult result = new AirlinePerformanceResult(
                 windowStartStr, windowEndStr, airline,
                 acc.numFlights, acc.cancelled, acc.diverted, acc.completed,
                 depDelayMean,
                 cancellationRate, lateDepartureRate);
 
         LOG.debug("AirlinePerformance window closed: {}", result);
-        out.collect(MAPPER.writeValueAsString(result));
+        out.collect(result);
     }
 }

@@ -15,3 +15,10 @@ kafka:
 flink:
   host: "flink.flight-analysis.local"
   port: 8081
+  watermarkDelayMinutes: 10
+  allowedLatenessMinutes: 5
+  watermarkIdlenessMinutes: 2
+  checkpointingEnabled: true
+  checkpointIntervalMillis: 60000
+  minPauseBetweenCheckpointsMillis: 30000
+  checkpointTimeoutMillis: 120000

@@ -40,9 +40,6 @@ public class FlightRecord implements Serializable {
     @JsonProperty("CRS_DEP_TIME")
     private Integer crsDepTime;
 
-    @JsonProperty("DEP_TIME")
-    private Double depTime;
-
     @JsonProperty("DEP_DELAY")
     private Double depDelay;
 
@@ -55,8 +52,8 @@ public class FlightRecord implements Serializable {
     @JsonProperty("ORIGIN_AIRPORT_ID")
     private Integer originAirportId;
 
-    @JsonProperty("DEST")
-    private String dest;
+    @JsonProperty("DEST_AIRPORT_ID")
+    private Integer destinationAirportId;
 
     // Default constructor required for Jackson and Flink POJO serialization
     public FlightRecord() {}
@@ -78,9 +75,6 @@ public class FlightRecord implements Serializable {
     public Integer getCrsDepTime() { return crsDepTime; }
     public void setCrsDepTime(Integer crsDepTime) { this.crsDepTime = crsDepTime; }
 
-    public Double getDepTime() { return depTime; }
-    public void setDepTime(Double depTime) { this.depTime = depTime; }
-
     public Double getDepDelay() { return depDelay != null ? depDelay : 0.0; }
     public void setDepDelay(Double depDelay) { this.depDelay = depDelay; }
 
@@ -93,8 +87,8 @@ public class FlightRecord implements Serializable {
     public Integer getOriginAirportId() { return originAirportId; }
     public void setOriginAirportId(Integer originAirportId) { this.originAirportId = originAirportId; }
 
-    public String getDest() { return dest; }
-    public void setDest(String dest) { this.dest = dest; }
+    public Integer getDestinationAirportId() { return destinationAirportId; }
+    public void setDestinationAirportId(Integer destinationAirportId) { this.destinationAirportId = destinationAirportId; }
 
     // Logical wrappers
 
@@ -104,6 +98,21 @@ public class FlightRecord implements Serializable {
 
     public boolean isDiverted() {
         return diverted != null && diverted == 1.0;
+    }
+
+    public int getScheduledDepartureHour() {
+        if (crsDepTime == null) {
+            return -1;
+        }
+
+        int hour = (crsDepTime / 100) % 24;
+        int minute = crsDepTime % 100;
+
+        if (hour < 0 || minute < 0 || minute > 59) {
+            return -1;
+        }
+
+        return hour;
     }
 
     /**
@@ -117,9 +126,22 @@ public class FlightRecord implements Serializable {
         }
         int hour   = crsDepTime / 100;
         int minute = crsDepTime % 100;
-        return LocalDateTime.of(year, month, dayOfMonth, hour, minute)
-                .toInstant(ZoneOffset.UTC)
-                .toEpochMilli();
+
+        if (hour == 24 && minute == 0) {
+            hour = 23;
+            minute = 59;
+        }
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+            return Long.MIN_VALUE;
+        }
+
+        try {
+            return LocalDateTime.of(year, month, dayOfMonth, hour, minute)
+                    .toInstant(ZoneOffset.UTC)
+                    .toEpochMilli();
+        } catch (Exception e) {
+            return Long.MIN_VALUE;
+        }
     }
 
     @Override
@@ -130,12 +152,11 @@ public class FlightRecord implements Serializable {
                 ", dayOfMonth=" + dayOfMonth +
                 ", airline='" + airline + '\'' +
                 ", crsDepTime=" + crsDepTime +
-                ", depTime=" + depTime +
                 ", depDelay=" + depDelay +
                 ", cancelled=" + cancelled +
                 ", diverted=" + diverted +
                 ", originAirportId=" + originAirportId +
-                ", dest='" + dest + '\'' +
+                ", dest='" + destinationAirportId + '\'' +
                 '}';
     }
 

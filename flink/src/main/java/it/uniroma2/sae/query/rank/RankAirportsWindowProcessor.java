@@ -1,8 +1,10 @@
 package it.uniroma2.sae.query.rank;
 
+import it.uniroma2.sae.utils.MathUtils;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
+
 import java.io.Serial;
 
 /**
@@ -22,27 +24,28 @@ public class RankAirportsWindowProcessor
 
     @Override
     public void process(
-            Integer key,
-            Context context,
+            Integer originAirportId,
+            Context ctx,
             Iterable<RankAirportsAccumulator> elements,
             Collector<RankAirportsResult> out) {
 
         RankAirportsAccumulator acc = elements.iterator().next();
-        long start = context.window().getStart();
-        long end = context.window().getEnd();
 
-        double mean = acc.getNumFlights() > 0 ? acc.getSumDepDelay() / acc.getNumFlights() : 0.0;
+        if (acc.getNumFlights() < 30) {
+            return;
+        }
+
+        long windowStartRaw = ctx.window().getStart();
+        long windowEndRaw   = ctx.window().getEnd();
+
+        double mean = MathUtils.safeDivideRounded(acc.getSumDepDelay(), acc.getNumFlights());
 
         out.collect(new RankAirportsResult(
-                start,
-                end,
-                windowType,
-                key,
-                acc.getNumFlights(),
-                acc.getSevereDelays(),
+                windowStartRaw, windowEndRaw, windowType,
+                originAirportId,
+                acc.getNumFlights(), acc.getSevereDelays(),
                 mean,
-                acc.getMaxDepDelay(),
-                acc.getDelayedFlights()
+                acc.getMaxDepDelay(), acc.getDelayedFlights()
         ));
     }
 }

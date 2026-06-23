@@ -26,8 +26,7 @@ public class PipelinePreprocessing implements Serializable {
     public static DataStream<FlightRecord> preprocess(DataStream<FlightRecord> rawStream) {
         return rawStream
                 .filter(new LogicalInconsistencyFilter())
-                .name("Preprocessing Records")
-                .startNewChain();
+                .name("Preprocessing Records");
     }
 
     /**
@@ -39,10 +38,20 @@ public class PipelinePreprocessing implements Serializable {
 
         @Override
         public boolean filter(FlightRecord raw) {
+            if (raw == null) {
+                return false;
+            }
+
             // Mandatory key fields check: YEAR, MONTH, DAY_OF_MONTH, OP_UNIQUE_CARRIER, CRS_DEP_TIME
             if (raw.getYear() == null || raw.getMonth() == null || raw.getDayOfMonth() == null 
                     || raw.getAirline() == null || raw.getAirline().trim().isEmpty() 
-                    || raw.getCrsDepTime() == null) {
+                    || raw.getCrsDepTime() == null
+                    || raw.getOriginAirportId() == null
+                    || raw.getDestinationAirportId() == null) {
+                return false;
+            }
+
+            if (raw.getEventTimeMillis() == Long.MIN_VALUE || raw.getScheduledDepartureHour() < 0) {
                 return false;
             }
 

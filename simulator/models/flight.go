@@ -9,24 +9,16 @@ import (
 // FlightRecord represents a single record of flight data,
 // with fields corresponding to the columns in the Parquet file.
 type FlightRecord struct {
-	Year              int32    `parquet:"name=YEAR, type=INT32" json:"YEAR"`
-	Month             int32    `parquet:"name=MONTH, type=INT32" json:"MONTH"`
-	DayOfMonth        int32    `parquet:"name=DAY_OF_MONTH, type=INT32" json:"DAY_OF_MONTH"`
-	OpUniqueCarrier   string   `parquet:"name=OP_UNIQUE_CARRIER, type=BYTE_ARRAY, convertedtype=UTF8" json:"OP_UNIQUE_CARRIER"`
-	CrsDepTime        int32    `parquet:"name=CRS_DEP_TIME, type=INT32" json:"CRS_DEP_TIME"`
-	DepDelay          *float64 `parquet:"name=DEP_DELAY, type=DOUBLE" json:"DEP_DELAY"`
-	ArrDelay          *float64 `parquet:"name=ARR_DELAY, type=DOUBLE" json:"ARR_DELAY"`
-	Cancelled         *float64 `parquet:"name=CANCELLED, type=DOUBLE" json:"CANCELLED"`
-	Diverted          *float64 `parquet:"name=DIVERTED, type=DOUBLE" json:"DIVERTED"`
-	DepTime           *float64 `json:"DEP_TIME"`
-	ArrTime           *float64 `json:"ARR_TIME"`
-	CarrierDelay      *float64 `parquet:"name=CARRIER_DELAY, type=DOUBLE" json:"CARRIER_DELAY"`
-	WeatherDelay      *float64 `parquet:"name=WEATHER_DELAY, type=DOUBLE" json:"WEATHER_DELAY"`
-	NasDelay          *float64 `parquet:"name=NAS_DELAY, type=DOUBLE" json:"NAS_DELAY"`
-	SecurityDelay     *float64 `parquet:"name=SECURITY_DELAY, type=DOUBLE" json:"SECURITY_DELAY"`
-	LateAircraftDelay *float64 `parquet:"name=LATE_AIRCRAFT_DELAY, type=DOUBLE" json:"LATE_AIRCRAFT_DELAY"`
-	OriginAirportID   *int32   `json:"ORIGIN_AIRPORT_ID"`
-	Dest              *string  `json:"DEST"`
+	Year            int32    `parquet:"name=YEAR, type=INT32" json:"YEAR"`
+	Month           int32    `parquet:"name=MONTH, type=INT32" json:"MONTH"`
+	DayOfMonth      int32    `parquet:"name=DAY_OF_MONTH, type=INT32" json:"DAY_OF_MONTH"`
+	OpUniqueCarrier string   `parquet:"name=OP_UNIQUE_CARRIER, type=BYTE_ARRAY, convertedtype=UTF8" json:"OP_UNIQUE_CARRIER"`
+	CrsDepTime      int32    `parquet:"name=CRS_DEP_TIME, type=INT32" json:"CRS_DEP_TIME"`
+	DepDelay        *float64 `parquet:"name=DEP_DELAY, type=DOUBLE" json:"DEP_DELAY"`
+	Cancelled       *float64 `parquet:"name=CANCELLED, type=DOUBLE" json:"CANCELLED"`
+	Diverted        *float64 `parquet:"name=DIVERTED, type=DOUBLE" json:"DIVERTED"`
+	OriginAirportID *int32   `parquet:"name=ORIGIN_AIRPORT_ID, type=INT32" json:"ORIGIN_AIRPORT_ID"`
+	DestAirportID   *int32   `parquet:"name=DEST_AIRPORT_ID, type=INT32" json:"DEST_AIRPORT_ID"`
 }
 
 // ExtractTime is a method of FlightRecord that extracts the departure time as a time.Time object.
@@ -62,49 +54,16 @@ func (r *FlightRecord) Key() string {
 // String is a method of FlightRecord that returns a string representation of the record.
 // It formats the fields of the record into a readable string format.
 func (r *FlightRecord) String() string {
-	return fmt.Sprintf("Year: %d, Month: %d, DayOfMonth: %d, Carrier: %s, DepTime: %d, DepDelay: %v, ArrDelay: %v, Cancelled: %v, Diverted: %v"+
-		"CarrierDelay: %v, WeatherDelay: %v, NasDelay: %v, SecurityDelay: %v, LateAircraftDelay: %v, OriginAirportID: %v, Dest: %v",
+	return fmt.Sprintf("Year: %d, Month: %d, DayOfMonth: %d, Carrier: %s, CrsDepTime: %d, DepDelay: %v, Cancelled: %v, Diverted: %v, OriginAirportID: %v, DestAirportID: %v",
 		r.Year, r.Month, r.DayOfMonth, r.OpUniqueCarrier, r.CrsDepTime,
-		deref(r.DepDelay), deref(r.ArrDelay), deref(r.Cancelled), deref(r.Diverted),
-		deref(r.CarrierDelay), deref(r.WeatherDelay), deref(r.NasDelay), deref(r.SecurityDelay), deref(r.LateAircraftDelay),
-		derefInt(r.OriginAirportID), derefStr(r.Dest),
+		deref(r.DepDelay), deref(r.Cancelled), deref(r.Diverted),
+		derefInt(r.OriginAirportID), derefInt(r.DestAirportID),
 	)
 }
 
 // Json is a method of FlightRecord that converts the record to a JSON byte slice.
 // It returns the JSON representation of the record and any error that occurs during marshaling.
 func (r *FlightRecord) Json() ([]byte, error) {
-	// If fields are nil (missing in local Parquet), generate mock values so local tests work
-	if r.OriginAirportID == nil {
-		// Mock origin airport ID based on carrier length/characters to simulate multiple airports
-		var hash int32 = 10000
-		for _, c := range r.OpUniqueCarrier {
-			hash += int32(c) * 13
-		}
-		// Clamp to some airport range (e.g. 10000 to 19999)
-		id := 10000 + (hash % 1000)
-		r.OriginAirportID = &id
-	}
-	if r.Dest == nil {
-		dest := "JFK"
-		if len(r.OpUniqueCarrier) > 1 {
-			// Mock dest based on carrier name (e.g. "LAX", "SFO", etc.)
-			switch r.OpUniqueCarrier {
-			case "AA":
-				dest = "DFW"
-			case "DL":
-				dest = "ATL"
-			case "UA":
-				dest = "ORD"
-			case "WN":
-				dest = "MDW"
-			default:
-				dest = "LAX"
-			}
-		}
-		r.Dest = &dest
-	}
-
 	return json.Marshal(r)
 }
 
@@ -122,11 +81,4 @@ func derefInt(i *int32) any {
 		return "null"
 	}
 	return *i
-}
-
-func derefStr(s *string) any {
-	if s == nil {
-		return "null"
-	}
-	return *s
 }

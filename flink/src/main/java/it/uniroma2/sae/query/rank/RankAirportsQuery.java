@@ -1,15 +1,18 @@
 package it.uniroma2.sae.query.rank;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
-import it.uniroma2.sae.sink.SinkBuilder;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
 import org.apache.kafka.clients.producer.ProducerRecord;
+
 import java.io.Serial;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -27,62 +30,78 @@ public class RankAirportsQuery implements Serializable {
     /**
      * Builds and attaches the RankAirportsQuery pipeline to the main preprocessed stream.
      */
-    public static List<DataStreamSink<String>> buildAndAttach(DataStream<FlightRecord> mainStream, KafkaConfig kafkaConfig) {
+    public static List<DataStreamSink<RankAirportsResult>> buildAndAttach(DataStream<FlightRecord> mainStream, it.uniroma2.sae.config.ApplicationConfig config) {
         KeyedStream<FlightRecord, Integer> keyedStream = mainStream.keyBy(FlightRecord::getOriginAirportId);
+        KafkaConfig kafkaConfig = config.getKafka();
+        Duration allowedLateness = Duration.ofMinutes(config.getFlink().getAllowedLatenessMinutes());
 
-        DataStream<String> w1 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(1), "1h");
-        DataStream<String> w6 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(6), "6h");
+        DataStream<RankAirportsResult> w1 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(1), "1h", allowedLateness);
+        DataStream<RankAirportsResult> w6 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(6), "6h", allowedLateness);
 
-        DataStream<String> wGlobal = keyedStream
-                .process(new RankAirportsGlobalStateProcessor())
-                .name("Q2: Global Accum")
+        DataStream<RankAirportsResult> wGlobal = keyedStream
+                .window(GlobalWindows.create())
+                .trigger(ContinuousEventTimeTrigger.of(Duration.ofHours(1)))
+                .allowedLateness(allowedLateness)
+                .aggregate(new RankAirportsAggregator(), new RankAirportsGlobalWindowProcessor())
+                .name("Q2: Global Window")
+                .uid("q2-global-window")
                 .keyBy(RankAirportsResult::getWindowEnd)
-                .process(new RankAirportsRankProcessor())
-                .name("Q2: Global Rank");
+                .process(new RankAirportsRankProcessor(allowedLateness.plusSeconds(1)))
+                .name("Q2: Global Rank")
+                .uid("q2-global-rank");
 
         return List.of(
-                attachKafkaSink(w1, kafkaConfig, "q2_1h", "Q2: 1h"),
-                attachKafkaSink(w6, kafkaConfig, "q2_6h", "Q2: 6h"),
-                attachKafkaSink(wGlobal, kafkaConfig, "q2_global", "Q2: Global")
+                attachKafkaSink(w1, kafkaConfig, "q2_1h", "Q2: 1h", "q2-sink-1h"),
+                attachKafkaSink(w6, kafkaConfig, "q2_6h", "Q2: 6h", "q2-sink-6h"),
+                attachKafkaSink(wGlobal, kafkaConfig, "q2_global", "Q2: Global", "q2-global-sink")
         );
     }
 
-    private static DataStream<String> createTumblingWindowPipeline(
+    private static DataStream<RankAirportsResult> createTumblingWindowPipeline(
             KeyedStream<FlightRecord, Integer> keyedStream,
             Duration windowSize,
-            String label) {
+            String label,
+            Duration allowedLateness) {
 
         return keyedStream
                 .window(TumblingEventTimeWindows.of(windowSize))
+                .allowedLateness(allowedLateness)
                 .aggregate(new RankAirportsAggregator(), new RankAirportsWindowProcessor(label))
                 .name("Q2: Window (" + label + ")")
+                .uid("q2-window-" + label)
                 .keyBy(RankAirportsResult::getWindowEnd)
-                .process(new RankAirportsRankProcessor())
-                .name("Q2: Rank (" + label + ")");
+                .process(new RankAirportsRankProcessor(allowedLateness.plusSeconds(1)))
+                .name("Q2: Rank (" + label + ")")
+                .uid("q2-rank-" + label);
     }
 
-    private static DataStreamSink<String> attachKafkaSink(
-            DataStream<String> stream,
+    private static DataStreamSink<RankAirportsResult> attachKafkaSink(
+            DataStream<RankAirportsResult> stream,
             KafkaConfig kafkaConfig,
             String queryKey,
-            String pipelineName) {
+            String pipelineName,
+            String uid) {
 
-        KafkaSink<String> sink = new SinkBuilder(kafkaConfig)
-                .withRecordSerializer(new RankAirportsRecordSerializer(kafkaConfig, queryKey))
+        KafkaSink<RankAirportsResult> sink = KafkaSink.<RankAirportsResult>builder()
+                .setBootstrapServers(kafkaConfig.getHost() + ":" + kafkaConfig.getInternalPort())
+                .setRecordSerializer(new RankAirportsRecordSerializer(kafkaConfig, queryKey))
+                .setDeliveryGuarantee(org.apache.flink.connector.base.DeliveryGuarantee.AT_LEAST_ONCE)
                 .build();
 
         return stream.sinkTo(sink)
-                .name(pipelineName + " Sink");
+                .name(pipelineName + " Sink")
+                .uid(uid);
     }
 
     /**
      * Serializer for sending RankAirports JSON strings to Kafka.
      * Roots message keys by origin_airport_id for ordered delivery.
      */
-    public static class RankAirportsRecordSerializer implements KafkaRecordSerializationSchema<String> {
+    public static class RankAirportsRecordSerializer implements KafkaRecordSerializationSchema<RankAirportsResult> {
         @Serial
         private static final long serialVersionUID = 1L;
         private final String topic;
+        private static final ObjectMapper MAPPER = new ObjectMapper();
 
         public RankAirportsRecordSerializer(KafkaConfig config, String queryKey) {
             this.topic = config.getOutputTopic(queryKey);
@@ -90,31 +109,18 @@ public class RankAirportsQuery implements Serializable {
 
         @Override
         public ProducerRecord<byte[], byte[]> serialize(
-                String element, KafkaSinkContext ctx, Long timestamp) {
+                RankAirportsResult element, KafkaSinkContext ctx, Long timestamp) {
 
-            byte[] key = null;
+            byte[] key = String.valueOf(element.getOriginAirportId()).getBytes(StandardCharsets.UTF_8);
+            byte[] value = null;
+
             try {
-                // Parse origin_airport_id from the JSON string if needed,
-                // or just route without key or parse manually.
-                // Since it is a JSON string, we can do a simple substring or regex, or Jackson.
-                // Let's do a fast manual JSON field extract: "origin_airport_id":12345
-                int idx = element.indexOf("\"origin_airport_id\":");
-                if (idx != -1) {
-                    int start = idx + "\"origin_airport_id\":".length();
-                    int end = start;
-                    while (end < element.length() && Character.isDigit(element.charAt(end))) {
-                        end++;
-                    }
-                    String airportId = element.substring(start, end);
-                    key = airportId.getBytes(StandardCharsets.UTF_8);
-                }
+                value = MAPPER.writeValueAsBytes(element);
             } catch (Exception e) {
-                // Fallback
+                return null;
             }
 
-            return new ProducerRecord<>(
-                    topic, null, null, key,
-                    element.getBytes(StandardCharsets.UTF_8));
+            return new ProducerRecord<>(topic, null, null, key, value);
         }
     }
 }

@@ -3,7 +3,6 @@ package it.uniroma2.sae.query.rank;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -13,10 +12,13 @@ public class RankAirportsAccumulator implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    private static final double LATE_THRESHOLD_MINUTES = 30.0;
+
     private int numFlights = 0;
     private int severeDelays = 0;
     private double sumDepDelay = 0.0;
-    private double maxDepDelay = 0.0;
+    private double maxDepDelay = -Double.MAX_VALUE;
+
     private List<RankAirportsDelayedFlight> delayedFlights = new ArrayList<>();
 
     public RankAirportsAccumulator() {}
@@ -30,7 +32,7 @@ public class RankAirportsAccumulator implements Serializable {
     public double getSumDepDelay() { return sumDepDelay; }
     public void setSumDepDelay(double sumDepDelay) { this.sumDepDelay = sumDepDelay; }
 
-    public double getMaxDepDelay() { return maxDepDelay; }
+    public double getMaxDepDelay() { return numFlights == 0 ? 0.0 : maxDepDelay; }
     public void setMaxDepDelay(double maxDepDelay) { this.maxDepDelay = maxDepDelay; }
 
     public List<RankAirportsDelayedFlight> getDelayedFlights() { return delayedFlights; }
@@ -42,12 +44,25 @@ public class RankAirportsAccumulator implements Serializable {
         if (depDelay > this.maxDepDelay) {
             this.maxDepDelay = depDelay;
         }
-        if (depDelay > 30.0) {
+
+        if (depDelay > LATE_THRESHOLD_MINUTES) {
             this.severeDelays++;
-            this.delayedFlights.add(new RankAirportsDelayedFlight(carrier, dest, depDelay));
-            Collections.sort(this.delayedFlights);
-            if (this.delayedFlights.size() > 20) {
-                this.delayedFlights.remove(this.delayedFlights.size() - 1);
+
+            RankAirportsDelayedFlight newFlight = new RankAirportsDelayedFlight(carrier, dest, depDelay);
+
+            int index = 0;
+            while (index < this.delayedFlights.size() &&
+                    this.delayedFlights.get(index).compareTo(newFlight) <= 0) {
+                index++;
+            }
+
+            // Insert in-place
+            if (index < 20) {
+                this.delayedFlights.add(index, newFlight);
+
+                if (this.delayedFlights.size() > 20) {
+                    this.delayedFlights.removeLast();
+                }
             }
         }
     }
@@ -58,12 +73,33 @@ public class RankAirportsAccumulator implements Serializable {
         merged.severeDelays = this.severeDelays + other.severeDelays;
         merged.sumDepDelay = this.sumDepDelay + other.sumDepDelay;
         merged.maxDepDelay = Math.max(this.maxDepDelay, other.maxDepDelay);
-        merged.delayedFlights.addAll(this.delayedFlights);
-        merged.delayedFlights.addAll(other.delayedFlights);
-        Collections.sort(merged.delayedFlights);
-        if (merged.delayedFlights.size() > 20) {
-            merged.delayedFlights.subList(20, merged.delayedFlights.size()).clear();
+
+
+        List<RankAirportsDelayedFlight> listA = this.delayedFlights;
+        List<RankAirportsDelayedFlight> listB = other.delayedFlights;
+        merged.delayedFlights = new ArrayList<>(20);
+
+        int i = 0, j = 0;
+
+        while (merged.delayedFlights.size() < 20 && (i < listA.size() || j < listB.size())) {
+            if (i < listA.size() && j < listB.size()) {
+
+                if (listA.get(i).compareTo(listB.get(j)) <= 0) {
+                    merged.delayedFlights.add(listA.get(i));
+                    i++;
+                } else {
+                    merged.delayedFlights.add(listB.get(j));
+                    j++;
+                }
+            } else if (i < listA.size()) {
+                merged.delayedFlights.add(listA.get(i));
+                i++;
+            } else {
+                merged.delayedFlights.add(listB.get(j));
+                j++;
+            }
         }
+
         return merged;
     }
 }

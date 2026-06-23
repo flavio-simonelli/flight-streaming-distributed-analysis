@@ -43,7 +43,7 @@ public class FlightDelayJob implements Serializable {
         .setBounded(OffsetsInitializer.latest())
         .build();
 
-        KafkaSink<String> sink = new SinkBuilder(config.getKafka()).build();
+        KafkaSink<String> sink = SinkBuilder.defaultStringSink(config.getKafka()).build();
 
         LOG.info("Defining BATCH job: Source={} -> Sink={}", config.getKafka().getInputTopic(), config.getKafka().getSinkTopic());
 

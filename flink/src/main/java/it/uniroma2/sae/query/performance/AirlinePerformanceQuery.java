@@ -1,5 +1,6 @@
 package it.uniroma2.sae.query.performance;
 
+import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.query.common.BaseAirlineQuery;
@@ -18,26 +19,30 @@ import java.util.List;
  */
 public class AirlinePerformanceQuery extends BaseAirlineQuery {
     private static final Duration WINDOW_SIZE = Duration.ofHours(1);
-    private static final Duration ALLOWED_LATENESS = Duration.ofMinutes(5);
 
     /**
      * Attaches the AirlinePerformanceQuery pipeline to the pre-filtered target airlines stream.
      */
-    public static List<DataStreamSink<String>> buildAndAttach(DataStream<FlightRecord> targetAirlinesStream, KafkaConfig kafkaConfig) {
-        DataStream<String> stream = targetAirlinesStream
+    public static List<DataStreamSink<AirlinePerformanceResult>> buildAndAttach(DataStream<FlightRecord> targetAirlinesStream, ApplicationConfig config) {
+        KafkaConfig kafkaConfig = config.getKafka();
+        Duration allowedLateness = Duration.ofMinutes(config.getFlink().getAllowedLatenessMinutes());
+
+        DataStream<AirlinePerformanceResult> stream = targetAirlinesStream
                 .keyBy(FlightRecord::getAirline)
                 .window(TumblingEventTimeWindows.of(WINDOW_SIZE))
-                .allowedLateness(ALLOWED_LATENESS)
+                .allowedLateness(allowedLateness)
                 .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor())
-                .name("Q1: Performance");
+                .name("Q1: Performance")
+                .uid("q1-window-performance");
 
-        KafkaSink<String> sink = new SinkBuilder(kafkaConfig)
-                .withRecordSerializer(new AirlinePerformanceOutput.AirlinePerformanceRecordSerializer(kafkaConfig))
+        KafkaSink<AirlinePerformanceResult> sink = new SinkBuilder<AirlinePerformanceResult>(kafkaConfig)
+                .withRecordSerializer(new AirlinePerformanceResult.AirlinePerformanceRecordSerializer(kafkaConfig))
                 .build();
 
         return List.of(
-                stream.sinkTo(sink).name("Q1: Sink")
+                stream.sinkTo(sink)
+                        .name("Q1: Sink")
+                        .uid("q1-sink")
         );
     }
-
 }

@@ -87,6 +87,11 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.datadoghq</groupId>
+            <artifactId>sketches-java</artifactId>
+            <version>0.8.3</version>
+        </dependency>
     </dependencies>
 
     <profiles>

@@ -15,23 +15,28 @@ import java.nio.charset.StandardCharsets;
  * Simplified SinkBuilder using composition to wrap Flink's KafkaSinkBuilder with project defaults.
  * Direct inheritance is not possible due to package-private constructors in Flink.
  */
-public class SinkBuilder {
+public class SinkBuilder<T> {
 
-    private final KafkaSinkBuilder<String> builder;
+    private final KafkaSinkBuilder<T> builder;
 
     public SinkBuilder(KafkaConfig config) {
-        this.builder = KafkaSink.<String>builder()
+        this.builder = KafkaSink.<T>builder()
             .setBootstrapServers(config.getHost() + ":" + config.getInternalPort())
-            .setRecordSerializer(new RecordSerializer(config.getSinkTopic()))
             .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE);
     }
 
-    public SinkBuilder withRecordSerializer(KafkaRecordSerializationSchema<String> serializer) {
+    public static SinkBuilder<String> defaultStringSink(KafkaConfig config) {
+        SinkBuilder<String> sb = new SinkBuilder<>(config);
+        sb.builder.setRecordSerializer(new RecordSerializer(config.getSinkTopic()));
+        return sb;
+    }
+
+    public SinkBuilder<T> withRecordSerializer(KafkaRecordSerializationSchema<T> serializer) {
         this.builder.setRecordSerializer(serializer);
         return this;
     }
 
-    public KafkaSink<String> build() {
+    public KafkaSink<T> build() {
         return this.builder.build();
     }
 
