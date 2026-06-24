@@ -4,25 +4,19 @@
   "metadata": {
     "name": "flight-analysis-results",
     "namespace": "default",
-    "uid": "35ae4418-557b-473f-9ba0-a9b036d6465d",
-    "resourceVersion": "1782155856207011",
-    "generation": 4,
-    "creationTimestamp": "2026-06-21T01:22:19Z",
+    "uid": "cfbf3f58-4787-4251-8354-5b0cca60c196",
+    "resourceVersion": "1782178068605017",
+    "generation": 2,
+    "creationTimestamp": "2026-06-23T00:30:24Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "1352528693407744"
+      "grafana.app/deprecatedInternalID": "2064238428430336"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/folder": "",
-      "grafana.app/managedBy": "classic-file-provisioning",
-      "grafana.app/managerAllowsEdits": "true",
-      "grafana.app/managerId": "Flink Metrics",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/sourceChecksum": "2a778b2449dd5b0426d7399592e64be5",
-      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/query_results.json",
-      "grafana.app/sourceTimestamp": "1782002900000",
-      "grafana.app/updatedBy": "user:afprbqgj9sohsa",
-      "grafana.app/updatedTimestamp": "2026-06-22T19:17:36Z"
+      "grafana.app/updatedBy": "user:ffpyc0jw90wzka",
+      "grafana.app/updatedTimestamp": "2026-06-23T01:27:48Z"
     }
   },
   "spec": {
