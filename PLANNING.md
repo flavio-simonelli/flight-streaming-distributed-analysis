@@ -386,4 +386,25 @@ public void processElement(FlightRecord value, Context ctx, Collector<DelayDistr
 
 ## Strategia di Sink ed Ingestion
 - **Scrittura su Kafka**: le statistiche sui percentili calcolate vengono prodotte come messaggi JSON sul topic `flights-q3-results`.
-- **Telegraf e InfluxDB**: Telegraf intercetta i messaggi JSON e li archivia nella tabella `flights_q3_results` di InfluxDB. I campi memorizzati includono i percentili `p25`, `p50`, `p75`, `p90`, `min` e `max`, con `airline`, `hour` e `window_type` ("1d", "7d", "global") configurati come tag per consentire veloci interrogazioni analitiche in Grafana.
+- **Telegraf e InfluxDB**: Telegraf intercetta i messaggi JSON e li archivia nella tabella `flights_q3_results` di InfluxDB. I campi memorizzati includono i percentili `p25`, `p50`, `p75`, `p90`, `min` e `max`, con `airline`, `hour` e `window_type` ("1d", "7d", "global") configurati come tag per consentire veloci interrogazioni analitiche in Grafana.
+
+---
+
+# Metriche per analisi del applicazione
+
+monitoriamo:
+- backpressure di ogni operatore
+- throughut di ogni operatore
+- latenza
+- checkpointduration e checkpointSize
+- garagecollection activity (spesso i picchi di latenza sono causati dallo stop-the-world)
+
+Per ogni ec2 invece misuriamo:
+- cpuutilizazione: capire lo sforzo computazionale dei taskmanafer e jobmanager
+- networkIn/Out: misura il volume di byte che entrano ed escono dalla istanza EC2
+- credit Balancing (t2 o t3): forse c'è credito
+- disk read/write (se abbiamo finestre temporali di chiave rocksDB sposta i dati dalla RAM al disco perchè non entrano nella RAM)
+- Status.JobManager.Status.NumberOfTaskSlotsTotal
+- Status.JobManager.Status.NumberOfTaskSlotsAvailable
+- Status.JobManager.Status.NumberOfRegisteredTaskManagers
+
