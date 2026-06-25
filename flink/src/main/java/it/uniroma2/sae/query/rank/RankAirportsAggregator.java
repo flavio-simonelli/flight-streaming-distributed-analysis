@@ -20,9 +20,6 @@ public class RankAirportsAggregator
 
     @Override
     public RankAirportsAccumulator add(FlightRecord value, RankAirportsAccumulator accumulator) {
-        if (value.isCancelled() || value.isDiverted()) {
-            return accumulator;
-        }
         accumulator.add(value.getAirline(), String.valueOf(value.getDestinationAirportId()), value.getDepDelay());
         return accumulator;
     }

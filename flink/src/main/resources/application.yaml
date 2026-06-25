@@ -22,3 +22,4 @@ flink:
   checkpointIntervalMillis: 60000
   minPauseBetweenCheckpointsMillis: 30000
   checkpointTimeoutMillis: 120000
+  globalWindowTriggerHours: 1

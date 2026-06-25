@@ -13,12 +13,16 @@ public class FlinkConfig {
     private long checkpointIntervalMillis = 60_000L;
     private long minPauseBetweenCheckpointsMillis = 30_000L;
     private long checkpointTimeoutMillis = 120_000L;
+    private int globalWindowTriggerHours = 1;
 
     public String getHost() { return host; }
     public void setHost(String host) { this.host = host; }
 
     public int getPort() { return port; }
     public void setPort(int port) { this.port = port; }
+
+    public int getGlobalWindowTriggerHours() { return globalWindowTriggerHours; }
+    public void setGlobalWindowTriggerHours(int globalWindowTriggerHours) { this.globalWindowTriggerHours = globalWindowTriggerHours; }
 
     public int getWatermarkDelayMinutes() { return watermarkDelayMinutes; }
     public void setWatermarkDelayMinutes(int watermarkDelayMinutes) { this.watermarkDelayMinutes = watermarkDelayMinutes; }

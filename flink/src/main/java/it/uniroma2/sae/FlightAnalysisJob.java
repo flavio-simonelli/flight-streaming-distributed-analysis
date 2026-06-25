@@ -3,7 +3,6 @@ package it.uniroma2.sae;
 import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
-import it.uniroma2.sae.query.common.BaseAirlineQuery;
 import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
 import it.uniroma2.sae.query.performance.AirlinePerformanceQuery;
 import it.uniroma2.sae.query.rank.RankAirportsQuery;
@@ -78,17 +77,12 @@ public class FlightAnalysisJob {
                     .name("Watermarks")
                     .uid("watermark-assigner");
 
-            // Share the filtered airline stream between AirlinePerformanceQuery and DelayDistributionQuery
-            DataStream<FlightRecord> targetAirlinesStream = preprocessedStream
-                    .filter(new BaseAirlineQuery.TargetAirlineFilter())
-                    .name("Filter Target Airlines");
-
             // --- Attach query pipelines ---
-            List<DataStreamSink<it.uniroma2.sae.query.performance.AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(targetAirlinesStream, config);
+            List<DataStreamSink<it.uniroma2.sae.query.performance.AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
 
             List<DataStreamSink<it.uniroma2.sae.query.rank.RankAirportsResult>> q2Pipelines = RankAirportsQuery.buildAndAttach(preprocessedStream, config);
 
-            List<DataStreamSink<it.uniroma2.sae.query.distribution.DelayDistributionResult>> q3Pipelines = DelayDistributionQuery.buildAndAttach(targetAirlinesStream, config);
+            List<DataStreamSink<it.uniroma2.sae.query.distribution.DelayDistributionResult>> q3Pipelines = DelayDistributionQuery.buildAndAttach(preprocessedStream, config);
 
             LOG.info("Submitting Flight Analysis Job...");
             env.execute("Flight Streaming Distributed Analysis");

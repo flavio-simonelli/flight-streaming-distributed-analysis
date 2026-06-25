@@ -31,18 +31,26 @@ public class RankAirportsQuery implements Serializable {
      * Builds and attaches the RankAirportsQuery pipeline to the main preprocessed stream.
      */
     public static List<DataStreamSink<RankAirportsResult>> buildAndAttach(DataStream<FlightRecord> mainStream, it.uniroma2.sae.config.ApplicationConfig config) {
-        KeyedStream<FlightRecord, Integer> keyedStream = mainStream.keyBy(FlightRecord::getOriginAirportId);
+        // Filter out cancelled and diverted flights at the entry of the pipeline to reduce network shuffle overhead
+        DataStream<FlightRecord> activeFlightsStream = mainStream
+                .filter(event -> event != null && !event.isCancelled() && !event.isDiverted())
+                .name("Q2: Filter Active Flights")
+                .uid("q2-filter-active-flights");
+
+        KeyedStream<FlightRecord, Integer> keyedStream = activeFlightsStream.keyBy(FlightRecord::getOriginAirportId);
         KafkaConfig kafkaConfig = config.getKafka();
         Duration allowedLateness = Duration.ofMinutes(config.getFlink().getAllowedLatenessMinutes());
 
         DataStream<RankAirportsResult> w1 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(1), "1h", allowedLateness);
         DataStream<RankAirportsResult> w6 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(6), "6h", allowedLateness);
 
+        Duration globalTriggerInterval = Duration.ofHours(config.getFlink().getGlobalWindowTriggerHours());
+
         DataStream<RankAirportsResult> wGlobal = keyedStream
                 .window(GlobalWindows.create())
-                .trigger(ContinuousEventTimeTrigger.of(Duration.ofHours(1)))
+                .trigger(ContinuousEventTimeTrigger.of(globalTriggerInterval))
                 .allowedLateness(allowedLateness)
-                .aggregate(new RankAirportsAggregator(), new RankAirportsGlobalWindowProcessor())
+                .aggregate(new RankAirportsAggregator(), new RankAirportsGlobalWindowProcessor(globalTriggerInterval))
                 .name("Q2: Global Window")
                 .uid("q2-global-window")
                 .keyBy(RankAirportsResult::getWindowEnd)

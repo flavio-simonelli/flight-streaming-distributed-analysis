@@ -43,9 +43,14 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
 
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<RankAirportsResult> out) throws Exception {
-        PriorityQueue<RankAirportsResult> pq = new PriorityQueue<>(11,
-                (a, b) -> Integer.compare(a.getSevereDelays(), b.getSevereDelays())
-        );
+        // Use a min-heap with deterministic tie-breakers (1st: severeDelays, 2nd: depDelayMean, 3rd: originAirportId)
+        PriorityQueue<RankAirportsResult> pq = new PriorityQueue<>(11, (a, b) -> {
+            int cmp = Integer.compare(a.getSevereDelays(), b.getSevereDelays());
+            if (cmp != 0) return cmp;
+            int cmpMean = Double.compare(a.getDepDelayMean(), b.getDepDelayMean());
+            if (cmpMean != 0) return cmpMean;
+            return Integer.compare(b.getOriginAirportId(), a.getOriginAirportId()); // Ascending order in final rank, so descending in min-heap
+        });
 
         for (RankAirportsResult res : windowState.values()) {
             if (res.getNumFlights() >= 30) {
@@ -58,9 +63,15 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
 
         windowState.clear();
 
-        // Retrieve and sort the top 10 descending
+        // Retrieve and sort the top 10 descending (with identical tie-breakers)
         List<RankAirportsResult> top10 = new ArrayList<>(pq);
-        top10.sort((a, b) -> Integer.compare(b.getSevereDelays(), a.getSevereDelays()));
+        top10.sort((a, b) -> {
+            int cmp = Integer.compare(b.getSevereDelays(), a.getSevereDelays());
+            if (cmp != 0) return cmp;
+            int cmpMean = Double.compare(b.getDepDelayMean(), a.getDepDelayMean());
+            if (cmpMean != 0) return cmpMean;
+            return Integer.compare(a.getOriginAirportId(), b.getOriginAirportId());
+        });
 
         int rank = 1;
         for (RankAirportsResult res : top10) {

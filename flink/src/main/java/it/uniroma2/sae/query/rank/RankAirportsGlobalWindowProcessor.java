@@ -4,6 +4,7 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.util.Collector;
 import java.io.Serial;
+import java.time.Duration;
 
 /**
  * Handles partial emissions for Q2 global airport ranking.
@@ -15,6 +16,11 @@ public class RankAirportsGlobalWindowProcessor
     private static final long serialVersionUID = 1L;
 
     private static final long DATASET_START_MS = 1735689600000L; // 2025-01-01 00:00:00 UTC
+    private final Duration triggerInterval;
+
+    public RankAirportsGlobalWindowProcessor(Duration triggerInterval) {
+        this.triggerInterval = triggerInterval;
+    }
 
     @Override
     public void process(
@@ -30,12 +36,15 @@ public class RankAirportsGlobalWindowProcessor
             return;
         }
 
-        long currentWindowEnd = context.currentWatermark();
-        if (currentWindowEnd < 0) {
-            currentWindowEnd = System.currentTimeMillis();
+        long watermark = context.currentWatermark();
+        if (watermark < 0) {
+            watermark = System.currentTimeMillis();
         }
+        // Round down to the nearest trigger interval boundary to align parallel subtasks
+        long intervalMs = triggerInterval.toMillis();
+        long currentWindowEnd = (watermark / intervalMs) * intervalMs;
 
-        double mean = acc.getSumDepDelay() / acc.getNumFlights();
+        double mean = it.uniroma2.sae.utils.MathUtils.safeDivideRounded(acc.getSumDepDelay(), acc.getNumFlights());
 
         out.collect(new RankAirportsResult(
                 DATASET_START_MS, // window_start dataset start
