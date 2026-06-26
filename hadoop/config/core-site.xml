@@ -1,0 +1,6 @@
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://hdfs.flight-analysis.local:54310</value>
+    </property>
+</configuration>

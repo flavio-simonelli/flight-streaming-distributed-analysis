@@ -15,6 +15,9 @@ public class FlinkConfig {
     private long checkpointTimeoutMillis = 120_000L;
     private int globalWindowTriggerHours = 1;
 
+    /** Checkpoint storage backend configuration (HDFS, S3, or local). */
+    private CheckpointStorageConfig checkpoint;
+
     public String getHost() { return host; }
     public void setHost(String host) { this.host = host; }
 
@@ -44,4 +47,8 @@ public class FlinkConfig {
 
     public long getCheckpointTimeoutMillis() { return checkpointTimeoutMillis; }
     public void setCheckpointTimeoutMillis(long checkpointTimeoutMillis) { this.checkpointTimeoutMillis = checkpointTimeoutMillis; }
+
+    public CheckpointStorageConfig getCheckpoint() { return checkpoint; }
+    public void setCheckpoint(CheckpointStorageConfig checkpoint) { this.checkpoint = checkpoint; }
 }
+

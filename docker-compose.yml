@@ -1,9 +1,13 @@
+# Base configuration for Flink TaskManager workers
 x-taskmanager-base: &taskmanager-base
   image: apache/flink:2.2.1-java21
   depends_on:
     - jobmanager
   command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh taskmanager"
+  volumes:
+    - hadoop-shared:/usr/local/hadoop:ro
   environment:
+    HADOOP_CLASSPATH: /usr/local/hadoop/etc/hadoop:/usr/local/hadoop/share/hadoop/common/lib/*:/usr/local/hadoop/share/hadoop/common/*:/usr/local/hadoop/share/hadoop/hdfs/*:/usr/local/hadoop/share/hadoop/hdfs/lib/*
     FLINK_PROPERTIES: |
       jobmanager.rpc.address: jobmanager
       taskmanager.numberOfTaskSlots: 2
@@ -17,11 +21,95 @@ x-taskmanager-base: &taskmanager-base
   networks:
     - sae-net
 
+# Base configuration for HDFS DataNode workers
+x-hdfs-worker-base: &hdfs-worker-base
+  image: matnar/hadoop:3.3.2
+  user: root
+  networks:
+    - sae-net
+  tty: true
+  stdin_open: true
+  volumes:
+    - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
+    - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
+  environment:
+    - NODE_TYPE=worker
+    - HDFS_NAMENODE_HOST=${HDFS_NAMENODE_HOST}
+  command: >
+    sh -c "/usr/local/hadoop/bin/hdfs datanode & wait"
+
 services:
 
     # ---------------------------------------------------------
     # LAYER 1: INFRASTRUCTURE
     # ---------------------------------------------------------
+
+    # HDFS NameNode
+    hdfs-master:
+      image: matnar/hadoop:3.3.2
+      container_name: hdfs-master
+      user: root
+      hostname: hdfs-master
+      networks:
+        sae-net:
+          aliases:
+            - ${HDFS_NAMENODE_HOST}
+      ports:
+        - "${HDFS_WEB_UI_PORT}:9870"
+        - "${HDFS_NAMENODE_PORT}:54310"
+      volumes:
+        - hadoop-shared:/usr/local/hadoop
+        - ./hadoop/config/workers:/usr/local/hadoop/etc/hadoop/workers:ro
+        - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
+        - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
+      environment:
+        - NODE_TYPE=master
+      command: >
+        sh -c "if [ ! -d /tmp/hadoop-root/dfs/name ]; then
+          /usr/local/hadoop/bin/hdfs namenode -format -force;
+        fi;
+        /usr/local/hadoop/bin/hdfs namenode &
+        echo '[INFO] Wait for NameNode to be ready...';
+        until /usr/local/hadoop/bin/hdfs dfsadmin -safemode wait; do
+          echo '[INFO] NameNode not ready yet, retrying in 2s...';
+          sleep 2;
+        done;
+        echo '[INFO] NameNode ready! Creating checkpoint directory...';
+        /usr/local/hadoop/bin/hdfs dfs -mkdir -p /flink/checkpoints;
+        /usr/local/hadoop/bin/hdfs dfs -chmod -R 777 /flink/checkpoints;
+        wait"
+      tty: true
+      stdin_open: true
+
+    # HDFS DataNode 1
+    hdfs-worker-1:
+      <<: *hdfs-worker-base
+      container_name: hdfs-worker-1
+      hostname: hdfs-worker-1
+      networks:
+        sae-net:
+          aliases:
+            - hdfs-worker-1.flight-analysis.local
+      volumes:
+        - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
+        - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
+      depends_on:
+        - hdfs-master
+
+    # HDFS DataNode 2
+    hdfs-worker-2:
+      <<: *hdfs-worker-base
+      container_name: hdfs-worker-2
+      hostname: hdfs-worker-2
+      networks:
+        sae-net:
+          aliases:
+            - hdfs-worker-2.flight-analysis.local
+      volumes:
+        - ./hadoop/config/core-site.xml:/usr/local/hadoop/etc/hadoop/core-site.xml:ro
+        - ./hadoop/config/hdfs-site.xml:/usr/local/hadoop/etc/hadoop/hdfs-site.xml:ro
+      depends_on:
+        - hdfs-master
 
     kafka:
       image: apache/kafka:4.3.1-rc
@@ -127,9 +215,11 @@ services:
       ports:
         - "${FLINK_PORT}:8081"
       command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh jobmanager"
+      volumes:
+        - hadoop-shared:/usr/local/hadoop:ro
       environment:
-        - |
-          FLINK_PROPERTIES=
+        HADOOP_CLASSPATH: /usr/local/hadoop/etc/hadoop:/usr/local/hadoop/share/hadoop/common/lib/*:/usr/local/hadoop/share/hadoop/common/*:/usr/local/hadoop/share/hadoop/hdfs/*:/usr/local/hadoop/share/hadoop/hdfs/lib/*
+        FLINK_PROPERTIES: |
           jobmanager.rpc.address: jobmanager
           metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
           metrics.reporter.influxdb.host: influxdb.flight-analysis.local
@@ -196,8 +286,15 @@ volumes:
     #   device: ${PWD}/data/redis
 
   grafana-data:
-    # driver: local
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: ${PWD}/data/grafana
+        # driver: local
+        # driver_opts:
+        #   type: none
+        #   o: bind
+        #   device: ${PWD}/data/grafana
+
+  hadoop-shared:
+        # driver: local
+        # driver_opts:
+        #   type: none
+        #   o: bind
+        #   device: ${PWD}/shared/hadoop

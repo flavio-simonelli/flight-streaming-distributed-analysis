@@ -92,6 +92,65 @@
             <artifactId>sketches-java</artifactId>
             <version>0.8.3</version>
         </dependency>
+
+        <!-- =====================================================
+             Checkpoint Storage: HDFS + S3 (via Hadoop filesystem)
+             Both are included so the same fat-jar works for local
+             (HDFS) and AWS (S3) deployments — controlled by YAML.
+             ===================================================== -->
+
+        <!-- Hadoop HDFS client — needed for hdfs:// checkpoint storage -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-hdfs-client</artifactId>
+            <version>3.4.1</version>
+        </dependency>
+
+        <!-- Hadoop common + client API — required by both HDFS and S3A -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+            <version>3.4.1</version>
+            <exclusions>
+                <!-- Avoid pulling in old SLF4J bridges that conflict with Flink's logging -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>ch.qos.reload4j</groupId>
+                    <artifactId>reload4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Hadoop-AWS: S3A filesystem implementation — needed for s3a:// checkpoint storage -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-aws</artifactId>
+            <version>3.4.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-java-sdk-bundle</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- AWS SDK v1 bundle — required by hadoop-aws S3A implementation -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-bundle</artifactId>
+            <version>1.12.782</version>
+        </dependency>
     </dependencies>
 
     <profiles>

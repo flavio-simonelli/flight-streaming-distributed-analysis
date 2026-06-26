@@ -1,6 +1,7 @@
 package it.uniroma2.sae;
 
 import it.uniroma2.sae.config.ApplicationConfig;
+import it.uniroma2.sae.config.CheckpointStorageConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
 import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
@@ -11,6 +12,8 @@ import it.uniroma2.sae.query.rank.RankAirportsQuery;
 import it.uniroma2.sae.query.rank.RankAirportsResult;
 import it.uniroma2.sae.source.SourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -49,49 +52,156 @@ public class FlightAnalysisJob {
             );
         }
 
-        try (StreamExecutionEnvironment envToClose = env) {
-            if (config.getFlink().isCheckpointingEnabled()) {
-                env.enableCheckpointing(config.getFlink().getCheckpointIntervalMillis(), CheckpointingMode.AT_LEAST_ONCE);
-                env.getCheckpointConfig().setMinPauseBetweenCheckpoints(config.getFlink().getMinPauseBetweenCheckpointsMillis());
-                env.getCheckpointConfig().setCheckpointTimeout(config.getFlink().getCheckpointTimeoutMillis());
-            }
+        if (config.getFlink().isCheckpointingEnabled()) {
+            env.enableCheckpointing(config.getFlink().getCheckpointIntervalMillis(), CheckpointingMode.AT_LEAST_ONCE);
+            env.getCheckpointConfig().setMinPauseBetweenCheckpoints(config.getFlink().getMinPauseBetweenCheckpointsMillis());
+            env.getCheckpointConfig().setCheckpointTimeout(config.getFlink().getCheckpointTimeoutMillis());
+            configureCheckpointStorage(env, config.getFlink().getCheckpoint());
+        }
 
-            // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
-            // BoundedOutOfOrderness accounts for late-arriving events injected by the simulator.
-            // The watermark strategy is MIN from all parallel sources and wait all the sources
-            // to emit a watermark before advancing the global watermark.
-            WatermarkStrategy<FlightRecord> watermarkStrategy = WatermarkStrategy
-                    .<FlightRecord>forBoundedOutOfOrderness(Duration.ofMinutes(config.getFlink().getWatermarkDelayMinutes()))
-                    .withTimestampAssigner((event, ts) -> event.getEventTimeMillis());
+        // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
+        // BoundedOutOfOrderness accounts for late-arriving events injected by the simulator.
+        // The watermark strategy is MIN from all parallel sources and wait all the sources
+        // to emit a watermark before advancing the global watermark.
+        WatermarkStrategy<FlightRecord> watermarkStrategy = WatermarkStrategy
+                .<FlightRecord>forBoundedOutOfOrderness(Duration.ofMinutes(config.getFlink().getWatermarkDelayMinutes()))
+                .withTimestampAssigner((event, ts) -> event.getEventTimeMillis());
 
-            if (config.getFlink().getWatermarkIdlenessMinutes() > 0) {
-                watermarkStrategy = watermarkStrategy.withIdleness(Duration.ofMinutes(config.getFlink().getWatermarkIdlenessMinutes()));
-            }
-            
-            KafkaSource<FlightRecord> source = new SourceBuilder(config.getKafka()).build();
+        if (config.getFlink().getWatermarkIdlenessMinutes() > 0) {
+            watermarkStrategy = watermarkStrategy.withIdleness(Duration.ofMinutes(config.getFlink().getWatermarkIdlenessMinutes()));
+        }
 
-            DataStream<FlightRecord> rawStream = env
-                    .fromSource(source, WatermarkStrategy.noWatermarks(), "flights-stream")
-                    .name("Kafka Source")
-                    .uid("kafka-source");
+        KafkaSource<FlightRecord> source = new SourceBuilder(config.getKafka()).build();
 
-            DataStream<FlightRecord> preprocessedStream = PipelinePreprocessing.preprocess(rawStream)
-                    .assignTimestampsAndWatermarks(watermarkStrategy)
-                    .name("Watermarks")
-                    .uid("watermark-assigner");
+        DataStream<FlightRecord> rawStream = env
+                .fromSource(source, WatermarkStrategy.noWatermarks(), "flights-stream")
+                .name("Kafka Source")
+                .uid("kafka-source");
 
-            // --- Attach query pipelines ---
-            List<DataStreamSink<AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
+        DataStream<FlightRecord> preprocessedStream = PipelinePreprocessing.preprocess(rawStream)
+                .assignTimestampsAndWatermarks(watermarkStrategy)
+                .name("Watermarks")
+                .uid("watermark-assigner");
 
-            List<DataStreamSink<RankAirportsResult>> q2Pipelines = RankAirportsQuery.buildAndAttach(preprocessedStream, config);
+        // --- Attach query pipelines ---
+        List<DataStreamSink<AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
 
-            List<DataStreamSink<DelayDistributionResult>> q3Pipelines = DelayDistributionQuery.buildAndAttach(preprocessedStream, config);
+        List<DataStreamSink<RankAirportsResult>> q2Pipelines = RankAirportsQuery.buildAndAttach(preprocessedStream, config);
 
+        List<DataStreamSink<DelayDistributionResult>> q3Pipelines = DelayDistributionQuery.buildAndAttach(preprocessedStream, config);
+
+        try {
             LOG.info("Submitting Flight Analysis Job...");
             env.execute("Flight Streaming Distributed Analysis");
         } catch (Exception e) {
             LOG.error("Flink job submission/execution failed: {}", e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * Configures the Flink checkpoint storage backend based on application.yaml settings.
+     *
+     * <ul>
+     *   <li><b>hdfs</b> — saves to HDFS. The {@code dfs.client.use.datanode.hostname=true}
+     *       property is loaded automatically from {@code hdfs-site.xml} bundled in the
+     *       fat-jar classpath (src/main/resources/hdfs-site.xml), so no internal Flink or
+     *       Hadoop APIs are needed here.</li>
+     *   <li><b>s3</b> — saves to Amazon S3 via the {@code s3a://} scheme (Hadoop-AWS).
+     *       Explicit credentials are injected as AWS SDK system properties ({@code aws.accessKeyId},
+     *       {@code aws.secretKey}, {@code aws.region}) so the standard credential provider
+     *       chain picks them up. When credentials are absent, the EC2 IAM Instance Profile
+     *       is used automatically.</li>
+     *   <li><b>local</b> — saves to a local filesystem path (useful for testing).</li>
+     *   <li>null / empty — no explicit storage configured; Flink uses its default.</li>
+     * </ul>
+     *
+     * @param env    the Flink {@link StreamExecutionEnvironment} to configure
+     * @param cpCfg  the checkpoint storage configuration read from YAML (may be null)
+     */
+    private static void configureCheckpointStorage(
+            StreamExecutionEnvironment env,
+            CheckpointStorageConfig cpCfg) {
+
+        if (cpCfg == null || cpCfg.getStorageType() == null || cpCfg.getStorageType().isBlank()) {
+            LOG.info("No checkpoint storage type configured — using Flink default (local JobManager FS).");
+            return;
+        }
+
+        String storageType = cpCfg.getStorageType().trim().toLowerCase();
+        String checkpointUri;
+
+        switch (storageType) {
+            case "hdfs": {
+                CheckpointStorageConfig.HdfsConfig hdfs = cpCfg.getHdfs();
+                if (hdfs == null || hdfs.getNamenode() == null || hdfs.getNamenode().isBlank()) {
+                    throw new IllegalArgumentException(
+                            "flink.checkpoint.hdfs.namenode must be specified when storageType=hdfs");
+                }
+                // Build the full HDFS URI: hdfs://<namenode><path>
+                // The Hadoop client discovers the NameNode from the URI directly — no need
+                // for fs.defaultFS. The dfs.client.use.datanode.hostname property (required
+                // to resolve DataNode hostnames inside Docker) is loaded from hdfs-site.xml
+                // placed in src/main/resources, which Hadoop's Configuration reads automatically.
+                String namenode = hdfs.getNamenode().replaceAll("/+$", "");
+                String path = cpCfg.getPath() != null ? cpCfg.getPath() : "/flink/checkpoints";
+                if (!path.startsWith("/")) path = "/" + path;
+                checkpointUri = namenode + path;
+                LOG.info("Checkpoint storage: HDFS — {}", checkpointUri);
+                break;
+            }
+
+            case "s3": {
+                CheckpointStorageConfig.S3Config s3 = cpCfg.getS3();
+                if (s3 == null || s3.getBucket() == null || s3.getBucket().isBlank()) {
+                    throw new IllegalArgumentException(
+                            "flink.checkpoint.s3.bucket must be specified when storageType=s3");
+                }
+                String bucket = s3.getBucket().trim();
+                String path = cpCfg.getPath() != null
+                        ? cpCfg.getPath().replaceAll("^/+", "")
+                        : "flink/checkpoints";
+                checkpointUri = "s3a://" + bucket + "/" + path;
+
+                // Credentials are injected as standard AWS SDK system properties.
+                // The AWS SDK credential provider chain reads these before falling back
+                // to environment variables and the EC2 Instance Metadata Service.
+                if (s3.getAccessKey() != null && !s3.getAccessKey().isBlank()) {
+                    System.setProperty("aws.accessKeyId", s3.getAccessKey());
+                    System.setProperty("aws.secretKey", s3.getSecretKey());
+                    LOG.info("S3 checkpoint storage: using explicit credentials.");
+                } else {
+                    LOG.info("S3 checkpoint storage: no explicit credentials — using IAM Instance Profile.");
+                }
+                // Region can also be picked up from AWS_DEFAULT_REGION env var on EC2,
+                // but an explicit value in the YAML takes priority.
+                if (s3.getRegion() != null && !s3.getRegion().isBlank()) {
+                    System.setProperty("aws.region", s3.getRegion());
+                }
+                LOG.info("Checkpoint storage: S3 — {}", checkpointUri);
+                break;
+            }
+
+            case "local": {
+                String path = cpCfg.getPath();
+                if (path == null || path.isBlank()) {
+                    throw new IllegalArgumentException(
+                            "flink.checkpoint.path must be specified when storageType=local");
+                }
+                checkpointUri = path.startsWith("file://") ? path : "file://" + path;
+                LOG.info("Checkpoint storage: local FS — {}", checkpointUri);
+                break;
+            }
+
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown flink.checkpoint.storageType: '" + storageType
+                                + "'. Supported values: hdfs, s3, local");
+        }
+
+        Configuration flinkConfig = new Configuration();
+        flinkConfig.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+        flinkConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointUri);
+        env.configure(flinkConfig);
     }
 }
