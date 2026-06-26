@@ -15,10 +15,11 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.core.execution.CheckpointingMode;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,10 +54,14 @@ public class FlightAnalysisJob {
         }
 
         if (config.getFlink().isCheckpointingEnabled()) {
-            env.enableCheckpointing(config.getFlink().getCheckpointIntervalMillis(), CheckpointingMode.AT_LEAST_ONCE);
-            env.getCheckpointConfig().setMinPauseBetweenCheckpoints(config.getFlink().getMinPauseBetweenCheckpointsMillis());
-            env.getCheckpointConfig().setCheckpointTimeout(config.getFlink().getCheckpointTimeoutMillis());
-            configureCheckpointStorage(env, config.getFlink().getCheckpoint());
+            env.enableCheckpointing(config.getFlink().getCheckpointIntervalMillis());
+
+            Configuration flinkConfig = new Configuration();
+            flinkConfig.set(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.AT_LEAST_ONCE);
+            flinkConfig.set(CheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS,Duration.ofMillis(config.getFlink().getMinPauseBetweenCheckpointsMillis()));
+            flinkConfig.set(CheckpointingOptions.CHECKPOINTING_TIMEOUT, Duration.ofMillis(config.getFlink().getCheckpointTimeoutMillis()));
+            configureCheckpointStorage(env, flinkConfig, config.getFlink().getCheckpoint());
+            env.configure(flinkConfig);
         }
 
         // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
@@ -121,6 +126,7 @@ public class FlightAnalysisJob {
      */
     private static void configureCheckpointStorage(
             StreamExecutionEnvironment env,
+            Configuration flinkConfig,
             CheckpointStorageConfig cpCfg) {
 
         if (cpCfg == null || cpCfg.getStorageType() == null || cpCfg.getStorageType().isBlank()) {
@@ -199,9 +205,7 @@ public class FlightAnalysisJob {
                                 + "'. Supported values: hdfs, s3, local");
         }
 
-        Configuration flinkConfig = new Configuration();
         flinkConfig.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
         flinkConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointUri);
-        env.configure(flinkConfig);
     }
 }
