@@ -5,7 +5,12 @@ services:
     image: apache/flink:2.2.1-java21
     container_name: taskmanager
     network_mode: host
-    command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh taskmanager"
+    command: >
+      /bin/bash -c "
+      mkdir -p /opt/flink/plugins/s3-fs-hadoop &&
+      wget -qO /opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-2.2.1.jar https://repo.maven.apache.org/maven2/org/apache/flink/flink-s3-fs-hadoop/2.2.1/flink-s3-fs-hadoop-2.2.1.jar &&
+      ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ &&
+      /docker-entrypoint.sh taskmanager"
     environment:
       - |
         FLINK_PROPERTIES=

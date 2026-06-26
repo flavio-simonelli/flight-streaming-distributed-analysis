@@ -32,16 +32,17 @@ flink:
   # storageType: "local" → local filesystem
   # omit / leave empty  → Flink default (in-memory/local JobManager FS, NOT fault-tolerant)
   checkpoint:
-    storageType: "hdfs"
-    path: "/flink/checkpoints"
-    hdfs:
-      namenode: "hdfs://hdfs.flight-analysis.local:54310"
+    # HDFS example :
+    # storageType: "hdfs"
+    # path: "/flink/checkpoints"
+    # hdfs:
+    #   namenode: "hdfs://hdfs.flight-analysis.local:54310"
     # S3 example :
-    # storageType: "s3"
-    # path: "flink/checkpoints"
-    # s3:
-    #   bucket: "flink-flight-analysis"
-    #   region: "us-east-1"
-    #   # Leave accessKey/secretKey empty to use the EC2 IAM Instance Profile
-    #   accessKey: ""
-    #   secretKey: ""
+    storageType: "s3"
+    path: "flink/checkpoints"
+    s3:
+      bucket: "flink-flight-analysis"
+      region: "us-east-1"
+      # Leave accessKey/secretKey empty to use the EC2 IAM Instance Profile
+      accessKey: ""
+      secretKey: ""
