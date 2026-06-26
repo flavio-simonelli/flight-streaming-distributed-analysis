@@ -390,54 +390,77 @@ public void processElement(FlightRecord value, Context ctx, Collector<DelayDistr
 
 ---
 
-# Metriche per analisi del applicazione
+# Metriche per l'Analisi dell'Applicazione
 
-monitoriamo:
-- backpressure di ogni operatore
-- throughut di ogni operatore
-- latenza
-- checkpointduration e checkpointSize
-- garagecollection activity (spesso i picchi di latenza sono causati dallo stop-the-world)
+Monitoriamo le seguenti metriche a livello di applicazione Flink:
+- **Backpressure**: livello di contropressione di ogni operatore.
+- **Throughput**: numero di record in ingresso e in uscita per secondo per ciascun operatore (`numRecordsInPerSecond` e `numRecordsOutPerSecond`).
+- **Latenza**: tempo di transito dei record dall'ingresso all'uscita della pipeline.
+- **Checkpointing**: durata del checkpoint (`checkpointDuration`) e dimensione dello stato salvato (`checkpointSize`).
+- **Garbage Collection (GC)**: attività ed eventi di Garbage Collection (i picchi di latenza sono spesso causati da pause *Stop-The-World* della JVM).
 
-Per ogni ec2 invece misuriamo:
-- cpuutilizazione: capire lo sforzo computazionale dei taskmanafer e jobmanager
-- networkIn/Out: misura il volume di byte che entrano ed escono dalla istanza EC2
-- credit Balancing (t2 o t3): forse c'è credito
-- disk read/write (se abbiamo finestre temporali di chiave rocksDB sposta i dati dalla RAM al disco perchè non entrano nella RAM)
-- Status.JobManager.Status.NumberOfTaskSlotsTotal
-- Status.JobManager.Status.NumberOfTaskSlotsAvailable
-- Status.JobManager.Status.NumberOfRegisteredTaskManagers
+Per ciascuna istanza **Amazon EC2**, invece, misuriamo:
+- **Utilizzazione CPU**: per monitorare lo sforzo computazionale di TaskManager e JobManager.
+- **Network In/Out**: volume di byte in ingresso ed uscita dall'istanza.
+- **CPU Credit Balance** (per istanze burstable come `t2` o `t3`): monitoraggio del saldo dei crediti CPU disponibili.
+- **Disk Read/Write**: operazioni di lettura e scrittura su disco (essenziale quando si usa RocksDB come state backend, poiché scarica i dati dalla RAM su disco per finestre di grandi dimensioni).
+- **Metriche interne del JobManager**:
+  - `Status.JobManager.Status.NumberOfTaskSlotsTotal`
+  - `Status.JobManager.Status.NumberOfTaskSlotsAvailable`
+  - `Status.JobManager.Status.NumberOfRegisteredTaskManagers`
 
-# Tuning della pipeline
+---
 
-Pensiamo a questi argomenti:
-- Stato/checkpointing
-- outofordering
-- parallelismo adattivo
-- semantica garanzia di consegna
+# Tuning della Pipeline
 
-## Scenari da considerare
+Di seguito gli argomenti principali per il tuning del job:
+- **Stato e Checkpointing**
+- **Gestione dei dati fuori ordine (Out-of-Order)**
+- **Parallelismo Adattivo (Adaptive Parallelism)**
+- **Garanzie di consegna (Delivery Guarantees)**
 
-- stabilità del cluster: 
-- out of ordering:
-- multiplicatore: 
+## Scenari da Considerare
+
+- **Stabilità del cluster**: [Dettagli da completare]
+- **Out of Ordering dalle sorgenti**: [Dettagli da completare]
+- **Moltiplicatore temporale**: 
+
+Il documento specifica i seguenti dati di partenza:
+* **Totale record (voli)**: $\approx 2.200.000$ eventi.
+* **Arco temporale (Event Time)**: Dal 1 gennaio 2025 al 30 aprile 2025 (4 mesi interi $\rightarrow 120$ giorni).
+
+Calcoliamo il throughput medio se il replay avvenisse a velocità reale ($1\text{x}$), cioè diluito esattamente su 4 mesi:
+$$\text{Durata in secondi} = 120 \text{ giorni} \times 24 \text{ ore} \times 3600 \text{ secondi} = 10.368.000 \text{ secondi}$$
+$$\text{Throughput a } 1\text{x} = \frac{2.200.000 \text{ voli}}{10.368.000 \text{ secondi}} \approx \mathbf{0.21 \text{ eventi/secondo}}$$
+
+A velocità normale, il sistema riceverebbe in media solo 1 volo ogni 5 secondi. Questo è un carico impercettibile per Flink e per qualsiasi istanza EC2. Per questo motivo introduciamo dei fattori di accelerazione (moltiplicatori):
+
+| Parametro / Metrica | Scenario A: Carico Basso (Controllo) | Scenario B: Carico Medio (Regime) | Scenario C: Alto Carico (Stress Test) |
+| :--- | :--- | :--- | :--- |
+| **Moltiplicatore Scelto** | 1.440x (1 giorno logico in 1 minuto reale) | 14.400x (10 giorni logici in 1 minuto reale) | 43.200x (30 giorni logici in 1 minuto reale) |
+| **Durata Totale del Replay** | $\approx$ 120 minuti (2 ore) reali | $\approx$ 12 minuti reali | $\approx$ 4 minuti reali |
+| **Throughput Medio Generato** | $\approx$ 305 eventi / secondo | $\approx$ 3.050 eventi / secondo | $\approx$ 9.150 eventi / secondo |
+| **Durata Reale della Finestra** *(1 ora logica di voli)* | Si riduce a soli 2,5 secondi reali. | Si riduce a soli 0,25 secondi reali. | Si riduce a soli 0,083 secondi reali. |
+
+---
 
 ## Checkpointing
 
-Impostazioni del checkponinting:
-- checkpointing interval: 
-- modalità di consistenza
-- tempo minimo di pausa tra i checkpoint
-- tempo massimo di checkpoint prima che venga scartato
-- Numero massimo di checkpoint concorrenti in esecuzione
-- Configura cosa succede se il checkpoint fallisce
-- Mantieni i checkpoint anche se il job viene cancellato manualmente
-- Abilita l'allineamento non bloccante (Unaligned Checkpoints) - Opzionale per alta contesa
+Impostazioni per la resilienza e il checkpointing:
+- **Intervallo di checkpointing (Checkpointing Interval)**: [Valore da definire, es. 10s]
+- **Modalità di consistenza**: [Exactly-Once / At-Least-Once]
+- **Tempo minimo di pausa tra i checkpoint**: [Valore da definire, es. 5s]
+- **Tempo massimo di checkpoint (Timeout)**: [Valore prima che venga scartato, es. 1min]
+- **Numero massimo di checkpoint concorrenti**: [Es. 1]
+- **Comportamento in caso di fallimento**: [Configurazione di fail/ignore]
+- **Persistenza dei checkpoint**: Mantieni i checkpoint anche se il job viene cancellato manualmente.
+- **Unaligned Checkpoints**: Abilita l'allineamento non bloccante (opzionale, utile in caso di alta contesa o backpressure).
 
-Andiamo ad utilizzare nella nostra produzione un salvataggio su object storagedistribuito in maniera tale da esere tollerante ai guasti dei nodi. Lo storage scelto è S3.
-Andiamo ad abilitare il backend rocksdb con gli snapshot incrementali. In questo modo, Flink non caricherà ogni volta tutto lo stato su S3 (operazione pesante), ma caricherà solo le differenze (le modifiche) dall'ultimo checkpoint. RocksDB è un database di tipo Log-Structured Merge-tree (LSM) scritto in C++.
+In produzione, utilizzeremo un sistema di archiviazione a oggetti distribuito come **AWS S3** per salvare lo stato, garantendo tolleranza ai guasti dei nodi.
 
-```
+Per ottimizzare le prestazioni, abbiamo abilitato il backend **RocksDB** con **snapshot incrementali** (tramite le proprietà `FLINK_PROPERTIES`). In questo modo Flink non caricherà l'intero stato su S3 a ogni checkpoint (operazione molto pesante), ma caricherà solo le differenze (modifiche) rispetto al checkpoint precedente. RocksDB è un database embedded di tipo Log-Structured Merge-tree (LSM) scritto in C++ ad alte prestazioni.
+
+```yaml
 state.backend: rocksdb
 state.backend.incremental: true
 ```
