@@ -69,7 +69,9 @@ services:
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q2-1h-results --replication-factor 1 --partitions 1
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q2-6h-results --replication-factor 1 --partitions 1
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q2-global-results --replication-factor 1 --partitions 1
-          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q3-results --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q3-1d-results --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q3-7d-results --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q3-global-results --replication-factor 1 --partitions 1
 
     influxdb:
       image: influxdb:2.7

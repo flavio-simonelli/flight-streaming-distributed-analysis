@@ -42,5 +42,6 @@ services:
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flights-q2-1h-results --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} --partitions ${KAFKA_PARTITIONS:-1}
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flights-q2-6h-results --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} --partitions ${KAFKA_PARTITIONS:-1}
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flights-q2-global-results --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} --partitions ${KAFKA_PARTITIONS:-1}
-        /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flights-q3-results --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} --partitions ${KAFKA_PARTITIONS:-1}
-
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flights-q3-1d-results --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} --partitions ${KAFKA_PARTITIONS:-1}
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flights-q3-7d-results --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} --partitions ${KAFKA_PARTITIONS:-1}
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --if-not-exists --topic flights-q3-global-results --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} --partitions ${KAFKA_PARTITIONS:-1}

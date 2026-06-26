@@ -87,9 +87,9 @@ public class DelayDistributionQuery implements Serializable {
                 .uid("q3-global-window");
 
         return List.of(
-                attachKafkaSink(w1d, kafkaConfig, "q3", "Q3: 1d", "q3-sink-1d"),
-                attachKafkaSink(w7d, kafkaConfig, "q3", "Q3: 7d", "q3-sink-7d"),
-                attachKafkaSink(wGlobal, kafkaConfig, "q3", "Q3: Global", "q3-sink-global")
+                attachKafkaSink(w1d, kafkaConfig, "q3_1d", "Q3: 1d", "q3-sink-1d"),
+                attachKafkaSink(w7d, kafkaConfig, "q3_7d", "Q3: 7d", "q3-sink-7d"),
+                attachKafkaSink(wGlobal, kafkaConfig, "q3_global", "Q3: Global", "q3-sink-global")
         );
     }
 
