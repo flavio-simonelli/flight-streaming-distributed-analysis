@@ -18,6 +18,8 @@ x-taskmanager-base: &taskmanager-base
       metrics.reporter.influxdb.username: ${INFLUXDB_USER}
       metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
       metrics.latency.interval: 1000
+      state.backend: rocksdb
+      state.backend.incremental: true
   networks:
     - sae-net
 
@@ -228,6 +230,8 @@ services:
           metrics.reporter.influxdb.username: ${INFLUXDB_USER}
           metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
           metrics.latency.interval: 1000
+          state.backend: rocksdb
+          state.backend.incremental: true
       networks:
         sae-net:
           aliases:
