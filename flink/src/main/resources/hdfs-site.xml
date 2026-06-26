@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Hadoop HDFS client configuration bundled in the fat-jar.
+
+  Hadoop's Configuration class automatically loads any "hdfs-site.xml" found on the
+  classpath, so these properties are applied to every new Configuration() instance
+  without requiring any programmatic API calls.
+
+  NOTE: fs.defaultFS is intentionally NOT set here — the NameNode address is already
+  embedded in the checkpoint URI (hdfs://<namenode>:<port>/path) and Hadoop resolves
+  it from there. This keeps the JAR environment-agnostic.
+-->
+<configuration>
+    <!--
+      Required when Flink TaskManagers (or the HDFS client inside the fat-jar) connect
+      to HDFS DataNodes that are addressed by their Docker service hostname rather than
+      by a routable IP address. Without this, the DataNode returns its internal IP which
+      may not be reachable from outside the Docker network.
+    -->
+    <property>
+        <name>dfs.client.use.datanode.hostname</name>
+        <value>true</value>
+    </property>
+</configuration>
