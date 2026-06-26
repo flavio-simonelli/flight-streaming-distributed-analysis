@@ -7,10 +7,7 @@ import org.apache.flink.api.common.functions.AggregateFunction;
  * Incremental AggregateFunction for AirlinePerformanceQuery.
  * Processes each flight event and updates running counters.
  */
-public class AirlinePerformanceAggregator 
-        implements AggregateFunction<FlightRecord, AirlinePerformanceAccumulator, AirlinePerformanceAccumulator> {
-
-    private static final double LATE_THRESHOLD_MINUTES = 15.0;
+public class AirlinePerformanceAggregator implements AggregateFunction<FlightRecord, AirlinePerformanceAccumulator, AirlinePerformanceAccumulator> {
 
     @Override
     public AirlinePerformanceAccumulator createAccumulator() {
@@ -18,26 +15,17 @@ public class AirlinePerformanceAggregator
     }
 
     @Override
-    public AirlinePerformanceAccumulator add(FlightRecord event, AirlinePerformanceAccumulator acc) {
-        acc.numFlights++;
+    public AirlinePerformanceAccumulator add( FlightRecord event, AirlinePerformanceAccumulator acc) {
 
         if (event.isCancelled()) {
-            acc.cancelled++;
+            acc.addCancelledFlight();
             return acc;
         }
 
-        acc.sumDepDelay += event.getDepDelay();
-        acc.countDelay++;
-
-        if (event.getDepDelay() > LATE_THRESHOLD_MINUTES) {
-            acc.lateDepartures++;
-        }
-
-        if (event.isDiverted()) {
-            acc.diverted++;
-        } else {
-            acc.completed++;
-        }
+        acc.addOperatedFlight(
+            event.getDepDelay(),
+            event.isDiverted()
+        );
 
         return acc;
     }
@@ -49,13 +37,7 @@ public class AirlinePerformanceAggregator
 
     @Override
     public AirlinePerformanceAccumulator merge(AirlinePerformanceAccumulator a, AirlinePerformanceAccumulator b) {
-        a.numFlights     += b.numFlights;
-        a.cancelled      += b.cancelled;
-        a.diverted       += b.diverted;
-        a.completed      += b.completed;
-        a.lateDepartures += b.lateDepartures;
-        a.sumDepDelay    += b.sumDepDelay;
-        a.countDelay     += b.countDelay;
+        a.mergeWith(b);
         return a;
     }
 }

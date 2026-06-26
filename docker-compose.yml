@@ -1,7 +1,21 @@
-networks:
-  sae-net:
-    driver: bridge
-    name: sae-net
+x-taskmanager-base: &taskmanager-base
+  image: apache/flink:2.2.1-java21
+  depends_on:
+    - jobmanager
+  command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh taskmanager"
+  environment:
+    FLINK_PROPERTIES: |
+      jobmanager.rpc.address: jobmanager
+      taskmanager.numberOfTaskSlots: 2
+      metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
+      metrics.reporter.influxdb.host: influxdb.flight-analysis.local
+      metrics.reporter.influxdb.port: 8086
+      metrics.reporter.influxdb.db: ${INFLUXDB_METRICS_BUCKET}
+      metrics.reporter.influxdb.username: ${INFLUXDB_USER}
+      metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
+      metrics.latency.interval: 1000
+  networks:
+    - sae-net
 
 services:
 
@@ -127,26 +141,17 @@ services:
           aliases:
             - flink.flight-analysis.local
 
-    taskmanager:
-      image: apache/flink:2.2.1-java21
-      container_name: taskmanager
-      depends_on:
-        - jobmanager
-      command: /bin/bash -c "ln -f -s /opt/flink/plugins/metrics-influx/*.jar /opt/flink/lib/ && /docker-entrypoint.sh taskmanager"
-      environment:
-        - |
-          FLINK_PROPERTIES=
-          jobmanager.rpc.address: jobmanager
-          taskmanager.numberOfTaskSlots: 2
-          metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
-          metrics.reporter.influxdb.host: influxdb.flight-analysis.local
-          metrics.reporter.influxdb.port: 8086
-          metrics.reporter.influxdb.db: ${INFLUXDB_METRICS_BUCKET}
-          metrics.reporter.influxdb.username: ${INFLUXDB_USER}
-          metrics.reporter.influxdb.password: ${INFLUXDB_TOKEN}
-          metrics.latency.interval: 1000
-      networks:
-        - sae-net
+    taskmanager-1:
+      <<: *taskmanager-base
+      container_name: taskmanager-1
+
+    taskmanager-2:
+      <<: *taskmanager-base
+      container_name: taskmanager-2
+
+    taskmanager-3:
+      <<: *taskmanager-base
+      container_name: taskmanager-3
 
     # ---------------------------------------------------------
     # LAYER 3: VISUALIZATION
@@ -168,6 +173,10 @@ services:
       networks:
         - sae-net
 
+networks:
+  sae-net:
+    driver: bridge
+    name: sae-net
 
 volumes:
   influxdb-data:

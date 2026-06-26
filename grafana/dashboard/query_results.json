@@ -4,19 +4,25 @@
   "metadata": {
     "name": "flight-analysis-results",
     "namespace": "default",
-    "uid": "cfbf3f58-4787-4251-8354-5b0cca60c196",
-    "resourceVersion": "1782178068605017",
-    "generation": 2,
-    "creationTimestamp": "2026-06-23T00:30:24Z",
+    "uid": "1cea88d3-b6e5-4307-862d-fa131cc9851b",
+    "resourceVersion": "1782435953760007",
+    "generation": 22,
+    "creationTimestamp": "2026-06-25T19:21:44Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "2064238428430336"
+      "grafana.app/deprecatedInternalID": "3073721556295680"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/folder": "",
+      "grafana.app/managedBy": "classic-file-provisioning",
+      "grafana.app/managerAllowsEdits": "true",
+      "grafana.app/managerId": "Flink Metrics",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/updatedBy": "user:ffpyc0jw90wzka",
-      "grafana.app/updatedTimestamp": "2026-06-23T01:27:48Z"
+      "grafana.app/sourceChecksum": "2a778b2449dd5b0426d7399592e64be5",
+      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/query_results.json",
+      "grafana.app/sourceTimestamp": "1782002900000",
+      "grafana.app/updatedBy": "user:efq89ufrj53i8a",
+      "grafana.app/updatedTimestamp": "2026-06-26T01:05:53Z"
     }
   },
   "spec": {
@@ -48,7 +54,7 @@
         "kind": "Panel",
         "spec": {
           "id": 1,
-          "title": "Q1: Airline Departure Delay Performance",
+          "title": "Q1: Airline Departure Delay Performance (Trend)",
           "description": "",
           "links": [],
           "data": {
@@ -66,7 +72,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline == \"AA\" or r.airline == \"DL\" or r.airline == \"UA\" or r.airline == \"WN\")\n  |> filter(fn: (r) => r[\"_field\"] == \"dep_delay_mean\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Delay Mean\")"
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"dep_delay_mean\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Delay Mean\")"
                       }
                     },
                     "refId": "A",
@@ -118,6 +124,563 @@
                     ]
                   },
                   "color": {
+                    "mode": "palette-classic-by-name"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 10,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": true,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-10": {
+        "kind": "Panel",
+        "spec": {
+          "id": 10,
+          "title": "Max Dealy - 6h",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"6h\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"dep_delay_max\")\r\n\r\nlatest_batch = base_data\r\n  |> keep(columns: [\"_time\"])\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_batch._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      \"Airport\": \"#\" + r.rank + \" - Airport \\\"\" + string(v: r.origin_airport_id) + \"\\\"\",\r\n      \"Max Delay\": float(v: r.dep_delay_max)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"Airport\", \"Mean Delay\", \"Max Delay\"])"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "barchart",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "orientation": "horizontal",
+                "showValue": "always",
+                "stacking": "none",
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                },
+                "xTickLabelRotation": 30,
+                "xTickLabelSpacing": 0
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "percentage",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 45,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-11": {
+        "kind": "Panel",
+        "spec": {
+          "id": 11,
+          "title": "Mean Dealy - 6h",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"6h\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"dep_delay_mean\")\r\n\r\nlatest_batch = base_data\r\n  |> keep(columns: [\"_time\"])\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_batch._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      \"Airport\": \"#\" + r.rank + \" - Airport \\\"\" + string(v: r.origin_airport_id) + \"\\\"\",\r\n      \"Mean Delay\": float(v: r.dep_delay_mean)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"Airport\", \"Mean Delay\", \"Max Delay\"])"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "barchart",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "orientation": "horizontal",
+                "showValue": "always",
+                "stacking": "none",
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                },
+                "xTickLabelRotation": 30,
+                "xTickLabelSpacing": 0
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "percentage",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 45,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-12": {
+        "kind": "Panel",
+        "spec": {
+          "id": 12,
+          "title": "Mean Dealy - Global",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"dep_delay_mean\")\r\n\r\nlatest_batch = base_data\r\n  |> keep(columns: [\"_time\"])\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_batch._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      \"Airport\": \"#\" + r.rank + \" - Airport \\\"\" + string(v: r.origin_airport_id) + \"\\\"\",\r\n      \"Mean Delay\": float(v: r.dep_delay_mean)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"Airport\", \"Mean Delay\", \"Max Delay\"])"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "barchart",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "orientation": "horizontal",
+                "showValue": "always",
+                "stacking": "none",
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                },
+                "xTickLabelRotation": 30,
+                "xTickLabelSpacing": 0
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "percentage",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 45,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-13": {
+        "kind": "Panel",
+        "spec": {
+          "id": 13,
+          "title": "Max Dealy - Global",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"dep_delay_max\")\r\n\r\nlatest_batch = base_data\r\n  |> keep(columns: [\"_time\"])\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_batch._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      \"Airport\": \"#\" + r.rank + \" - Airport \\\"\" + string(v: r.origin_airport_id) + \"\\\"\",\r\n      \"Max Delay\": float(v: r.dep_delay_max)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"Airport\", \"Mean Delay\", \"Max Delay\"])"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "barchart",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "orientation": "horizontal",
+                "showValue": "always",
+                "stacking": "none",
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                },
+                "xTickLabelRotation": 30,
+                "xTickLabelSpacing": 0
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "percentage",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 45,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "lineWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-14": {
+        "kind": "Panel",
+        "spec": {
+          "id": 14,
+          "title": "Departure Delay Min/Max - 1d",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__series.name}",
+                  "unit": "m",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
                     "mode": "palette-classic"
                   },
                   "custom": {
@@ -161,11 +724,11 @@
           }
         }
       },
-      "panel-2": {
+      "panel-15": {
         "kind": "Panel",
         "spec": {
-          "id": 2,
-          "title": "Q1: Cancellation Rate Trend",
+          "id": 15,
+          "title": "Departure Delay Distribution Percentiles - 7d",
           "description": "",
           "links": [],
           "data": {
@@ -183,7 +746,391 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline == \"AA\" or r.airline == \"DL\" or r.airline == \"UA\" or r.airline == \"WN\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cancellation_rate\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Cancellation Rate\")"
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__series.name}",
+                  "unit": "m",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 10,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": true,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-16": {
+        "kind": "Panel",
+        "spec": {
+          "id": 16,
+          "title": "Departure Delay Min/Max - 7d",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__series.name}",
+                  "unit": "m",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 10,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": true,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-17": {
+        "kind": "Panel",
+        "spec": {
+          "id": 17,
+          "title": "Departure Delay Distribution Percentiles - 7d",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__series.name}",
+                  "unit": "m",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "continuous-GrYlRd"
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-18": {
+        "kind": "Panel",
+        "spec": {
+          "id": 18,
+          "title": "Departure Delay Min/Max - 7d",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__series.name}",
+                  "unit": "m",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "continuous-GrYlRd"
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "id": 2,
+          "title": "Q1: Cancellation Rate Trend by Airline",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-results"
+                      },
+                      "spec": {
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"cancellation_rate\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Cancellation Rate\")"
                       }
                     },
                     "refId": "A",
@@ -235,122 +1182,7 @@
                     ]
                   },
                   "color": {
-                    "mode": "palette-classic"
-                  },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "axisSoftMax": 100,
-                    "axisSoftMin": 0,
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 10,
-                    "gradientMode": "none",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineWidth": 2,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": true,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  }
-                },
-                "overrides": []
-              }
-            }
-          }
-        }
-      },
-      "panel-3": {
-        "kind": "Panel",
-        "spec": {
-          "id": 3,
-          "title": "Q2: Top Delayed Airports (1h Window) - Severe Delays Trend",
-          "description": "Number of flights with departure delays > 30 minutes by origin airport",
-          "links": [],
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "query": {
-                      "kind": "DataQuery",
-                      "group": "influxdb",
-                      "version": "v0",
-                      "datasource": {
-                        "name": "influxdb-results"
-                      },
-                      "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"1h\")\n  |> filter(fn: (r) => r[\"_field\"] == \"severe_delays\")\n  |> group(columns: [\"origin_airport_id\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Severe Delays\")"
-                      }
-                    },
-                    "refId": "A",
-                    "hidden": false
-                  }
-                }
-              ],
-              "transformations": [],
-              "queryOptions": {}
-            }
-          },
-          "vizConfig": {
-            "kind": "VizConfig",
-            "group": "timeseries",
-            "version": "13.0.2",
-            "spec": {
-              "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
-                "legend": {
-                  "calcs": [],
-                  "displayMode": "list",
-                  "placement": "bottom",
-                  "showLegend": true
-                },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "multi",
-                  "sort": "none"
-                }
-              },
-              "fieldConfig": {
-                "defaults": {
-                  "displayName": "${__series.name}",
-                  "unit": "short",
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "value": 0,
-                        "color": "green"
-                      }
-                    ]
-                  },
-                  "color": {
-                    "mode": "palette-classic"
+                    "mode": "palette-classic-by-name"
                   },
                   "custom": {
                     "axisBorderShow": false,
@@ -397,8 +1229,8 @@
         "kind": "Panel",
         "spec": {
           "id": 4,
-          "title": "Q3: Departure Delay Distribution Percentiles (1d Window)",
-          "description": "50th (p50) and 90th (p90) percentile of departure delays by airline",
+          "title": "Departure Delay Distribution Percentiles - 1d",
+          "description": "",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -415,7 +1247,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n  |> filter(fn: (r) => r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p90\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
                       }
                     },
                     "refId": "A",
@@ -510,7 +1342,7 @@
         "kind": "Panel",
         "spec": {
           "id": 5,
-          "title": "Q1: Total Flights Observed",
+          "title": "Airport Rank - 1h",
           "description": "",
           "links": [],
           "data": {
@@ -528,7 +1360,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline == \"AA\" or r.airline == \"DL\" or r.airline == \"UA\" or r.airline == \"WN\")\n  |> filter(fn: (r) => r[\"_field\"] == \"num_flights\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Total Flights\")"
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"1h\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"severe_delays\")\r\n\r\nlatest_hour = base_data\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_hour._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      airport_str: string(v: r.origin_airport_id),\r\n      _value: int(v: r.severe_delays)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"rank_int\", \"airport_str\", \"_value\"])"
                       }
                     },
                     "refId": "A",
@@ -536,92 +1368,99 @@
                   }
                 }
               ],
-              "transformations": [],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "convertFieldType",
+                  "spec": {
+                    "options": {
+                      "conversions": [
+                        {
+                          "destinationType": "string",
+                          "targetField": "rank_int"
+                        },
+                        {
+                          "destinationType": "string",
+                          "targetField": "airport_str"
+                        }
+                      ],
+                      "fields": {}
+                    }
+                  }
+                }
+              ],
               "queryOptions": {}
             }
           },
           "vizConfig": {
             "kind": "VizConfig",
-            "group": "timeseries",
+            "group": "bargauge",
             "version": "13.0.2",
             "spec": {
               "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
+                "displayMode": "basic",
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "multi",
-                  "sort": "none"
-                }
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": true
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
-                  "unit": "none",
+                  "displayName": "#${__data.fields.rank_int} - Airport ${__data.fields.airport_str}",
                   "thresholds": {
-                    "mode": "absolute",
+                    "mode": "percentage",
                     "steps": [
                       {
                         "value": 0,
                         "color": "green"
                       },
                       {
-                        "value": 80,
+                        "value": 50,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
                         "color": "red"
                       }
                     ]
                   },
                   "color": {
-                    "mode": "palette-classic"
+                    "mode": "continuous-GrYlRd"
                   },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "axisSoftMin": 0,
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 15,
-                    "gradientMode": "opacity",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineStyle": {
-                      "fill": "solid"
-                    },
-                    "lineWidth": 2,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": true,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  }
+                  "fieldMinMax": false
                 },
-                "overrides": []
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "none"
+                      }
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -631,7 +1470,7 @@
         "kind": "Panel",
         "spec": {
           "id": 6,
-          "title": "Q1: Completed Flights Observed",
+          "title": "Airport Rank - 6h",
           "description": "",
           "links": [],
           "data": {
@@ -649,7 +1488,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline == \"AA\" or r.airline == \"DL\" or r.airline == \"UA\" or r.airline == \"WN\")\n  |> filter(fn: (r) => r[\"_field\"] == \"completed\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Total Flights\")"
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"6h\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"severe_delays\")\r\n\r\nlatest_hour = base_data\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_hour._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      airport_str: string(v: r.origin_airport_id),\r\n      _value: int(v: r.severe_delays)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"rank_int\", \"airport_str\", \"_value\"])"
                       }
                     },
                     "refId": "A",
@@ -657,92 +1496,99 @@
                   }
                 }
               ],
-              "transformations": [],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "convertFieldType",
+                  "spec": {
+                    "options": {
+                      "conversions": [
+                        {
+                          "destinationType": "string",
+                          "targetField": "rank_int"
+                        },
+                        {
+                          "destinationType": "string",
+                          "targetField": "airport_str"
+                        }
+                      ],
+                      "fields": {}
+                    }
+                  }
+                }
+              ],
               "queryOptions": {}
             }
           },
           "vizConfig": {
             "kind": "VizConfig",
-            "group": "timeseries",
+            "group": "bargauge",
             "version": "13.0.2",
             "spec": {
               "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
+                "displayMode": "basic",
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "multi",
-                  "sort": "none"
-                }
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": true
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
-                  "unit": "none",
+                  "displayName": "#${__data.fields.rank_int} - Airport ${__data.fields.airport_str}",
                   "thresholds": {
-                    "mode": "absolute",
+                    "mode": "percentage",
                     "steps": [
                       {
                         "value": 0,
                         "color": "green"
                       },
                       {
-                        "value": 80,
+                        "value": 50,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
                         "color": "red"
                       }
                     ]
                   },
                   "color": {
-                    "mode": "palette-classic"
+                    "mode": "continuous-GrYlRd"
                   },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "axisSoftMin": 0,
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 15,
-                    "gradientMode": "opacity",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineStyle": {
-                      "fill": "solid"
-                    },
-                    "lineWidth": 2,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": true,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  }
+                  "fieldMinMax": false
                 },
-                "overrides": []
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "none"
+                      }
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -752,7 +1598,7 @@
         "kind": "Panel",
         "spec": {
           "id": 7,
-          "title": "Q1: Cancelled Flights Observed",
+          "title": "Airport Rank - Global",
           "description": "",
           "links": [],
           "data": {
@@ -770,7 +1616,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline == \"AA\" or r.airline == \"DL\" or r.airline == \"UA\" or r.airline == \"WN\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cancelled\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Total Flights\")"
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"severe_delays\")\r\n\r\nlatest_hour = base_data\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_hour._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      airport_str: string(v: r.origin_airport_id),\r\n      _value: int(v: r.severe_delays)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"rank_int\", \"airport_str\", \"_value\"])"
                       }
                     },
                     "refId": "A",
@@ -778,92 +1624,99 @@
                   }
                 }
               ],
-              "transformations": [],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "convertFieldType",
+                  "spec": {
+                    "options": {
+                      "conversions": [
+                        {
+                          "destinationType": "string",
+                          "targetField": "rank_int"
+                        },
+                        {
+                          "destinationType": "string",
+                          "targetField": "airport_str"
+                        }
+                      ],
+                      "fields": {}
+                    }
+                  }
+                }
+              ],
               "queryOptions": {}
             }
           },
           "vizConfig": {
             "kind": "VizConfig",
-            "group": "timeseries",
+            "group": "bargauge",
             "version": "13.0.2",
             "spec": {
               "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
+                "displayMode": "basic",
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "multi",
-                  "sort": "none"
-                }
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": true
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
-                  "unit": "none",
+                  "displayName": "#${__data.fields.rank_int} - Airport ${__data.fields.airport_str}",
                   "thresholds": {
-                    "mode": "absolute",
+                    "mode": "percentage",
                     "steps": [
                       {
                         "value": 0,
                         "color": "green"
                       },
                       {
-                        "value": 80,
+                        "value": 50,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
                         "color": "red"
                       }
                     ]
                   },
                   "color": {
-                    "mode": "palette-classic"
+                    "mode": "continuous-GrYlRd"
                   },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "axisSoftMin": 0,
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 15,
-                    "gradientMode": "opacity",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineStyle": {
-                      "fill": "solid"
-                    },
-                    "lineWidth": 2,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": true,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  }
+                  "fieldMinMax": false
                 },
-                "overrides": []
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "none"
+                      }
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -873,7 +1726,7 @@
         "kind": "Panel",
         "spec": {
           "id": 8,
-          "title": "Q1: Diverted Flights Observed",
+          "title": "Max Dealy - 1h",
           "description": "",
           "links": [],
           "data": {
@@ -891,7 +1744,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline == \"AA\" or r.airline == \"DL\" or r.airline == \"UA\" or r.airline == \"WN\")\n  |> filter(fn: (r) => r[\"_field\"] == \"diverted\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Total Flights\")"
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"1h\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"dep_delay_max\")\r\n\r\nlatest_batch = base_data\r\n  |> keep(columns: [\"_time\"])\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_batch._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      \"Airport\": \"#\" + r.rank + \" - Airport \\\"\" + string(v: r.origin_airport_id) + \"\\\"\",\r\n      \"Max Delay\": float(v: r.dep_delay_max)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"Airport\", \"Mean Delay\", \"Max Delay\"])"
                       }
                     },
                     "refId": "A",
@@ -905,45 +1758,52 @@
           },
           "vizConfig": {
             "kind": "VizConfig",
-            "group": "timeseries",
+            "group": "barchart",
             "version": "13.0.2",
             "spec": {
               "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
                   "showLegend": true
                 },
+                "orientation": "horizontal",
+                "showValue": "always",
+                "stacking": "none",
                 "tooltip": {
                   "hideZeros": false,
-                  "mode": "multi",
+                  "mode": "single",
                   "sort": "none"
-                }
+                },
+                "xTickLabelRotation": 30,
+                "xTickLabelSpacing": 0
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
-                  "unit": "none",
                   "thresholds": {
-                    "mode": "absolute",
+                    "mode": "percentage",
                     "steps": [
                       {
                         "value": 0,
                         "color": "green"
                       },
                       {
-                        "value": 80,
+                        "value": 45,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
                         "color": "red"
                       }
                     ]
                   },
                   "color": {
-                    "mode": "palette-classic"
+                    "mode": "thresholds"
                   },
                   "custom": {
                     "axisBorderShow": false,
@@ -951,33 +1811,16 @@
                     "axisColorMode": "text",
                     "axisLabel": "",
                     "axisPlacement": "auto",
-                    "axisSoftMin": 0,
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 15,
-                    "gradientMode": "opacity",
+                    "fillOpacity": 80,
+                    "gradientMode": "none",
                     "hideFrom": {
                       "legend": false,
                       "tooltip": false,
                       "viz": false
                     },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineStyle": {
-                      "fill": "solid"
-                    },
-                    "lineWidth": 2,
-                    "pointSize": 5,
+                    "lineWidth": 1,
                     "scaleDistribution": {
                       "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": true,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
                     },
                     "thresholdsStyle": {
                       "mode": "off"
@@ -994,7 +1837,7 @@
         "kind": "Panel",
         "spec": {
           "id": 9,
-          "title": "Q1: Late Departure Rate Trend",
+          "title": "Mean Dealy - 1h",
           "description": "",
           "links": [],
           "data": {
@@ -1012,7 +1855,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q1_results\")\n  |> filter(fn: (r) => r.airline == \"AA\" or r.airline == \"DL\" or r.airline == \"UA\" or r.airline == \"WN\")\n  |> filter(fn: (r) => r[\"_field\"] == \"late_departure_rate\")\n  |> group(columns: [\"airline\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Cancellation Rate\")"
+                        "query": "base_data = from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q2_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"1h\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"origin_airport_id\" or r[\"_field\"] == \"dep_delay_mean\")\r\n\r\nlatest_batch = base_data\r\n  |> keep(columns: [\"_time\"])\r\n  |> group()\r\n  |> max(column: \"_time\")\r\n  |> findRecord(fn: (key) => true, idx: 0)\r\n\r\nbase_data\r\n  |> filter(fn: (r) => r[\"_time\"] == latest_batch._time)\r\n  |> pivot(rowKey:[\"_time\", \"rank\"], columnKey: [\"_field\"], valueColumn: \"_value\")\r\n  |> group()\r\n  |> map(fn: (r) => ({ \r\n      rank_int: int(v: r.rank),\r\n      \"Airport\": \"#\" + r.rank + \" - Airport \\\"\" + string(v: r.origin_airport_id) + \"\\\"\",\r\n      \"Mean Delay\": float(v: r.dep_delay_mean)\r\n     }))\r\n  |> sort(columns: [\"rank_int\"], desc: false)\r\n  |> keep(columns: [\"Airport\", \"Mean Delay\", \"Max Delay\"])"
                       }
                     },
                     "refId": "A",
@@ -1026,45 +1869,52 @@
           },
           "vizConfig": {
             "kind": "VizConfig",
-            "group": "timeseries",
+            "group": "barchart",
             "version": "13.0.2",
             "spec": {
               "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
+                "barRadius": 0,
+                "barWidth": 0.97,
+                "fullHighlight": false,
+                "groupWidth": 0.7,
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
                   "showLegend": true
                 },
+                "orientation": "horizontal",
+                "showValue": "always",
+                "stacking": "none",
                 "tooltip": {
                   "hideZeros": false,
-                  "mode": "multi",
+                  "mode": "single",
                   "sort": "none"
-                }
+                },
+                "xTickLabelRotation": 30,
+                "xTickLabelSpacing": 0
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
-                  "unit": "percent",
                   "thresholds": {
-                    "mode": "absolute",
+                    "mode": "percentage",
                     "steps": [
                       {
                         "value": 0,
                         "color": "green"
                       },
                       {
-                        "value": 80,
+                        "value": 45,
+                        "color": "#EAB839"
+                      },
+                      {
+                        "value": 75,
                         "color": "red"
                       }
                     ]
                   },
                   "color": {
-                    "mode": "palette-classic"
+                    "mode": "thresholds"
                   },
                   "custom": {
                     "axisBorderShow": false,
@@ -1072,31 +1922,16 @@
                     "axisColorMode": "text",
                     "axisLabel": "",
                     "axisPlacement": "auto",
-                    "axisSoftMax": 100,
-                    "axisSoftMin": 0,
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 10,
+                    "fillOpacity": 80,
                     "gradientMode": "none",
                     "hideFrom": {
                       "legend": false,
                       "tooltip": false,
                       "viz": false
                     },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineWidth": 2,
-                    "pointSize": 5,
+                    "lineWidth": 1,
                     "scaleDistribution": {
                       "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": true,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
                     },
                     "thresholdsStyle": {
                       "mode": "off"
@@ -1111,16 +1946,13 @@
       }
     },
     "layout": {
-      "kind": "RowsLayout",
+      "kind": "TabsLayout",
       "spec": {
-        "rows": [
+        "tabs": [
           {
-            "kind": "RowsLayoutRow",
+            "kind": "TabsLayoutTab",
             "spec": {
               "title": "Query 1",
-              "collapse": false,
-              "hideHeader": false,
-              "fillScreen": false,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -1143,76 +1975,156 @@
                       "spec": {
                         "x": 0,
                         "y": 9,
-                        "width": 12,
+                        "width": 24,
                         "height": 9,
                         "element": {
                           "kind": "ElementReference",
                           "name": "panel-2"
                         }
                       }
-                    },
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "kind": "TabsLayoutTab",
+            "spec": {
+              "title": "Query 2",
+              "layout": {
+                "kind": "RowsLayout",
+                "spec": {
+                  "rows": [
                     {
-                      "kind": "GridLayoutItem",
+                      "kind": "RowsLayoutRow",
                       "spec": {
-                        "x": 12,
-                        "y": 9,
-                        "width": 12,
-                        "height": 9,
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-9"
+                        "title": "1h Window",
+                        "collapse": false,
+                        "layout": {
+                          "kind": "AutoGridLayout",
+                          "spec": {
+                            "maxColumnCount": 3,
+                            "columnWidthMode": "standard",
+                            "rowHeightMode": "standard",
+                            "items": [
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-5"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-9"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-8"
+                                  }
+                                }
+                              }
+                            ]
+                          }
                         }
                       }
                     },
                     {
-                      "kind": "GridLayoutItem",
+                      "kind": "RowsLayoutRow",
                       "spec": {
-                        "x": 0,
-                        "y": 18,
-                        "width": 12,
-                        "height": 9,
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-5"
+                        "title": "6h Window",
+                        "collapse": false,
+                        "layout": {
+                          "kind": "AutoGridLayout",
+                          "spec": {
+                            "maxColumnCount": 3,
+                            "columnWidthMode": "standard",
+                            "rowHeightMode": "standard",
+                            "items": [
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-6"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-11"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-10"
+                                  }
+                                }
+                              }
+                            ]
+                          }
                         }
                       }
                     },
                     {
-                      "kind": "GridLayoutItem",
+                      "kind": "RowsLayoutRow",
                       "spec": {
-                        "x": 12,
-                        "y": 18,
-                        "width": 12,
-                        "height": 9,
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-6"
-                        }
-                      }
-                    },
-                    {
-                      "kind": "GridLayoutItem",
-                      "spec": {
-                        "x": 0,
-                        "y": 27,
-                        "width": 12,
-                        "height": 9,
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-7"
-                        }
-                      }
-                    },
-                    {
-                      "kind": "GridLayoutItem",
-                      "spec": {
-                        "x": 12,
-                        "y": 27,
-                        "width": 12,
-                        "height": 9,
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-8"
+                        "title": "Global Window",
+                        "collapse": false,
+                        "layout": {
+                          "kind": "AutoGridLayout",
+                          "spec": {
+                            "maxColumnCount": 3,
+                            "columnWidthMode": "standard",
+                            "rowHeightMode": "standard",
+                            "items": [
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-7"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-12"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-13"
+                                  }
+                                }
+                              }
+                            ]
+                          }
                         }
                       }
                     }
@@ -1222,49 +2134,115 @@
             }
           },
           {
-            "kind": "RowsLayoutRow",
+            "kind": "TabsLayoutTab",
             "spec": {
-              "title": "New row 2",
-              "collapse": false,
+              "title": "Query 3",
               "layout": {
-                "kind": "AutoGridLayout",
+                "kind": "RowsLayout",
                 "spec": {
-                  "maxColumnCount": 3,
-                  "columnWidthMode": "standard",
-                  "rowHeightMode": "standard",
-                  "items": [
+                  "rows": [
                     {
-                      "kind": "AutoGridLayoutItem",
+                      "kind": "RowsLayoutRow",
                       "spec": {
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-3"
+                        "title": "1d Window",
+                        "collapse": false,
+                        "layout": {
+                          "kind": "AutoGridLayout",
+                          "spec": {
+                            "maxColumnCount": 4,
+                            "columnWidthMode": "standard",
+                            "rowHeightMode": "standard",
+                            "items": [
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-4"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-14"
+                                  }
+                                }
+                              }
+                            ]
+                          }
                         }
                       }
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          {
-            "kind": "RowsLayoutRow",
-            "spec": {
-              "title": "New row 1",
-              "collapse": false,
-              "layout": {
-                "kind": "AutoGridLayout",
-                "spec": {
-                  "maxColumnCount": 3,
-                  "columnWidthMode": "standard",
-                  "rowHeightMode": "standard",
-                  "items": [
+                    },
                     {
-                      "kind": "AutoGridLayoutItem",
+                      "kind": "RowsLayoutRow",
                       "spec": {
-                        "element": {
-                          "kind": "ElementReference",
-                          "name": "panel-4"
+                        "title": "7d Window",
+                        "collapse": false,
+                        "layout": {
+                          "kind": "AutoGridLayout",
+                          "spec": {
+                            "maxColumnCount": 3,
+                            "columnWidthMode": "standard",
+                            "rowHeightMode": "standard",
+                            "items": [
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-15"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-16"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "RowsLayoutRow",
+                      "spec": {
+                        "title": "Global Window",
+                        "collapse": false,
+                        "layout": {
+                          "kind": "AutoGridLayout",
+                          "spec": {
+                            "maxColumnCount": 3,
+                            "columnWidthMode": "standard",
+                            "rowHeightMode": "standard",
+                            "items": [
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-17"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-18"
+                                  }
+                                }
+                              }
+                            ]
+                          }
                         }
                       }
                     }
@@ -1284,10 +2262,10 @@
       "results"
     ],
     "timeSettings": {
-      "timezone": "browser",
-      "from": "2024-12-31T23:00:00.000Z",
-      "to": "2025-04-30T21:59:59.000Z",
-      "autoRefresh": "5s",
+      "timezone": "utc",
+      "from": "2025-01-01T00:00:00.000Z",
+      "to": "2025-04-30T23:59:59.000Z",
+      "autoRefresh": "",
       "autoRefreshIntervals": [
         "5s",
         "10s",
@@ -1304,6 +2282,44 @@
       "fiscalYearStartMonth": 0
     },
     "title": "Flight Analysis Results",
-    "variables": []
+    "variables": [
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "name": "airline",
+          "current": {
+            "text": [
+              "AA"
+            ],
+            "value": [
+              "AA"
+            ]
+          },
+          "label": "Airline",
+          "hide": "dontHide",
+          "refresh": "onDashboardLoad",
+          "skipUrlSync": false,
+          "query": {
+            "kind": "DataQuery",
+            "group": "influxdb",
+            "version": "v0",
+            "datasource": {
+              "name": "influxdb-results"
+            },
+            "spec": {
+              "query": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.measurementTagValues(\r\n  bucket: \"flights-data\", \r\n  measurement: \"flights_q1_results\", \r\n  tag: \"airline\",\r\n  start: -2y\r\n)"
+            }
+          },
+          "regex": "",
+          "regexApplyTo": "value",
+          "sort": "disabled",
+          "definition": "import \"influxdata/influxdb/schema\"\r\n\r\nschema.measurementTagValues(\r\n  bucket: \"flights-data\", \r\n  measurement: \"flights_q1_results\", \r\n  tag: \"airline\",\r\n  start: -2y\r\n)",
+          "options": [],
+          "multi": true,
+          "includeAll": false,
+          "allowCustomValue": false
+        }
+      }
+    ]
   }
 }

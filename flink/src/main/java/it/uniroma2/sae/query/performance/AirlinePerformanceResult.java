@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniroma2.sae.config.KafkaConfig;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -93,6 +95,8 @@ public class AirlinePerformanceResult implements Serializable {
      * Serializer for sending AirlinePerformanceResult to Kafka as JSON bytes.
      */
     public static class AirlinePerformanceRecordSerializer implements KafkaRecordSerializationSchema<AirlinePerformanceResult> {
+        private static final Logger LOG = LoggerFactory.getLogger(AirlinePerformanceRecordSerializer.class);
+
         @Serial
         private static final long serialVersionUID = 1L;
         private final String topic;
@@ -112,7 +116,7 @@ public class AirlinePerformanceResult implements Serializable {
             try {
                 value = objectMapper.writeValueAsBytes(element);
             } catch (Exception e) {
-                // Fallback
+                LOG.warn("Failed to serialize AirlinePerformanceResult", e);
             }
 
             return new ProducerRecord<>(topic, key, value);

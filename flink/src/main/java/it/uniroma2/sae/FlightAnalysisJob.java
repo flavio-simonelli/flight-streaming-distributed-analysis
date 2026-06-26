@@ -4,8 +4,11 @@ import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
 import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
+import it.uniroma2.sae.query.distribution.DelayDistributionResult;
 import it.uniroma2.sae.query.performance.AirlinePerformanceQuery;
+import it.uniroma2.sae.query.performance.AirlinePerformanceResult;
 import it.uniroma2.sae.query.rank.RankAirportsQuery;
+import it.uniroma2.sae.query.rank.RankAirportsResult;
 import it.uniroma2.sae.source.SourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -78,11 +81,11 @@ public class FlightAnalysisJob {
                     .uid("watermark-assigner");
 
             // --- Attach query pipelines ---
-            List<DataStreamSink<it.uniroma2.sae.query.performance.AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
+            List<DataStreamSink<AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
 
-            List<DataStreamSink<it.uniroma2.sae.query.rank.RankAirportsResult>> q2Pipelines = RankAirportsQuery.buildAndAttach(preprocessedStream, config);
+            List<DataStreamSink<RankAirportsResult>> q2Pipelines = RankAirportsQuery.buildAndAttach(preprocessedStream, config);
 
-            List<DataStreamSink<it.uniroma2.sae.query.distribution.DelayDistributionResult>> q3Pipelines = DelayDistributionQuery.buildAndAttach(preprocessedStream, config);
+            List<DataStreamSink<DelayDistributionResult>> q3Pipelines = DelayDistributionQuery.buildAndAttach(preprocessedStream, config);
 
             LOG.info("Submitting Flight Analysis Job...");
             env.execute("Flight Streaming Distributed Analysis");

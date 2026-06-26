@@ -8,12 +8,12 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Fires at window end to compute rates and average delays, outputting a JSON string.
- */
-public class AirlinePerformanceWindowProcessor
-        extends ProcessWindowFunction<AirlinePerformanceAccumulator, AirlinePerformanceResult, String, TimeWindow> {
+import java.util.Iterator;
 
+/**
+ * Fires at window end to compute rates and average delays.
+ */
+public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<AirlinePerformanceAccumulator, AirlinePerformanceResult, String, TimeWindow> {
     private static final Logger LOG = LoggerFactory.getLogger(AirlinePerformanceWindowProcessor.class);
 
     @Override
@@ -23,12 +23,7 @@ public class AirlinePerformanceWindowProcessor
             Iterable<AirlinePerformanceAccumulator> accumulators,
             Collector<AirlinePerformanceResult> out) throws Exception {
 
-        AirlinePerformanceAccumulator acc = accumulators.iterator().next();
-        double depDelayMean      = MathUtils.safeDivideRounded(acc.sumDepDelay, acc.countDelay);
-        double cancellationRate  = MathUtils.safeDividePercent(acc.cancelled, acc.numFlights);
-
-        long nonCancelledFlights = acc.numFlights - acc.cancelled;
-        double lateDepartureRate = MathUtils.safeDividePercent(acc.lateDepartures, nonCancelledFlights);
+        Iterator<AirlinePerformanceAccumulator> iterator = accumulators.iterator();
 
         long windowStartRaw = ctx.window().getStart();
         long windowEndRaw   = ctx.window().getEnd();
@@ -36,11 +31,55 @@ public class AirlinePerformanceWindowProcessor
         String windowStartStr = DateUtils.formatTimestamp(windowStartRaw);
         String windowEndStr   = DateUtils.formatTimestamp(windowEndRaw);
 
+        if (!iterator.hasNext()) {
+            LOG.warn("No accumulator found for airline {}", airline);
+
+            AirlinePerformanceResult result = new AirlinePerformanceResult(
+                windowStartStr,
+                windowEndStr,
+                airline,
+                0,
+                0,
+                0,
+                0,
+                0.0,
+                0.0,
+                0.0
+            );
+
+            out.collect(result);
+            return;
+        }
+
+        AirlinePerformanceAccumulator acc = iterator.next();
+
+        double depDelayMean = MathUtils.safeDivideRounded(
+            acc.sumDepDelay,
+            acc.countDelay
+        );
+
+        double cancellationRate = MathUtils.safeDividePercent(
+            acc.cancelled,
+            acc.numFlights
+        );
+
+        double lateDepartureRate = MathUtils.safeDividePercent(
+            acc.lateDepartures,
+            acc.getNonCancelledFlights()
+        );
+
         AirlinePerformanceResult result = new AirlinePerformanceResult(
-                windowStartStr, windowEndStr, airline,
-                acc.numFlights, acc.cancelled, acc.diverted, acc.completed,
-                depDelayMean,
-                cancellationRate, lateDepartureRate);
+            windowStartStr,
+            windowEndStr,
+            airline,
+            acc.numFlights,
+            acc.cancelled,
+            acc.diverted,
+            acc.completed,
+            depDelayMean,
+            cancellationRate,
+            lateDepartureRate
+        );
 
         LOG.debug("AirlinePerformance window closed: {}", result);
         out.collect(result);

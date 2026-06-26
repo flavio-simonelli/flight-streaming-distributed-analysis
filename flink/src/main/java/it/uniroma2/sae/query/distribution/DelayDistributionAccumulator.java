@@ -2,11 +2,17 @@ package it.uniroma2.sae.query.distribution;
 
 import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.datadoghq.sketch.ddsketch.DDSketches;
+import com.datadoghq.sketch.ddsketch.mapping.IndexMapping;
 import com.datadoghq.sketch.ddsketch.store.Bin;
 import com.datadoghq.sketch.ddsketch.store.Store;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serial;
 import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -80,32 +86,32 @@ public class DelayDistributionAccumulator implements Serializable {
         // Serialize positive store
         Store positiveStore = sketch.getPositiveValueStore();
         List<Bin> positiveBins = new java.util.ArrayList<>();
-        java.util.Iterator<?> posIt = positiveStore.getAscendingIterator();
+        Iterator<?> posIt = positiveStore.getAscendingIterator();
         while (posIt.hasNext()) {
-            positiveBins.add((com.datadoghq.sketch.ddsketch.store.Bin) posIt.next());
+            positiveBins.add((Bin) posIt.next());
         }
         out.writeInt(positiveBins.size());
-        for (com.datadoghq.sketch.ddsketch.store.Bin bin : positiveBins) {
+        for (Bin bin : positiveBins) {
             out.writeInt(bin.getIndex());
             out.writeDouble(bin.getCount());
         }
 
         // Serialize negative store
-        com.datadoghq.sketch.ddsketch.store.Store negativeStore = sketch.getNegativeValueStore();
-        java.util.List<com.datadoghq.sketch.ddsketch.store.Bin> negativeBins = new java.util.ArrayList<>();
-        java.util.Iterator<?> negIt = negativeStore.getAscendingIterator();
+        Store negativeStore = sketch.getNegativeValueStore();
+        List<Bin> negativeBins = new ArrayList<>();
+        Iterator<?> negIt = negativeStore.getAscendingIterator();
         while (negIt.hasNext()) {
-            negativeBins.add((com.datadoghq.sketch.ddsketch.store.Bin) negIt.next());
+            negativeBins.add((Bin) negIt.next());
         }
         out.writeInt(negativeBins.size());
-        for (com.datadoghq.sketch.ddsketch.store.Bin bin : negativeBins) {
+        for (Bin bin : negativeBins) {
             out.writeInt(bin.getIndex());
             out.writeDouble(bin.getCount());
         }
     }
 
     @Serial
-    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
 
         double zeroCount = in.readDouble();
@@ -114,7 +120,7 @@ public class DelayDistributionAccumulator implements Serializable {
         this.sketch = DDSketches.unboundedDense(accuracy);
         if (zeroCount > 0) {
             try {
-                java.lang.reflect.Field field = sketch.getClass().getDeclaredField("zeroCount");
+                Field field = sketch.getClass().getDeclaredField("zeroCount");
                 field.setAccessible(true);
                 field.setDouble(sketch, zeroCount);
             } catch (Exception e) {
@@ -122,7 +128,7 @@ public class DelayDistributionAccumulator implements Serializable {
             }
         }
 
-        com.datadoghq.sketch.ddsketch.mapping.IndexMapping mapping = this.sketch.getIndexMapping();
+        IndexMapping mapping = this.sketch.getIndexMapping();
 
         int positiveBinsCount = in.readInt();
         for (int i = 0; i < positiveBinsCount; i++) {
