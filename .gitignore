@@ -9,8 +9,13 @@ keys
 
 # Simulator
 simulator.iml
-go.sum
+simulator/go.sum
 simulator/*.exe
+
+# Experiments
+experiment/**/go.sum
+experiment/**/*.exe
+chaos.iml
 
 # Processing
 flink/target
