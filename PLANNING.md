@@ -422,8 +422,8 @@ Di seguito gli argomenti principali per il tuning del job:
 ## Scenari da Considerare
 
 - **Stabilità del cluster**: [Dettagli da completare]
-- **Out of Ordering dalle sorgenti**: [Dettagli da completare]
-- **Moltiplicatore temporale**: 
+- **Out of Ordering dalle sorgenti**: l'impatto del disordine sui watermark e sull'emissione delle finestre (vedi tabella dei parametri di disordine sotto).
+- **Moltiplicatore temporale**: descrive l'accelerazione della pipeline rispetto all'Event Time reale (vedi tabella degli scenari sotto).
 
 Il documento specifica i seguenti dati di partenza:
 * **Totale record (voli)**: $\approx 2.200.000$ eventi.
@@ -441,6 +441,16 @@ A velocità normale, il sistema riceverebbe in media solo 1 volo ogni 5 secondi.
 | **Durata Totale del Replay** | $\approx$ 120 minuti (2 ore) reali | $\approx$ 12 minuti reali | $\approx$ 4 minuti reali |
 | **Throughput Medio Generato** | $\approx$ 305 eventi / secondo | $\approx$ 3.050 eventi / secondo | $\approx$ 9.150 eventi / secondo |
 | **Durata Reale della Finestra** *(1 ora logica di voli)* | Si riduce a soli 2,5 secondi reali. | Si riduce a soli 0,25 secondi reali. | Si riduce a soli 0,083 secondi reali. |
+
+### Impatto del Disordine Logico (Out-of-Order)
+
+Il disordine temporale introdotto dal simulatore simula i ritardi di rete reali. A seconda del moltiplicatore temporale scelto, lo sfasamento logico (espresso in minuti di ritardo dei voli) si traduce in intervalli di tempo reali differenti che Flink deve gestire prima di considerare chiusa una finestra o di dichiarare un record come tardivo (*late*):
+
+| Moltiplicatore Scelto | Disordine Logico: 0 min (Baseline) | Disordine Logico: 15 min (Lieve) | Disordine Logico: 60 min (Severo) |
+| :--- | :--- | :--- | :--- |
+| **1.440x** (1 giorno in 1 minuto)<br>Throughput: $\approx 305$ ev/s<br>Finestra 1h = 2,5s reali | **0 secondi reali**.<br>I dati arrivano perfettamente ordinati cronologicamente. | **0,625 secondi reali** ($625$ ms).<br>Flink deve bufferizzare i dati per poco più di mezzo secondo reale prima di emettere il Watermark. | **2,5 secondi reali**.<br>Il ritardo equivale esattamente alla durata reale di una finestra oraria. Scenario ideale per testare la latenza consentita (*allowedLateness*). |
+| **14.400x** (10 giorni in 1 minuto)<br>Throughput: $\approx 3.050$ ev/s<br>Finestra 1h = 0,25s reali | **0 secondi reali**.<br>I dati arrivano perfettamente ordinati cronologicamente. | **0,062 secondi reali** ($62,5$ ms).<br>Il disordine è un battito di ciglia. Flink lo gestisce agilmente nei buffer di rete della JVM se il parallelismo è corretto. | **0,25 secondi reali** ($250$ ms).<br>Un'intera ora di ritardo logico si consuma in un quarto di secondo reale. Carico medio-alto sulla gestione dello stato. |
+| **43.200x** (30 giorni in 1 minuto)<br>Throughput: $\approx 9.150$ ev/s<br>Finestra 1h = 0,083s reali | **0 secondi reali**.<br>I dati arrivano perfettamente ordinati cronologicamente. | **0,020 secondi reali** ($20,8$ ms).<br>Disordine rapidissimo. Avviene interamente a livello di micro-ottimizzazione dei thread di Flink. | **0,083 secondi reali** ($83,3$ ms).<br>Stress test puro: lo sfasamento logico di un'ora arriva in meno di 100 millisecondi reali, mentre arrivano quasi 800 record concorrenti. |
 
 ---
 
@@ -464,3 +474,30 @@ Per ottimizzare le prestazioni, abbiamo abilitato il backend **RocksDB** con **s
 state.backend: rocksdb
 state.backend.incremental: true
 ```
+
+# Run
+
+## Primo confronto: latenza e throughput di flink, utilizzazione della cpu
+
+1. senza out of ordering aggiuntivo, no checkpointing, parallelismo 1, moltiplicatore a 1440x (2 ore)
+
+1. senza out of ordering aggiuntivo, no checkpointing, parallelismo 1, moltiplicatore a 14400x
+2. senza out of ordering aggiuntivo, no checkpointing, parallelismo 3, moltiplicatore a 14400x
+3. senza out of ordering aggiuntivo, no checkpointing, parallelismo 6, moltiplicatore a 14400x
+4. senza out of ordering aggiuntivo, no checkpointing, parallelismo 1, moltiplicatore a 43.200x
+5. senza out of ordering aggiuntivo, no checkpointing, parallelismo 3, moltiplicatore a 43.200x
+6. senza out of ordering aggiuntivo, no checkpointing, parallelismo 6, moltiplicatore a 43.200x
+
+## Secondo confronto basato sull'outofordering:
+
+1. outofordering aggiuntivo 30min, watermark delay 30min, allowed lateness 0 min, moltiplicatore a 14400x
+2. outofordering aggiuntivo 30min, watermark delay 5min, allowed lateness 25 min, moltiplicatore a 14400x
+3. outofordering aggiuntivo 30min, watermark delay 10min, allowed lateness 0 min, moltiplicatore a 14400x
+
+mettiamo il miglior parallelismo visto nel primo confronto nel caso 14400x
+
+## Terzo confronto basato sul checkpointing:
+
+1. parallelismo 6, senza out of ordering aggiuntivo, moltiplicatore a 14400x, Intervallo Checkpoint 5 min, Profilo di Stabilità 0 Fallimenti
+2. parallelismo 6, senza out of ordering aggiuntivo, moltiplicatore a 14400x, Intervallo Checkpoint 30 sec, Profilo di Stabilità 0 Fallimenti
+3. parallelismo 6, senza out of ordering aggiuntivo, moltiplicatore a 14400x, Intervallo Checkpoint 5 min, Profilo di Stabilità 1 Fallimento al 6 minuto
