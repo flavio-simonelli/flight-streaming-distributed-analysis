@@ -408,3 +408,36 @@ Per ogni ec2 invece misuriamo:
 - Status.JobManager.Status.NumberOfTaskSlotsAvailable
 - Status.JobManager.Status.NumberOfRegisteredTaskManagers
 
+# Tuning della pipeline
+
+Pensiamo a questi argomenti:
+- Stato/checkpointing
+- outofordering
+- parallelismo adattivo
+- semantica garanzia di consegna
+
+## Scenari da considerare
+
+- stabilità del cluster: 
+- out of ordering:
+- multiplicatore: 
+
+## Checkpointing
+
+Impostazioni del checkponinting:
+- checkpointing interval: 
+- modalità di consistenza
+- tempo minimo di pausa tra i checkpoint
+- tempo massimo di checkpoint prima che venga scartato
+- Numero massimo di checkpoint concorrenti in esecuzione
+- Configura cosa succede se il checkpoint fallisce
+- Mantieni i checkpoint anche se il job viene cancellato manualmente
+- Abilita l'allineamento non bloccante (Unaligned Checkpoints) - Opzionale per alta contesa
+
+Andiamo ad utilizzare nella nostra produzione un salvataggio su object storagedistribuito in maniera tale da esere tollerante ai guasti dei nodi. Lo storage scelto è S3.
+Andiamo ad abilitare il backend rocksdb con gli snapshot incrementali. In questo modo, Flink non caricherà ogni volta tutto lo stato su S3 (operazione pesante), ma caricherà solo le differenze (le modifiche) dall'ultimo checkpoint. RocksDB è un database di tipo Log-Structured Merge-tree (LSM) scritto in C++.
+
+```
+state.backend: rocksdb
+state.backend.incremental: true
+```
