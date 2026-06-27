@@ -130,7 +130,23 @@ Apache Flink, Stream Processing, Apache Kafka, Traffico Aereo, Percentili Appros
 % ------------------------------
 
 \section{Implementazione delle Componenti}\label{sec:implementation_details}
-% Inserire qui i dettagli implementativi.
+
+\subsection{Simulatore di Ingestione in Go}\label{subsec:go_simulator}
+L'ingestione e il replay degli eventi storici in tempo reale sono gestiti da un componente custom sviluppato in linguaggio \textbf{Go}. La scelta tecnologica è motivata dalla necessità di disporre di un agente di ingestione ad altissime prestazioni, caratterizzato da un consumo minimo di risorse e in grado di garantire throughput elevati (fino a oltre $9.000$ eventi/secondo) senza introdurre colli di bottiglia o latenze spurie dovute alla Garbage Collection (frequenti in ecosistemi basati su JVM).
+
+Il simulatore implementa diverse funzionalità avanzate e ottimizzazioni ingegneristiche:
+
+\begin{itemize}
+    \item \textbf{Ingestione Streaming Zero-Copy ed Integrity Check}: Al primo avvio, l'applicazione verifica l'integrità del dataset scaricato confrontando l'hash SHA-1 calcolato con quello di riferimento. L'archivio \texttt{.tar.gz} originale viene letto e decodificato al volo in memoria (\textit{on-the-fly streaming}) tramite la libreria nativa di Go, senza la necessità di estrarre preventivamente su disco circa $2.2$ milioni di righe in formato CSV, risparmiando spazio di archiviazione ed eliminando i tempi morti di I/O del disco.
+    
+    \item \textbf{Binary Caching in formato GOB}: Al fine di minimizzare i tempi di inizializzazione nelle successive esecuzioni (stress test o tuning della pipeline), gli eventi letti vengono convertiti in strutture tipizzate Go, ordinati cronologicamente rispetto all'event-time calcolato e serializzati in un file di cache binario locale in formato \textbf{GOB} (Go Object Binary). Questo meccanismo riduce il tempo di boot e caricamento del dataset da circa 90 secondi reali a meno di 2 secondi.
+    
+    \item \textbf{Gestione del Tempo Fisico ed Event-Time Replay}: Per ciascun volo, l'event-time logico viene ricostruito dinamicamente combinando i campi \texttt{YEAR}, \texttt{MONTH}, \texttt{DAY\_OF\_MONTH} e l'orario programmato \texttt{CRS\_DEP\_TIME}. Il replay emula la distanza temporale reale tra i voli applicando un fattore di compressione del tempo (\textit{Speedup Factor}) impostabile da configurazione. La temporizzazione è calcolata tramite un meccanismo a precisione millesimale che valuta la differenza relativa ($\Delta t$) dell'event-time rispetto all'evento precedente, attendendo il tempo residuo riscalato prima dell'invio a Kafka.
+    
+    \item \textbf{High-Precision Hybrid Waiter (Sleep-Spinlock)}: Per riprodurre fedelmente la distanza temporale tra gli eventi, specialmente con alti fattori di accelerazione (dove le finestre temporali logiche di un'ora si contraggono in pochi millisecondi reali), il simulatore non può affidarsi unicamente alle funzioni di \textit{sleep} fornite dal sistema operativo. Queste ultime sono infatti soggette all'imprecisione dello scheduler del kernel e all'overhead dei \textit{context switch}, che introducono latenze variabili nell'ordine dei $10$-$15$ ms. Per ovviare a questo limite, è stata implementata una strategia di attesa ibrida. Se la durata dell'attesa supera una determinata soglia critica (\textit{spin threshold}, impostata a $15$ ms), il thread esegue una sleep cooperativa rilasciando la CPU; non appena il tempo residuo scende sotto la soglia, il thread effettua un \textbf{spinlock} (attesa attiva ad alta frequenza). Questo impedisce al sistema operativo di sospendere il processo, assicurando una precisione di rilascio nell'ordine dei microsecondi e garantendo l'uniformità del throughput.
+    
+    \item \textbf{Generazione di Disordine (Out-of-Order Injection)}: Al fine di stressare e validare le strategie di Watermarking e la gestione dei dati tardivi (\textit{allowed lateness}) di Apache Flink, il simulatore implementa un decoratore basato su un algoritmo probabilistico. Con una probabilità definita $P \in [0, 1]$, un record viene selezionato e il suo istante di pubblicazione viene dislocato in avanti nel tempo di un offset casuale limitato da un valore massimo configurabile ($\delta_{max}$ in minuti logici). La sequenza di eventi risultante viene infine ri-ordinata sul tempo di pubblicazione reale prima dell'invio, riproducendo accuratamente i tipici disallineamenti di rete di uno stream distribuito.
+\end{itemize}
 
 % ------------------------------
 
