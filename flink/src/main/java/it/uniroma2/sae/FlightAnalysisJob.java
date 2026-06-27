@@ -81,8 +81,8 @@ public class FlightAnalysisJob {
             flinkCpConfig.setTolerableCheckpointFailureNumber(checkpointCfg.getTolerableFailedCheckpoints());
             flinkCpConfig.enableUnalignedCheckpoints(checkpointCfg.isUnalignedCheckpoints());
             flinkCpConfig.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
-            flinkCpConfig.setExternalizedCheckpointRetention(
-                    org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION
+            flinkCpConfig.setExternalizedCheckpointCleanup(
+                    org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
             );
         }
 

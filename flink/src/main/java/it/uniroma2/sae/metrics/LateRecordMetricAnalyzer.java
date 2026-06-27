@@ -30,8 +30,8 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(org.apache.flink.api.common.functions.OpenContext context) throws Exception {
+        super.open(context);
         // Register a Flink Histogram metric to track lateness distribution in minutes
         this.dropLatenessHistogram = getRuntimeContext()
                 .getMetricGroup()

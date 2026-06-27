@@ -41,8 +41,8 @@ public class PipelinePreprocessing implements Serializable {
         private transient org.apache.flink.metrics.Counter corruptedRecordsCounter;
 
         @Override
-        public void open(org.apache.flink.configuration.Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(org.apache.flink.api.common.functions.OpenContext context) throws Exception {
+            super.open(context);
             this.corruptedRecordsCounter = getRuntimeContext()
                     .getMetricGroup()
                     .counter("corrupted_records_total");
