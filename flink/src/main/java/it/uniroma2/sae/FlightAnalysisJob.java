@@ -1,7 +1,7 @@
 package it.uniroma2.sae;
 
 import it.uniroma2.sae.config.ApplicationConfig;
-import it.uniroma2.sae.config.CheckpointStorageConfig;
+import it.uniroma2.sae.config.CheckpointConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
 import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
@@ -53,14 +53,23 @@ public class FlightAnalysisJob {
             );
         }
 
-        if (config.getFlink().isCheckpointingEnabled()) {
-            env.enableCheckpointing(config.getFlink().getCheckpointIntervalMillis());
+        CheckpointConfig checkpointCfg = config.getFlink().getCheckpoint();
+
+        // Enables and configures Flink's checkpointing mechanism (Fault Tolerance).
+        // If enabled in the application properties, this block:
+        // - Activates periodic checkpointing with the specified time interval.
+        // - Sets the data consistency mode to EXACTLY_ONCE (guarantees no data loss, not allowing duplicates).
+        // - Defines a minimum pause between checkpoints to prevent system overload (checkpoint backpressure).
+        // - Establishes a maximum timeout after which a pending checkpoint is aborted.
+        // - Initializes and applies the target storage backend (HDFS, S3, or Local) based on configuration.
+        if (checkpointCfg != null && checkpointCfg.isEnabled()) {
+            env.enableCheckpointing(checkpointCfg.getIntervalMillis());
 
             Configuration flinkConfig = new Configuration();
-            flinkConfig.set(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.AT_LEAST_ONCE);
-            flinkConfig.set(CheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS,Duration.ofMillis(config.getFlink().getMinPauseBetweenCheckpointsMillis()));
-            flinkConfig.set(CheckpointingOptions.CHECKPOINTING_TIMEOUT, Duration.ofMillis(config.getFlink().getCheckpointTimeoutMillis()));
-            configureCheckpointStorage(env, flinkConfig, config.getFlink().getCheckpoint());
+            flinkConfig.set(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.EXACTLY_ONCE);
+            flinkConfig.set(CheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS, Duration.ofMillis(checkpointCfg.getMinPauseMillis()));
+            flinkConfig.set(CheckpointingOptions.CHECKPOINTING_TIMEOUT, Duration.ofMillis(checkpointCfg.getTimeoutMillis()));
+            configureCheckpointStorage(env, flinkConfig, checkpointCfg);
             env.configure(flinkConfig);
         }
 
@@ -79,14 +88,11 @@ public class FlightAnalysisJob {
         KafkaSource<FlightRecord> source = new SourceBuilder(config.getKafka()).build();
 
         DataStream<FlightRecord> rawStream = env
-                .fromSource(source, WatermarkStrategy.noWatermarks(), "flights-stream")
+                .fromSource(source, watermarkStrategy, "flights-stream")
                 .name("Kafka Source")
                 .uid("kafka-source");
 
-        DataStream<FlightRecord> preprocessedStream = PipelinePreprocessing.preprocess(rawStream)
-                .assignTimestampsAndWatermarks(watermarkStrategy)
-                .name("Watermarks")
-                .uid("watermark-assigner");
+        DataStream<FlightRecord> preprocessedStream = PipelinePreprocessing.preprocess(rawStream);
 
         // --- Attach query pipelines ---
         List<DataStreamSink<AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
@@ -127,7 +133,7 @@ public class FlightAnalysisJob {
     private static void configureCheckpointStorage(
             StreamExecutionEnvironment env,
             Configuration flinkConfig,
-            CheckpointStorageConfig cpCfg) {
+            CheckpointConfig cpCfg) {
 
         if (cpCfg == null || cpCfg.getStorageType() == null || cpCfg.getStorageType().isBlank()) {
             LOG.info("No checkpoint storage type configured — using Flink default (local JobManager FS).");
@@ -139,7 +145,7 @@ public class FlightAnalysisJob {
 
         switch (storageType) {
             case "hdfs": {
-                CheckpointStorageConfig.HdfsConfig hdfs = cpCfg.getHdfs();
+                CheckpointConfig.HdfsConfig hdfs = cpCfg.getHdfs();
                 if (hdfs == null || hdfs.getNamenode() == null || hdfs.getNamenode().isBlank()) {
                     throw new IllegalArgumentException(
                             "flink.checkpoint.hdfs.namenode must be specified when storageType=hdfs");
@@ -158,7 +164,7 @@ public class FlightAnalysisJob {
             }
 
             case "s3": {
-                CheckpointStorageConfig.S3Config s3 = cpCfg.getS3();
+                CheckpointConfig.S3Config s3 = cpCfg.getS3();
                 if (s3 == null || s3.getBucket() == null || s3.getBucket().isBlank()) {
                     throw new IllegalArgumentException(
                             "flink.checkpoint.s3.bucket must be specified when storageType=s3");

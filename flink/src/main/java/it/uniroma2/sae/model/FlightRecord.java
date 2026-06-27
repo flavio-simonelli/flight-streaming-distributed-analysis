@@ -23,6 +23,8 @@ import java.time.ZoneOffset;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FlightRecord implements Serializable {
+
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @JsonProperty("YEAR")
@@ -55,10 +57,12 @@ public class FlightRecord implements Serializable {
     @JsonProperty("DEST_AIRPORT_ID")
     private Integer destinationAirportId;
 
-    // Default constructor required for Jackson and Flink POJO serialization
+    /** Optimized primitive field to cache the calculated event time . */
+    private long eventTimeMillis = Long.MIN_VALUE;
+
     public FlightRecord() {}
 
-    // Getters and Setters
+    // --- Getters and Setters ---
 
     public Integer getYear() { return year; }
     public void setYear(Integer year) { this.year = year; }
@@ -90,16 +94,32 @@ public class FlightRecord implements Serializable {
     public Integer getDestinationAirportId() { return destinationAirportId; }
     public void setDestinationAirportId(Integer destinationAirportId) { this.destinationAirportId = destinationAirportId; }
 
-    // Logical wrappers
+    public long getEventTimeMillis() { return this.eventTimeMillis; }
+    public void setEventTimeMillis(long eventTimeMillis) { this.eventTimeMillis = eventTimeMillis; }
 
+    // --- Logic and Enrichment Helpers ---
+
+    /**
+     * Checks if the flight was canceled based on the internal indicator.
+     * @return true if canceled, false otherwise
+     */
     public boolean isCancelled() {
         return cancelled != null && cancelled == 1.0;
     }
 
+    /**
+     * Checks if the flight was diverted based on the internal indicator.
+     * @return true if diverted, false otherwise
+     */
     public boolean isDiverted() {
         return diverted != null && diverted == 1.0;
     }
 
+    /**
+     * Parses the CRS_DEP_TIME field to extract the hour component safely.
+     * Validates both hour boundaries and minute boundaries.
+     * @return the scheduled hour of departure, or -1 if the field is malformed
+     */
     public int getScheduledDepartureHour() {
         if (crsDepTime == null) {
             return -1;
@@ -116,11 +136,11 @@ public class FlightRecord implements Serializable {
     }
 
     /**
-     * Converts the flight's scheduled departure date/time (CRS_DEP_TIME) to epoch milliseconds.
-     * Used by Flink's TimestampAssigner to assign Event Time to each record.
-     * CRS_DEP_TIME format: HHMM (e.g. 1530 = 15:30)
+     * Converts the flight's scheduled departure date and time into epoch milliseconds.
+     * Handles explicit boundary conditions like a 2400 midnight notation.
+     * @return the calculated epoch milliseconds, or Long.MIN_VALUE if validation fails
      */
-    public long getEventTimeMillis() {
+    public long calculateEpochMillis() {
         if (year == null || month == null || dayOfMonth == null || crsDepTime == null) {
             return Long.MIN_VALUE;
         }
@@ -160,6 +180,8 @@ public class FlightRecord implements Serializable {
                 '}';
     }
 
+    // --- Embedded Kafka Deserializer ---
+
     /**
      * Custom deserialization schema to map Kafka raw bytes directly into FlightRecord objects.
      */
@@ -170,9 +192,13 @@ public class FlightRecord implements Serializable {
 
         private static final Logger LOG = LoggerFactory.getLogger(FlightRecordDeserializationSchema.class);
 
-        // Marked transient to prevent serialization issues across the distributed Flink cluster
+        /** Marked transient to avoid serialization errors across distributed worker nodes. */
         private transient ObjectMapper mapper;
 
+        /**
+         * Lazily instantiates and provides the ObjectMapper utility instance.
+         * @return the active ObjectMapper instance
+         */
         private ObjectMapper getMapper() {
             if (mapper == null) {
                 mapper = new ObjectMapper();
@@ -180,34 +206,48 @@ public class FlightRecord implements Serializable {
             return mapper;
         }
 
+        /**
+         * Lifecycle initialization hook called when the parallel operator runs on TaskManagers.
+         * @param context the Flink runtime context for initialization tasks
+         * @throws Exception if initialization fails
+         */
         @Override
         public void open(DeserializationSchema.InitializationContext context) throws Exception {
-            // Initialize the ObjectMapper inside the open method, which executes on the TaskManagers
             this.mapper = new ObjectMapper();
         }
 
+        /**
+         * Intercepts Kafka byte chunks, deserializes JSON text, and injects performance-cached timestamps.
+         * Skips tombstone payloads and discards corrupted JSON messages gracefully.
+         * @param record the incoming raw record from Kafka
+         * @param out the collector used to output valid FlightRecord entities
+         * @throws IOException if low-level stream reading failure occurs
+         */
         @Override
         public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<FlightRecord> out) throws IOException {
-            // Skip tombstone records (empty messages often used in Kafka to signal deletion)
             if (record.value() == null) {
                 return;
             }
 
             try {
-                // Deserialize directly to FlightRecord POJO
                 FlightRecord flight = getMapper().readValue(record.value(), FlightRecord.class);
 
-                // Emit the deserialized object into the Flink stream
+                long calculatedTime = flight.calculateEpochMillis();
+                flight.setEventTimeMillis(calculatedTime);
+
                 out.collect(flight);
             } catch (Exception e) {
-                // Fault tolerance: log corrupt JSON payloads and skip them to keep the streaming pipeline alive
-                LOG.error("Failed to deserialize JSON record from partition {} at offset {}. Error: {}", record.partition(), record.offset(), e.getMessage());
+                LOG.error("Failed to deserialize JSON record from partition {} at offset {}. Error: {}",
+                        record.partition(), record.offset(), e.getMessage());
             }
         }
 
+        /**
+         * Informs Flink's type execution subsystem about the explicit output data model structure.
+         * @return TypeInformation mapped to the FlightRecord POJO structure
+         */
         @Override
         public TypeInformation<FlightRecord> getProducedType() {
-            // Informs Flink's type system about the explicit output data type
             return TypeInformation.of(FlightRecord.class);
         }
     }

@@ -1,6 +1,7 @@
 package it.uniroma2.sae.query.performance;
 
 import it.uniroma2.sae.config.ApplicationConfig;
+import it.uniroma2.sae.config.FlinkConfig;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.sink.SinkBuilder;
@@ -21,19 +22,31 @@ import java.util.Set;
  * Runs on 1-hour tumbling windows over target carrier events.
  */
 public class AirlinePerformanceQuery implements Serializable {
+
     @Serial
     private static final long serialVersionUID = 1L;
 
+    /** The fixed size of the tumbling event-time window. */
     private static final Duration WINDOW_SIZE = Duration.ofHours(1);
+
+    /** The immutable set of specific airline carrier codes targeted by this analysis query. */
     public static final Set<String> TARGET_AIRLINES = Set.of("AA", "DL", "UA", "WN");
 
     /**
      * Dedicated FilterFunction to isolate target carriers.
      */
     public static class TargetAirlineFilter implements FilterFunction<FlightRecord> {
+
         @Serial
         private static final long serialVersionUID = 1L;
 
+        /**
+         * Evaluates if the flight record belongs to one of the targeted airlines.
+         *
+         * @param event the flight event to test
+         * @return true if the flight is not null and matches a target airline code, false otherwise
+         * @throws Exception if an error occurs during filtering execution
+         */
         @Override
         public boolean filter(FlightRecord event) throws Exception {
             return event != null && TARGET_AIRLINES.contains(event.getAirline());
@@ -42,28 +55,40 @@ public class AirlinePerformanceQuery implements Serializable {
 
     /**
      * Attaches the AirlinePerformanceQuery pipeline to the main preprocessed stream.
+     * Maps the topology steps including filtering, key-based windowing, and streaming aggregation.
+     *
+     * @param inputStream the clean, preprocessed incoming stream of FlightRecords
+     * @param config the central application configuration container
+     * @return a list containing the data stream sinks attached to this query endpoint
      */
     public static List<DataStreamSink<AirlinePerformanceResult>> buildAndAttach(DataStream<FlightRecord> inputStream, ApplicationConfig config) {
         KafkaConfig kafkaConfig = config.getKafka();
-        Duration allowedLateness = Duration.ofMinutes(config.getFlink().getAllowedLatenessMinutes());
+        FlinkConfig  flinkConfig = config.getFlink();
 
+        // Dynamically fetch the allowed lateness duration specified in the YAML configuration
+        Duration allowedLateness = Duration.ofMinutes(flinkConfig.getAllowedLatenessMinutes());
+
+        // Discard any flight record that does not belong to the target airline carriers
         DataStream<FlightRecord> targetAirlinesStream = inputStream
                 .filter(new TargetAirlineFilter())
                 .name("Q1: Filter Target Airlines")
                 .uid("q1-filter-target-airlines");
 
+        // Route elements by carrier, open 1-hour windows, apply lateness tolerance, and compute metrics
         DataStream<AirlinePerformanceResult> stream = targetAirlinesStream
-                .keyBy(FlightRecord::getAirline)
-                .window(TumblingEventTimeWindows.of(WINDOW_SIZE))
-                .allowedLateness(allowedLateness)
-                .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor())
+                .keyBy(FlightRecord::getAirline)                                                        // Dynamically partition the stream by the airline unique code
+                .window(TumblingEventTimeWindows.of(WINDOW_SIZE))                                       // Segment the event timeline into non-overlapping 1-hour blocks
+                .allowedLateness(allowedLateness)                                                       // Keep windows alive in memory for late records from the simulator
+                .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor()) // Incremental aggregation with context
                 .name("Q1: Performance")
                 .uid("q1-window-performance");
 
+        // Instantiate the persistent storage mechanism targeting the dedicated Kafka sink topic
         KafkaSink<AirlinePerformanceResult> sink = new SinkBuilder<AirlinePerformanceResult>(kafkaConfig)
                 .withRecordSerializer(new AirlinePerformanceResult.AirlinePerformanceRecordSerializer(kafkaConfig))
                 .build();
 
+        // Finalize the graph execution route by linking the processed stream directly to the Kafka sink
         return List.of(
                 stream.sinkTo(sink)
                         .name("Q1: Sink")

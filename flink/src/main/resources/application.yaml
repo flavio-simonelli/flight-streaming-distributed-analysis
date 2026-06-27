@@ -20,23 +20,26 @@ flink:
   watermarkDelayMinutes: 10
   allowedLatenessMinutes: 5
   watermarkIdlenessMinutes: 2
-  checkpointingEnabled: true
-  checkpointIntervalMillis: 60000
-  minPauseBetweenCheckpointsMillis: 30000
-  checkpointTimeoutMillis: 120000
   globalWindowTriggerHours: 1
 
   # Checkpoint storage backend.
   # storageType: "hdfs"  → HDFS
   # storageType: "s3"    → Amazon S3
   # storageType: "local" → local filesystem
-  # omit / leave empty  → Flink default (in-memory/local JobManager FS, NOT fault-tolerant)
+  # omit / leave empty   → Flink default (in-memory/local JobManager FS, NOT fault-tolerant)
   checkpoint:
+    # Behavior properties
+    enabled: true
+    intervalMillis: 60000
+    minPauseMillis: 30000
+    timeoutMillis: 120000
+
     # HDFS example :
     storageType: "hdfs"
     path: "/flink/checkpoints"
     hdfs:
       namenode: "hdfs://hdfs.flight-analysis.local:54310"
+
     # S3 example :
     # storageType: "s3"
     # path: "flink/checkpoints"

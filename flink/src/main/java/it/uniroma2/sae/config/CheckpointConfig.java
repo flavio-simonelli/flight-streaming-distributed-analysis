@@ -1,30 +1,21 @@
 package it.uniroma2.sae.config;
 
 /**
- * Configuration for Flink checkpoint storage backend.
+ * Configuration for Flink checkpoint storage backend and behavior.
  * Controlled via the {@code flink.checkpoint} section of application.yaml.
- *
- * <p>Supported storage types:
- * <ul>
- *   <li>{@code "hdfs"} — saves checkpoints to HDFS (local Docker Compose setup)</li>
- *   <li>{@code "s3"}   — saves checkpoints to Amazon S3 (AWS EC2 deployment)</li>
- *   <li>{@code "local"} — saves checkpoints to a local filesystem path</li>
- *   <li>{@code null}/empty — no explicit checkpoint storage configured (Flink default)</li>
- * </ul>
  */
-public class CheckpointStorageConfig {
+public class CheckpointConfig {
+
+    // Checkpoint behavior properties moved here
+    private boolean enabled = true;
+    private long intervalMillis = 60_000L;
+    private long minPauseMillis = 30_000L;
+    private long timeoutMillis = 120_000L;
 
     /** Storage backend type: "hdfs", "s3", "local", or null/empty for Flink default. */
     private String storageType;
 
-    /**
-     * Checkpoint directory path.
-     * <ul>
-     *   <li>For HDFS: path inside the HDFS namespace, e.g. {@code /flink/checkpoints}</li>
-     *   <li>For S3:   path inside the bucket, e.g. {@code flink/checkpoints}</li>
-     *   <li>For local: absolute filesystem path, e.g. {@code /tmp/flink-checkpoints}</li>
-     * </ul>
-     */
+    /** Checkpoint directory path. */
     private String path;
 
     /** HDFS-specific configuration, used when storageType = "hdfs". */
@@ -34,6 +25,19 @@ public class CheckpointStorageConfig {
     private S3Config s3;
 
     // --- Getters & Setters ---
+
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public long getIntervalMillis() { return intervalMillis; }
+    public void setIntervalMillis(long intervalMillis) { this.intervalMillis = intervalMillis; }
+
+    public long getMinPauseMillis() { return minPauseMillis; }
+    public void setMinPauseMillis(long minPauseMillis) { this.minPauseMillis = minPauseMillis; }
+
+    public long getTimeoutMillis() { return timeoutMillis; }
+    public void setTimeoutMillis(long timeoutMillis) { this.timeoutMillis = timeoutMillis; }
+
 
     public String getStorageType() { return storageType; }
     public void setStorageType(String storageType) { this.storageType = storageType; }

@@ -12,10 +12,21 @@ import java.util.Iterator;
 
 /**
  * Fires at window end to compute rates and average delays.
+ * Evaluates the final business indicators (averages and percentages) required by Query 1.
  */
 public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<AirlinePerformanceAccumulator, AirlinePerformanceResult, String, TimeWindow> {
     private static final Logger LOG = LoggerFactory.getLogger(AirlinePerformanceWindowProcessor.class);
 
+    /**
+     * Processes the accumulated window data to finalize operational metrics for a specific airline.
+     * Evaluates averages, cancellation rates, and late departure rates before emitting results.
+     *
+     * @param airline the airline key that identifies the current data stream partition
+     * @param ctx the context containing metadata about the current window execution bounds
+     * @param accumulators the iterable collection containing the incremental window state accumulator
+     * @param out the collector utilized to emit the structured evaluation result downstream
+     * @throws Exception if any processing or formatting dependency fails
+     */
     @Override
     public void process(
             String airline,
@@ -23,51 +34,61 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
             Iterable<AirlinePerformanceAccumulator> accumulators,
             Collector<AirlinePerformanceResult> out) throws Exception {
 
+        // Instantiate an iterator over the window's accumulated state
         Iterator<AirlinePerformanceAccumulator> iterator = accumulators.iterator();
 
+        // Extract raw epoch millisecond boundaries for the current time window instance
         long windowStartRaw = ctx.window().getStart();
         long windowEndRaw   = ctx.window().getEnd();
 
+        // Format raw timestamps into human-readable date-time strings according to output layout specifications
         String windowStartStr = DateUtils.formatTimestamp(windowStartRaw);
         String windowEndStr   = DateUtils.formatTimestamp(windowEndRaw);
 
+        // Fallback safety check: handle the rare scenario where an empty accumulator is fired
         if (!iterator.hasNext()) {
             LOG.warn("No accumulator found for airline {}", airline);
 
+            // Construct an empty tracking result to ensure structural continuity in downstream systems
             AirlinePerformanceResult result = new AirlinePerformanceResult(
-                windowStartStr,
-                windowEndStr,
-                airline,
-                0,
-                0,
-                0,
-                0,
-                0.0,
-                0.0,
-                0.0
+                    windowStartStr,
+                    windowEndStr,
+                    airline,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0.0,
+                    0.0,
+                    0.0
             );
 
             out.collect(result);
             return;
         }
 
+        // Retrieve the single, incrementally filled accumulator containing the raw flight metrics
         AirlinePerformanceAccumulator acc = iterator.next();
 
+        // Requirement Q1: Calculate the mathematical mean of departure delays for operated flights
         double depDelayMean = MathUtils.safeDivideRounded(
             acc.sumDepDelay,
             acc.countDelay
         );
 
+        // Requirement Q1: Calculate the cancellation percentage rate relative to total observed flights
         double cancellationRate = MathUtils.safeDividePercent(
             acc.cancelled,
             acc.numFlights
         );
 
+        // Requirement Q1: Calculate late departure percentage rate relative to non-canceled flights
         double lateDepartureRate = MathUtils.safeDividePercent(
             acc.lateDepartures,
-            acc.getNonCancelledFlights()
+            acc.getNonCanceledFlights()
         );
 
+        // Map the finalized calculations and counter dimensions into the targeted result structure
         AirlinePerformanceResult result = new AirlinePerformanceResult(
             windowStartStr,
             windowEndStr,
@@ -81,7 +102,10 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
             lateDepartureRate
         );
 
+        // Log the processed record context for runtime query observability and verification
         LOG.debug("AirlinePerformance window closed: {}", result);
+
+        // Push the fully compiled operational metrics snapshot to the configured Kafka output sink
         out.collect(result);
     }
 }

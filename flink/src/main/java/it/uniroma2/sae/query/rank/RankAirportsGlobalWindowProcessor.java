@@ -1,5 +1,6 @@
 package it.uniroma2.sae.query.rank;
 
+import it.uniroma2.sae.utils.MathUtils;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.util.Collector;
@@ -44,7 +45,7 @@ public class RankAirportsGlobalWindowProcessor
         long intervalMs = triggerInterval.toMillis();
         long currentWindowEnd = (watermark / intervalMs) * intervalMs;
 
-        double mean = it.uniroma2.sae.utils.MathUtils.safeDivideRounded(acc.getSumDepDelay(), acc.getNumFlights());
+        double mean = MathUtils.safeDivideRounded(acc.getSumDepDelay(), acc.getNumFlights());
 
         out.collect(new RankAirportsResult(
                 DATASET_START_MS, // window_start dataset start
