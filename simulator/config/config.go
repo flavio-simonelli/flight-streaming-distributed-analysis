@@ -9,8 +9,7 @@ import (
 type Config struct {
 	InputArchivePath          string  // Path to the local dataset compressed archive (.tar.gz)
 	RemoteTarGzURL            string  // URL of the remote dataset archive
-	RemoteTarGzSHA1           string  // Expected SHA1 hash of the remote dataset archive
-	ExtractedCSVsDir          string  // Target directory to extract CSV files
+	TargzSHA1                 string  // Expected SHA1 hash of the remote dataset archive
 	OutputType                string  // Type of sink to output results ("terminal", "kafka")
 	KafkaBrokers              string  // Comma-separated list of Kafka broker addresses
 	KafkaTopic                string  // Destination Kafka topic
@@ -55,8 +54,7 @@ func LoadConfig() *Config {
 	return &Config{
 		InputArchivePath:          getEnv("INPUT_ARCHIVE_PATH", "./data/project-1-data.tar.gz"),
 		RemoteTarGzURL:            getEnv("REMOTE_TARGZ_URL", "http://www.ce.uniroma2.it/courses/sabd2526/project/project-1-data.tar.gz"),
-		RemoteTarGzSHA1:           getEnv("REMOTE_TARGZ_SHA1", "17be276b72bd987e72598b0ea4907c3b19350606"),
-		ExtractedCSVsDir:          getEnv("EXTRACTED_CSVS_DIR", "./data/extracted_csvs"),
+		TargzSHA1:                 getEnv("TARGZ_SHA1", "17be276b72bd987e72598b0ea4907c3b19350606"),
 		OutputType:                getEnv("OUTPUT_TYPE", "terminal"),
 		KafkaBrokers:              getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaTopic:                getEnv("KAFKA_TOPIC", "flights-stream"),

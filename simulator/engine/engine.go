@@ -2,13 +2,9 @@ package engine
 
 import (
 	"context"
-	"encoding/gob"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"simulator/config"
@@ -42,67 +38,11 @@ func (e *Engine) Run(ctx context.Context) error {
 	return e.publish(ctx, entries)
 }
 
-// getCachePath computes the file path for saving/loading pre-sorted datasets.
-func (e *Engine) getCachePath() string {
-	base := filepath.Base(e.config.InputArchivePath)
-	base = strings.TrimSuffix(base, filepath.Ext(base))
-	if strings.HasSuffix(base, ".tar") {
-		base = strings.TrimSuffix(base, ".tar")
-	}
-	return fmt.Sprintf("data/%s_limit%d_oof%.2f_oodelay%d_ordered.gob",
-		base,
-		e.config.MaxRecords,
-		e.config.OutOfOrderFactor,
-		e.config.OutOfOrderMaxDelayMinutes,
-	)
-}
-
-func (e *Engine) loadFromCache(path string) ([]publishEntry, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var entries []publishEntry
-	dec := gob.NewDecoder(f)
-	if err := dec.Decode(&entries); err != nil {
-		return nil, err
-	}
-	return entries, nil
-}
-
-func (e *Engine) saveToCache(path string, entries []publishEntry) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
-
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	enc := gob.NewEncoder(f)
-	if err := enc.Encode(entries); err != nil {
-		return err
-	}
-	return nil
-}
-
 // loadAndSchedule reads the input dataset, schedules timestamps, and sorts them.
-// Bypasses the read/sort cycle if a valid cache file exists.
 func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
-	cachePath := e.getCachePath()
-
-	// Return cached ordered entries if present
-	if _, err := os.Stat(cachePath); err == nil {
-		slog.Info("Found ordered cache file. Loading pre-sorted dataset...", "path", cachePath)
-		entries, err := e.loadFromCache(cachePath)
-		if err == nil {
-			return entries, nil
-		}
-		slog.Warn("Failed to load pre-sorted dataset from cache, falling back to full loading and sorting", "err", err)
+	_, err := e.loader.EnsureDataset()
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare dataset: %w", err)
 	}
 
 	limit := e.config.MaxRecords
@@ -131,11 +71,6 @@ func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 		}
 		return entries[i].PublishAt.Before(entries[j].PublishAt)
 	})
-
-	slog.Info("Saving sorted dataset to cache...", "path", cachePath)
-	if err := e.saveToCache(cachePath, entries); err != nil {
-		slog.Warn("Failed to save sorted dataset to cache", "err", err)
-	}
 
 	return entries, nil
 }

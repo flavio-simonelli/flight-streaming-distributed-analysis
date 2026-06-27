@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/sha1"
 	"encoding/csv"
+	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -19,7 +20,7 @@ import (
 	"simulator/models"
 )
 
-// CsvLoader handles dataset retrieval, validation, extraction, and parsing.
+// CsvLoader handles dataset download, SHA1 verification, direct TAR.GZ parsing, and caching.
 type CsvLoader struct {
 	cfg *config.Config
 }
@@ -29,87 +30,108 @@ func NewCsvLoader(cfg *config.Config) *CsvLoader {
 	return &CsvLoader{cfg: cfg}
 }
 
-// Load retrieves and extracts the dataset if needed, and returns flight records up to the limit.
+// getCachePath returns the path of the GOB file storing the fully ordered dataset.
+func (l *CsvLoader) getCachePath() string {
+	base := filepath.Base(l.cfg.InputArchivePath)
+	base = strings.TrimSuffix(base, filepath.Ext(base))
+	if strings.HasSuffix(base, ".tar") {
+		base = strings.TrimSuffix(base, ".tar")
+	}
+	return fmt.Sprintf("data/%s_ordered.gob", base)
+}
+
+// Load retrieves records from the ordered GOB cache, or parses TAR.GZ on the fly if cache is missing.
 func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
-	if err := os.MkdirAll(l.cfg.ExtractedCSVsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create extraction directory: %w", err)
+	cachePath := l.getCachePath()
+
+	var records []models.FlightRecord
+
+	// Check if pre-sorted cache exists
+	if _, err := os.Stat(cachePath); err == nil {
+		slog.Info("Found ordered cache file. Loading pre-sorted dataset...", "path", cachePath)
+		var errCache error
+		records, errCache = l.loadFromCache(cachePath)
+		if errCache == nil {
+			slog.Info("Successfully loaded pre-sorted dataset from cache", "count", len(records))
+			if limit > 0 && limit < len(records) {
+				return records[:limit], nil
+			}
+			return records, nil
+		}
+		slog.Warn("Failed to load pre-sorted dataset from cache, falling back to TAR.GZ parsing", "err", errCache)
 	}
 
-	if err := l.ensureDatasetExtracted(); err != nil {
-		return nil, err
-	}
-
-	csvFiles, err := l.findFlightCSVFiles()
+	// Parse records directly from the TAR.GZ archive stream
+	records, err := l.parseTarGz(l.cfg.InputArchivePath)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(csvFiles) == 0 {
-		return nil, fmt.Errorf("no flight CSV files found in %s", l.cfg.ExtractedCSVsDir)
+	// Sort chronologically by EventTime
+	slog.Info("Sorting dataset chronologically by event time...", "total_records", len(records))
+	sort.SliceStable(records, func(i, j int) bool {
+		ti, okI := records[i].ExtractTime()
+		tj, okJ := records[j].ExtractTime()
+		if !okI || !okJ {
+			return okJ
+		}
+		return ti.Before(tj)
+	})
+
+	// Save pre-sorted records to cache
+	slog.Info("Saving sorted dataset to cache...", "path", cachePath)
+	if err := l.saveToCache(cachePath, records); err != nil {
+		slog.Warn("Failed to save sorted dataset to cache", "err", err)
 	}
 
-	slog.Info("Loading records from CSV files", "file_count", len(csvFiles), "limit", limit)
-
-	var records []models.FlightRecord
-	for _, csvPath := range csvFiles {
-		if limit > 0 && len(records) >= limit {
-			break
-		}
-
-		slog.Info("Parsing CSV file", "path", csvPath)
-		fileRecs, err := l.parseCSVFile(csvPath, limit-len(records))
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse %s: %w", csvPath, err)
-		}
-
-		records = append(records, fileRecs...)
+	if limit > 0 && limit < len(records) {
+		return records[:limit], nil
 	}
-
-	slog.Info("Successfully loaded records from CSV", "count", len(records))
 	return records, nil
 }
 
-// ensureDatasetExtracted guarantees flight CSV files exist locally.
-// If absent or corrupt, downloads and decompresses the archive.
-func (l *CsvLoader) ensureDatasetExtracted() error {
-	files, _ := l.findFlightCSVFiles()
-	if len(files) >= 4 {
-		slog.Info("Flight CSV files already extracted, skipping decompression.", "path", l.cfg.ExtractedCSVsDir)
-		return nil
+// EnsureDataset verifies the integrity of the dataset source archive.
+// Returns true if a fresh download occurred.
+func (l *CsvLoader) EnsureDataset() (bool, error) {
+	archivePath := l.cfg.InputArchivePath
+	cachePath := l.getCachePath()
+	downloaded := false
+
+	// Ensure destination directory exists
+	if err := os.MkdirAll(filepath.Dir(archivePath), 0755); err != nil {
+		return false, fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	archivePath := l.cfg.InputArchivePath
-
+	// Check if the compressed archive exists locally
 	if _, err := os.Stat(archivePath); err == nil {
 		slog.Info("Compressed archive found locally. Verifying integrity...", "path", archivePath)
-		ok, err := verifySHA1(archivePath, l.cfg.RemoteTarGzSHA1)
+		ok, err := verifySHA1(archivePath, l.cfg.TargzSHA1)
 		if err != nil {
-			return fmt.Errorf("failed to verify archive SHA1: %w", err)
+			return false, fmt.Errorf("failed to verify archive SHA1: %w", err)
 		}
 		if !ok {
 			slog.Warn("SHA1 integrity check failed for existing archive. Deleting and re-downloading...", "path", archivePath)
 			_ = os.Remove(archivePath)
+			_ = os.Remove(cachePath) // Invalidate cache
 			if err := l.downloadArchive(archivePath); err != nil {
-				return err
+				return false, err
 			}
+			downloaded = true
 		} else {
 			slog.Info("SHA1 integrity check successful", "path", archivePath)
 		}
 	} else if os.IsNotExist(err) {
 		slog.Info("Compressed archive not found locally. Downloading remote dataset...", "path", archivePath)
+		_ = os.Remove(cachePath) // Invalidate cache
 		if err := l.downloadArchive(archivePath); err != nil {
-			return err
+			return false, err
 		}
+		downloaded = true
 	} else {
-		return fmt.Errorf("error checking archive file state: %w", err)
+		return false, fmt.Errorf("error checking archive file state: %w", err)
 	}
 
-	slog.Info("Extracting TAR.GZ archive...", "path", archivePath, "dest", l.cfg.ExtractedCSVsDir)
-	if err := untarGz(archivePath, l.cfg.ExtractedCSVsDir); err != nil {
-		return fmt.Errorf("failed to extract TAR.GZ archive: %w", err)
-	}
-
-	return nil
+	return downloaded, nil
 }
 
 func (l *CsvLoader) downloadArchive(destPath string) error {
@@ -118,7 +140,7 @@ func (l *CsvLoader) downloadArchive(destPath string) error {
 		return fmt.Errorf("failed to download remote archive: %w", err)
 	}
 
-	ok, err := verifySHA1(destPath, l.cfg.RemoteTarGzSHA1)
+	ok, err := verifySHA1(destPath, l.cfg.TargzSHA1)
 	if err != nil {
 		return fmt.Errorf("failed to verify archive SHA1 after download: %w", err)
 	}
@@ -130,41 +152,52 @@ func (l *CsvLoader) downloadArchive(destPath string) error {
 	return nil
 }
 
-// findFlightCSVFiles scans and returns alphabetically sorted flight report CSV paths.
-func (l *CsvLoader) findFlightCSVFiles() ([]string, error) {
-	entries, err := os.ReadDir(l.cfg.ExtractedCSVsDir)
-	if err != nil {
-		return nil, err
-	}
-
-	var files []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if strings.HasPrefix(name, "._") {
-			continue
-		}
-		if strings.HasSuffix(name, "_T_ONTIME_REPORTING.csv") {
-			files = append(files, filepath.Join(l.cfg.ExtractedCSVsDir, name))
-		}
-	}
-
-	sort.Strings(files)
-	return files, nil
-}
-
-// parseCSVFile reads records from a single CSV file up to subLimit.
-func (l *CsvLoader) parseCSVFile(filePath string, subLimit int) ([]models.FlightRecord, error) {
-	f, err := os.Open(filePath)
+func (l *CsvLoader) parseTarGz(archivePath string) ([]models.FlightRecord, error) {
+	f, err := os.Open(archivePath)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	r := csv.NewReader(f)
-	
+	gzr, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+	var records []models.FlightRecord
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if header.Typeflag == tar.TypeReg {
+			baseName := filepath.Base(header.Name)
+			if strings.HasPrefix(baseName, "._") || !strings.HasSuffix(header.Name, "_T_ONTIME_REPORTING.csv") {
+				continue
+			}
+
+			slog.Info("Parsing CSV directly from TAR.GZ archive stream", "path", header.Name)
+			fileRecs, err := parseCSVStream(tr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse %s from archive: %w", header.Name, err)
+			}
+			records = append(records, fileRecs...)
+		}
+	}
+
+	return records, nil
+}
+
+func parseCSVStream(reader io.Reader) ([]models.FlightRecord, error) {
+	r := csv.NewReader(reader)
+
 	headers, err := r.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read headers: %w", err)
@@ -177,10 +210,6 @@ func (l *CsvLoader) parseCSVFile(filePath string, subLimit int) ([]models.Flight
 
 	var fileRecs []models.FlightRecord
 	for {
-		if subLimit > 0 && len(fileRecs) >= subLimit {
-			break
-		}
-
 		row, err := r.Read()
 		if err == io.EOF {
 			break
@@ -202,6 +231,48 @@ func (l *CsvLoader) parseCSVFile(filePath string, subLimit int) ([]models.Flight
 	return fileRecs, nil
 }
 
+func (l *CsvLoader) loadFromCache(path string) ([]models.FlightRecord, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var records []models.FlightRecord
+	dec := gob.NewDecoder(f)
+	if err := dec.Decode(&records); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (l *CsvLoader) saveToCache(path string, records []models.FlightRecord) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+
+	tmpPath := path + ".tmp"
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		f.Close()
+		_ = os.Remove(tmpPath)
+	}()
+
+	enc := gob.NewEncoder(f)
+	if err := enc.Encode(records); err != nil {
+		return err
+	}
+
+	if err := f.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpPath, path)
+}
+
 // parseCSVRow maps a raw CSV row to a FlightRecord struct.
 func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, error) {
 	getVal := func(col string) string {
@@ -214,7 +285,6 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 	var rec models.FlightRecord
 	var err error
 
-	// Scheduled date and time values
 	yearStr := getVal("YEAR")
 	if rec.Year, err = parseInt32(yearStr); err != nil {
 		return rec, fmt.Errorf("invalid YEAR '%s': %w", yearStr, err)
@@ -235,14 +305,12 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 		return rec, fmt.Errorf("invalid CRS_DEP_TIME '%s': %w", crsDepStr, err)
 	}
 
-	// Basic string fields
 	rec.OpUniqueCarrier = getVal("OP_UNIQUE_CARRIER")
 	rec.OpCarrierFlNum = parseString(getVal("OP_CARRIER_FL_NUM"))
 	rec.OriginStateAbr = parseString(getVal("ORIGIN_STATE_ABR"))
 	rec.DestStateAbr = parseString(getVal("DEST_STATE_ABR"))
 	rec.CancellationCode = parseString(getVal("CANCELLATION_CODE"))
 
-	// Nullable integer values
 	if rec.OriginAirportID, err = parseInt32Ptr(getVal("ORIGIN_AIRPORT_ID")); err != nil {
 		return rec, fmt.Errorf("invalid ORIGIN_AIRPORT_ID: %w", err)
 	}
@@ -265,7 +333,6 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 		return rec, fmt.Errorf("invalid ARR_TIME: %w", err)
 	}
 
-	// Nullable float values
 	if rec.DepDelay, err = parseFloat64Ptr(getVal("DEP_DELAY")); err != nil {
 		return rec, fmt.Errorf("invalid DEP_DELAY: %w", err)
 	}
@@ -302,8 +369,6 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 
 	return rec, nil
 }
-
-// Parsing utilities
 
 func parseString(val string) *string {
 	if val == "" {
@@ -346,8 +411,6 @@ func parseFloat64Ptr(val string) (*float64, error) {
 	return &f, nil
 }
 
-// Download and decompression utilities
-
 func verifySHA1(filePath string, expectedHash string) (bool, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -388,53 +451,4 @@ func downloadFile(url string, destPath string) error {
 
 	_, err = io.Copy(out, resp.Body)
 	return err
-}
-
-func untarGz(src, dest string) error {
-	f, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	gzr, err := gzip.NewReader(f)
-	if err != nil {
-		return err
-	}
-	defer gzr.Close()
-
-	tr := tar.NewReader(gzr)
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		if header.Typeflag == tar.TypeReg {
-			baseName := filepath.Base(header.Name)
-			if strings.HasPrefix(baseName, "._") {
-				continue
-			}
-			if !strings.HasSuffix(header.Name, "_T_ONTIME_REPORTING.csv") {
-				continue
-			}
-
-			outPath := filepath.Join(dest, baseName)
-			outFile, err := os.OpenFile(outPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, header.FileInfo().Mode())
-			if err != nil {
-				return err
-			}
-
-			_, err = io.Copy(outFile, tr)
-			outFile.Close()
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
