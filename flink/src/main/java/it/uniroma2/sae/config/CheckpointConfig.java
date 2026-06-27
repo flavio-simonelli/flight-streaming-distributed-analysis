@@ -11,6 +11,9 @@ public class CheckpointConfig {
     private long intervalMillis = 60_000L;
     private long minPauseMillis = 30_000L;
     private long timeoutMillis = 120_000L;
+    private int tolerableFailedCheckpoints = 3;
+    private boolean unalignedCheckpoints = true;
+    private int maxConcurrentCheckpoints = 1;
 
     /** Storage backend type: "hdfs", "s3", "local", or null/empty for Flink default. */
     private String storageType;
@@ -38,6 +41,14 @@ public class CheckpointConfig {
     public long getTimeoutMillis() { return timeoutMillis; }
     public void setTimeoutMillis(long timeoutMillis) { this.timeoutMillis = timeoutMillis; }
 
+    public int getTolerableFailedCheckpoints() { return tolerableFailedCheckpoints; }
+    public void setTolerableFailedCheckpoints(int tolerableFailedCheckpoints) { this.tolerableFailedCheckpoints = tolerableFailedCheckpoints; }
+
+    public boolean isUnalignedCheckpoints() { return unalignedCheckpoints; }
+    public void setUnalignedCheckpoints(boolean unalignedCheckpoints) { this.unalignedCheckpoints = unalignedCheckpoints; }
+
+    public int getMaxConcurrentCheckpoints() { return maxConcurrentCheckpoints; }
+    public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) { this.maxConcurrentCheckpoints = maxConcurrentCheckpoints; }
 
     public String getStorageType() { return storageType; }
     public void setStorageType(String storageType) { this.storageType = storageType; }

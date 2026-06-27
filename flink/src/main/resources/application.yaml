@@ -40,6 +40,9 @@ flink:
     intervalMillis: 60000
     minPauseMillis: 30000
     timeoutMillis: 120000
+    tolerableFailedCheckpoints: 3
+    unalignedCheckpoints: true
+    maxConcurrentCheckpoints: 1
 
     # HDFS example :
     storageType: "hdfs"

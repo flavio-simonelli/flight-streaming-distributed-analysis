@@ -75,6 +75,15 @@ public class FlightAnalysisJob {
             flinkConfig.set(CheckpointingOptions.CHECKPOINTING_TIMEOUT, Duration.ofMillis(checkpointCfg.getTimeoutMillis()));
             configureCheckpointStorage(env, flinkConfig, checkpointCfg);
             env.configure(flinkConfig);
+
+            // Configure advanced fault tolerance parameters for production stability
+            org.apache.flink.streaming.api.environment.CheckpointConfig flinkCpConfig = env.getCheckpointConfig();
+            flinkCpConfig.setTolerableCheckpointFailureNumber(checkpointCfg.getTolerableFailedCheckpoints());
+            flinkCpConfig.enableUnalignedCheckpoints(checkpointCfg.isUnalignedCheckpoints());
+            flinkCpConfig.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
+            flinkCpConfig.setExternalizedCheckpointRetention(
+                    org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION
+            );
         }
 
         // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
