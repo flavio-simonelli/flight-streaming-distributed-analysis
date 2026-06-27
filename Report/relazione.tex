@@ -1,0 +1,169 @@
+\documentclass[conference]{IEEEtran}
+% \documentclass[conference]{acmart}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cite} % IEEE specific package for bibliography management
+\usepackage{tabularx}
+
+% Configurazione
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% ACM Configuration
+%\setcopyright{none}
+%\acmConference[SABD 2025/26]{Sistemi e Architetture per Big Data}{Giugno 2026}{Roma, Italia}
+%\acmDOI{}
+%\acmISBN{}
+
+
+% Page numbering
+\makeatletter
+\def\ps@headings{%
+\def\@oddhead{\mbox{}\scriptsize\rightmark \hfil \thepage}%
+\def\@evenhead{\scriptsize\thepage \hfil \leftmark\mbox{}}%
+\def\@oddfoot{}%
+\def\@evenfoot{}}
+\makeatother
+
+\pagestyle{headings}
+
+
+\begin{document}
+
+\title{Titolo del Secondo Progetto \\ \vspace{0.15cm} \large Sottotitolo del Progetto}
+
+% IEEE Configuration
+\author{
+    \IEEEauthorblockN{Flavio Simonelli}
+    \IEEEauthorblockA{Matricola 0365333\\
+    Dipartimento di Ingegneria\\
+    Università di Roma "Tor Vergata"\\
+    flavio.simonelli@alumni.uniroma2.eu}
+    \and
+    \IEEEauthorblockN{Francesco Masci}
+    \IEEEauthorblockA{Matricola 0365258\\
+    Dipartimento di Ingegneria\\
+    Università di Roma "Tor Vergata"\\
+    francesco.masci.02@alumni.uniroma2.eu}
+}
+
+% ACM Configuration
+% \author{Flavio Simonelli}
+% \affiliation{%
+%     \institution{Università di Roma "Tor Vergata"}
+%     \city{Roma}
+%     \country{Italia}
+% }
+% \email{flavio.simonelli@alumni.uniroma2.eu}
+%
+% \author{Francesco Masci}
+% \affiliation{%
+%     \institution{Università di Roma "Tor Vergata"}
+%     \city{Roma}
+%     \country{Italia}
+% }
+% \email{francesco.masci.02@alumni.uniroma2.eu}
+
+% IEEE Configuration
+\maketitle
+\thispagestyle{headings}
+
+% ------------------------------
+
+\begin{abstract}
+% Inserire qui l'abstract del secondo progetto.
+\end{abstract}
+
+% ------------------------------
+
+% IEEE Configuration
+\begin{IEEEkeywords}
+% Inserire qui le parole chiave.
+\end{IEEEkeywords}
+
+% ACM Configuration
+% \keywords{}
+
+% ------------------------------
+
+% ACM Configuration
+% \maketitle
+% \thispagestyle{headings}
+
+\section{Introduzione}\label{sec:introduction}
+% Inserire qui l'introduzione.
+
+% ------------------------------
+
+\section{Architettura del Sistema}\label{sec:system_architecture}
+% Inserire qui la descrizione dell'architettura.
+
+% ------------------------------
+
+\section{Implementazione delle Componenti}\label{sec:implementation_details}
+% Inserire qui i dettagli implementativi.
+
+% ------------------------------
+
+\section{Infrastruttura di Deployment}\label{sec:deployment_infrastructure}
+% Inserire qui i dettagli del deployment.
+
+% ------------------------------
+
+\section{Valutazione Sperimentale}\label{sec:experimental_evaluation}
+% Inserire qui la valutazione sperimentale.
+
+% ------------------------------
+
+\section{Conclusioni e Sviluppi Futuri}\label{sec:conclusions_future_work}
+% Inserire qui le conclusioni.
+
+\begin{thebibliography}{10}
+% Inserire qui i riferimenti bibliografici.
+\end{thebibliography}
+
+\clearpage
+\onecolumn
+
+\clearpage
+
+\appendices
+
+\section{Utilizzo di strumenti di Intelligenza Artificiale Generativa}\label{sec:appendix_ai_declaration}
+% Inserire qui la dichiarazione sull'utilizzo dell'IA generativa (es. Gemini, ChatGPT, ecc.).
+
+\clearpage
+
+\section{Rappresentazioni Grafiche e Allegati}\label{sec:appendix_graphics}
+% Inserire qui eventuali diagrammi, grafici o tabelle aggiuntive.
+
+\end{document}
