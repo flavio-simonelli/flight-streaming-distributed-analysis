@@ -27,7 +27,7 @@ func LoadConfig() *Config {
 
 	maxRecs, _ := strconv.Atoi(getEnv("MAX_RECORDS", "0"))
 
-	speedup, _ := strconv.Atoi(getEnv("SPEEDUP_FACTOR", "100000"))
+	speedup, _ := strconv.Atoi(getEnv("SPEEDUP_FACTOR", "1"))
 	if speedup <= 0 {
 		speedup = 1
 	}
@@ -45,7 +45,7 @@ func LoadConfig() *Config {
 		ooFactor = 1.0
 	}
 
-	ooMaxDelayMinutes, _ := strconv.Atoi(getEnv("OUT_OF_ORDER_MAX_DELAY_MINUTES", "5"))
+	ooMaxDelayMinutes, _ := strconv.Atoi(getEnv("OUT_OF_ORDER_MAX_DELAY_MINUTES", "0"))
 	if ooMaxDelayMinutes < 0 {
 		ooMaxDelayMinutes = 0
 	}
