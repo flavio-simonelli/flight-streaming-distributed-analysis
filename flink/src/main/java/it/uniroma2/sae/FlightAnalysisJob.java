@@ -103,11 +103,11 @@ public class FlightAnalysisJob {
         DataStream<FlightRecord> preprocessedStream = PipelinePreprocessing.preprocess(rawStream);
 
         // --- Attach query pipelines ---
-        List<DataStreamSink<AirlinePerformanceResult>> q1Pipeline = AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
+        AirlinePerformanceQuery.buildAndAttach(preprocessedStream, config);
 
-        List<DataStreamSink<RankAirportsResult>> q2Pipelines = RankAirportsQuery.buildAndAttach(preprocessedStream, config);
+        RankAirportsQuery.buildAndAttach(preprocessedStream, config);
 
-        List<DataStreamSink<DelayDistributionResult>> q3Pipelines = DelayDistributionQuery.buildAndAttach(preprocessedStream, config);
+        DelayDistributionQuery.buildAndAttach(preprocessedStream, config);
 
         try {
             LOG.info("Submitting Flight Analysis Job...");
