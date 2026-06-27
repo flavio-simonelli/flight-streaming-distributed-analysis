@@ -1,16 +1,21 @@
 package it.uniroma2.sae.query.rank;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.config.KafkaConfig;
+import it.uniroma2.sae.metrics.LateRecordMetricAnalyzer;
 import it.uniroma2.sae.model.FlightRecord;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
+import org.apache.flink.util.OutputTag;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.io.Serial;
@@ -30,7 +35,7 @@ public class RankAirportsQuery implements Serializable {
     /**
      * Builds and attaches the RankAirportsQuery pipeline to the main preprocessed stream.
      */
-    public static List<DataStreamSink<RankAirportsResult>> buildAndAttach(DataStream<FlightRecord> mainStream, it.uniroma2.sae.config.ApplicationConfig config) {
+    public static List<DataStreamSink<RankAirportsResult>> buildAndAttach(DataStream<FlightRecord> mainStream, ApplicationConfig config) {
         // Filter out cancelled and diverted flights at the entry of the pipeline to reduce network shuffle overhead
         DataStream<FlightRecord> activeFlightsStream = mainStream
                 .filter(event -> event != null && !event.isCancelled() && !event.isDiverted())
@@ -73,17 +78,17 @@ public class RankAirportsQuery implements Serializable {
             String label,
             Duration allowedLateness) {
 
-        org.apache.flink.util.OutputTag<FlightRecord> lateTag =
-                new org.apache.flink.util.OutputTag<FlightRecord>("q2-late-flights-" + label){};
+        OutputTag<FlightRecord> lateTag =
+                new OutputTag<FlightRecord>("q2-late-flights-" + label){};
 
-        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<RankAirportsResult> windowedOperator = keyedStream
+        SingleOutputStreamOperator<RankAirportsResult> windowedOperator = keyedStream
                 .window(TumblingEventTimeWindows.of(windowSize))
                 .allowedLateness(allowedLateness)
                 .sideOutputLateData(lateTag)
                 .aggregate(new RankAirportsAggregator(), new RankAirportsWindowProcessor(label));
 
         windowedOperator.getSideOutput(lateTag)
-                .process(new it.uniroma2.sae.metrics.LateRecordMetricAnalyzer(windowSize, allowedLateness))
+                .process(new LateRecordMetricAnalyzer(windowSize, allowedLateness))
                 .name("Q2: Late Records Metric Analyzer (" + label + ")")
                 .uid("q2-late-analyzer-" + label);
 
@@ -106,7 +111,7 @@ public class RankAirportsQuery implements Serializable {
         KafkaSink<RankAirportsResult> sink = KafkaSink.<RankAirportsResult>builder()
                 .setBootstrapServers(kafkaConfig.getHost() + ":" + kafkaConfig.getInternalPort())
                 .setRecordSerializer(new RankAirportsRecordSerializer(kafkaConfig, queryKey))
-                .setDeliveryGuarantee(org.apache.flink.connector.base.DeliveryGuarantee.AT_LEAST_ONCE)
+                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
                 .build();
 
         return stream.sinkTo(sink)

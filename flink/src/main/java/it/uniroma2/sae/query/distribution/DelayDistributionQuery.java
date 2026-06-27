@@ -1,7 +1,9 @@
 package it.uniroma2.sae.query.distribution;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.config.KafkaConfig;
+import it.uniroma2.sae.metrics.LateRecordMetricAnalyzer;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.sink.SinkBuilder;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -13,7 +15,11 @@ import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
+import org.apache.flink.util.OutputTag;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.io.Serial;
@@ -49,7 +55,7 @@ public class DelayDistributionQuery implements Serializable {
     /**
      * Builds and attaches the DelayDistributionQuery pipelines to the input stream.
      */
-    public static List<DataStreamSink<DelayDistributionResult>> buildAndAttach(DataStream<FlightRecord> inputStream, it.uniroma2.sae.config.ApplicationConfig config) {
+    public static List<DataStreamSink<DelayDistributionResult>> buildAndAttach(DataStream<FlightRecord> inputStream, ApplicationConfig config) {
         KafkaConfig kafkaConfig = config.getKafka();
         Duration allowedLateness1d = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ3_1dMinutes());
         Duration allowedLateness7d = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ3_7dMinutes());
@@ -66,15 +72,15 @@ public class DelayDistributionQuery implements Serializable {
                         TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {})
                 );
 
-        org.apache.flink.util.OutputTag<FlightRecord> lateTag1d = new org.apache.flink.util.OutputTag<FlightRecord>("q3-late-flights-1d"){};
-        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<DelayDistributionResult> windowedOperator1d = keyedStream
+        OutputTag<FlightRecord> lateTag1d = new OutputTag<FlightRecord>("q3-late-flights-1d"){};
+        SingleOutputStreamOperator<DelayDistributionResult> windowedOperator1d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(1)))
                 .allowedLateness(allowedLateness1d)
                 .sideOutputLateData(lateTag1d)
                 .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("1d"));
 
         windowedOperator1d.getSideOutput(lateTag1d)
-                .process(new it.uniroma2.sae.metrics.LateRecordMetricAnalyzer(Duration.ofDays(1), allowedLateness1d))
+                .process(new LateRecordMetricAnalyzer(Duration.ofDays(1), allowedLateness1d))
                 .name("Q3: Late Records Metric Analyzer (1d)")
                 .uid("q3-late-analyzer-1d");
 
@@ -82,15 +88,15 @@ public class DelayDistributionQuery implements Serializable {
                 .name("Q3: Window (1d)")
                 .uid("q3-window-1d");
 
-        org.apache.flink.util.OutputTag<FlightRecord> lateTag7d = new org.apache.flink.util.OutputTag<FlightRecord>("q3-late-flights-7d"){};
-        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<DelayDistributionResult> windowedOperator7d = keyedStream
+        OutputTag<FlightRecord> lateTag7d = new OutputTag<FlightRecord>("q3-late-flights-7d"){};
+        SingleOutputStreamOperator<DelayDistributionResult> windowedOperator7d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(7)))
                 .allowedLateness(allowedLateness7d)
                 .sideOutputLateData(lateTag7d)
                 .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("7d"));
 
         windowedOperator7d.getSideOutput(lateTag7d)
-                .process(new it.uniroma2.sae.metrics.LateRecordMetricAnalyzer(Duration.ofDays(7), allowedLateness7d))
+                .process(new LateRecordMetricAnalyzer(Duration.ofDays(7), allowedLateness7d))
                 .name("Q3: Late Records Metric Analyzer (7d)")
                 .uid("q3-late-analyzer-7d");
 
@@ -99,8 +105,8 @@ public class DelayDistributionQuery implements Serializable {
                 .uid("q3-window-7d");
 
         DataStream<DelayDistributionResult> wGlobal = keyedStream
-                .window(org.apache.flink.streaming.api.windowing.assigners.GlobalWindows.create())
-                .trigger(org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger.of(Duration.ofDays(1)))
+                .window(GlobalWindows.create())
+                .trigger(ContinuousEventTimeTrigger.of(Duration.ofDays(1)))
                 .aggregate(new DelayDistributionAggregator(), new DelayDistributionGlobalWindowProcessor())
                 .name("Q3: Global Window")
                 .uid("q3-global-window");
