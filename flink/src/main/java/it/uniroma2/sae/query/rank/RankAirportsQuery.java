@@ -5,6 +5,7 @@ import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.metrics.LateRecordMetricAnalyzer;
 import it.uniroma2.sae.model.FlightRecord;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
@@ -79,7 +80,7 @@ public class RankAirportsQuery implements Serializable {
             Duration allowedLateness) {
 
         OutputTag<FlightRecord> lateTag =
-                new OutputTag<FlightRecord>("q2-late-flights-" + label){};
+                new OutputTag<>("q2-late-flights-" + label, TypeInformation.of(FlightRecord.class));
 
         SingleOutputStreamOperator<RankAirportsResult> windowedOperator = keyedStream
                 .window(TumblingEventTimeWindows.of(windowSize))

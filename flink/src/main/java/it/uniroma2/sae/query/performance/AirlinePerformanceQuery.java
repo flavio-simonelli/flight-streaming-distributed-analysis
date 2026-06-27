@@ -7,6 +7,7 @@ import it.uniroma2.sae.metrics.LateRecordMetricAnalyzer;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.sink.SinkBuilder;
 import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -34,6 +35,9 @@ public class AirlinePerformanceQuery implements Serializable {
 
     /** The immutable set of specific airline carrier codes targeted by this analysis query. */
     public static final Set<String> TARGET_AIRLINES = Set.of("AA", "DL", "UA", "WN");
+
+    private static final OutputTag<FlightRecord> LATE_FLIGHTS_TAG =
+            new OutputTag<>("q1-late-flights", TypeInformation.of(FlightRecord.class));
 
     /**
      * Dedicated FilterFunction to isolate target carriers.
@@ -78,16 +82,14 @@ public class AirlinePerformanceQuery implements Serializable {
                 .uid("q1-filter-target-airlines");
 
         // Route elements by carrier, open 1-hour windows, apply lateness tolerance, and compute metrics
-        OutputTag<FlightRecord> lateTag = new OutputTag<FlightRecord>("q1-late-flights"){};
-
         SingleOutputStreamOperator<AirlinePerformanceResult> windowedOperator = targetAirlinesStream
                 .keyBy(FlightRecord::getAirline)                                                        // Dynamically partition the stream by the airline unique code
                 .window(TumblingEventTimeWindows.of(WINDOW_SIZE))                                       // Segment the event timeline into non-overlapping 1-hour blocks
                 .allowedLateness(allowedLateness)                                                       // Keep windows alive in memory for late records from the simulator
-                .sideOutputLateData(lateTag)
+                .sideOutputLateData(LATE_FLIGHTS_TAG)
                 .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor()); // Incremental aggregation with context
 
-        windowedOperator.getSideOutput(lateTag)
+        windowedOperator.getSideOutput(LATE_FLIGHTS_TAG)
                 .process(new LateRecordMetricAnalyzer(WINDOW_SIZE, allowedLateness))
                 .name("Q1: Late Records Metric Analyzer")
                 .uid("q1-late-analyzer");

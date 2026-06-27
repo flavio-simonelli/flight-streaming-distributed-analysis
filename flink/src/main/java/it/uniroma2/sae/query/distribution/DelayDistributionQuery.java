@@ -39,6 +39,11 @@ public class DelayDistributionQuery implements Serializable {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     public static final Set<String> TARGET_AIRLINES = Set.of("AA", "DL", "UA", "WN");
 
+    private static final OutputTag<FlightRecord> LATE_FLIGHTS_1D_TAG =
+            new OutputTag<>("q3-late-flights-1d", TypeInformation.of(FlightRecord.class));
+    private static final OutputTag<FlightRecord> LATE_FLIGHTS_7D_TAG =
+            new OutputTag<>("q3-late-flights-7d", TypeInformation.of(FlightRecord.class));
+
     /**
      * Dedicated FilterFunction to isolate target carriers.
      */
@@ -72,14 +77,13 @@ public class DelayDistributionQuery implements Serializable {
                         TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {})
                 );
 
-        OutputTag<FlightRecord> lateTag1d = new OutputTag<FlightRecord>("q3-late-flights-1d"){};
         SingleOutputStreamOperator<DelayDistributionResult> windowedOperator1d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(1)))
                 .allowedLateness(allowedLateness1d)
-                .sideOutputLateData(lateTag1d)
+                .sideOutputLateData(LATE_FLIGHTS_1D_TAG)
                 .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("1d"));
 
-        windowedOperator1d.getSideOutput(lateTag1d)
+        windowedOperator1d.getSideOutput(LATE_FLIGHTS_1D_TAG)
                 .process(new LateRecordMetricAnalyzer(Duration.ofDays(1), allowedLateness1d))
                 .name("Q3: Late Records Metric Analyzer (1d)")
                 .uid("q3-late-analyzer-1d");
@@ -88,14 +92,13 @@ public class DelayDistributionQuery implements Serializable {
                 .name("Q3: Window (1d)")
                 .uid("q3-window-1d");
 
-        OutputTag<FlightRecord> lateTag7d = new OutputTag<FlightRecord>("q3-late-flights-7d"){};
         SingleOutputStreamOperator<DelayDistributionResult> windowedOperator7d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(7)))
                 .allowedLateness(allowedLateness7d)
-                .sideOutputLateData(lateTag7d)
+                .sideOutputLateData(LATE_FLIGHTS_7D_TAG)
                 .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("7d"));
 
-        windowedOperator7d.getSideOutput(lateTag7d)
+        windowedOperator7d.getSideOutput(LATE_FLIGHTS_7D_TAG)
                 .process(new LateRecordMetricAnalyzer(Duration.ofDays(7), allowedLateness7d))
                 .name("Q3: Late Records Metric Analyzer (7d)")
                 .uid("q3-late-analyzer-7d");
