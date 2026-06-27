@@ -66,17 +66,35 @@ public class DelayDistributionQuery implements Serializable {
                         TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {})
                 );
 
-        DataStream<DelayDistributionResult> w1d = keyedStream
+        org.apache.flink.util.OutputTag<FlightRecord> lateTag1d = new org.apache.flink.util.OutputTag<FlightRecord>("q3-late-flights-1d"){};
+        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<DelayDistributionResult> windowedOperator1d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(1)))
                 .allowedLateness(allowedLateness1d)
-                .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("1d"))
+                .sideOutputLateData(lateTag1d)
+                .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("1d"));
+
+        windowedOperator1d.getSideOutput(lateTag1d)
+                .process(new it.uniroma2.sae.metrics.LateRecordMetricAnalyzer(Duration.ofDays(1), allowedLateness1d))
+                .name("Q3: Late Records Metric Analyzer (1d)")
+                .uid("q3-late-analyzer-1d");
+
+        DataStream<DelayDistributionResult> w1d = windowedOperator1d
                 .name("Q3: Window (1d)")
                 .uid("q3-window-1d");
 
-        DataStream<DelayDistributionResult> w7d = keyedStream
+        org.apache.flink.util.OutputTag<FlightRecord> lateTag7d = new org.apache.flink.util.OutputTag<FlightRecord>("q3-late-flights-7d"){};
+        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<DelayDistributionResult> windowedOperator7d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(7)))
                 .allowedLateness(allowedLateness7d)
-                .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("7d"))
+                .sideOutputLateData(lateTag7d)
+                .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("7d"));
+
+        windowedOperator7d.getSideOutput(lateTag7d)
+                .process(new it.uniroma2.sae.metrics.LateRecordMetricAnalyzer(Duration.ofDays(7), allowedLateness7d))
+                .name("Q3: Late Records Metric Analyzer (7d)")
+                .uid("q3-late-analyzer-7d");
+
+        DataStream<DelayDistributionResult> w7d = windowedOperator7d
                 .name("Q3: Window (7d)")
                 .uid("q3-window-7d");
 

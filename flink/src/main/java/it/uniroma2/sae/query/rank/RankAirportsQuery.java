@@ -73,10 +73,21 @@ public class RankAirportsQuery implements Serializable {
             String label,
             Duration allowedLateness) {
 
-        return keyedStream
+        org.apache.flink.util.OutputTag<FlightRecord> lateTag =
+                new org.apache.flink.util.OutputTag<FlightRecord>("q2-late-flights-" + label){};
+
+        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<RankAirportsResult> windowedOperator = keyedStream
                 .window(TumblingEventTimeWindows.of(windowSize))
                 .allowedLateness(allowedLateness)
-                .aggregate(new RankAirportsAggregator(), new RankAirportsWindowProcessor(label))
+                .sideOutputLateData(lateTag)
+                .aggregate(new RankAirportsAggregator(), new RankAirportsWindowProcessor(label));
+
+        windowedOperator.getSideOutput(lateTag)
+                .process(new it.uniroma2.sae.metrics.LateRecordMetricAnalyzer(windowSize, allowedLateness))
+                .name("Q2: Late Records Metric Analyzer (" + label + ")")
+                .uid("q2-late-analyzer-" + label);
+
+        return windowedOperator
                 .name("Q2: Window (" + label + ")")
                 .uid("q2-window-" + label)
                 .keyBy(RankAirportsResult::getWindowEnd)

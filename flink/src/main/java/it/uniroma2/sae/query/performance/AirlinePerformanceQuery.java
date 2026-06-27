@@ -75,11 +75,21 @@ public class AirlinePerformanceQuery implements Serializable {
                 .uid("q1-filter-target-airlines");
 
         // Route elements by carrier, open 1-hour windows, apply lateness tolerance, and compute metrics
-        DataStream<AirlinePerformanceResult> stream = targetAirlinesStream
+        org.apache.flink.util.OutputTag<FlightRecord> lateTag = new org.apache.flink.util.OutputTag<FlightRecord>("q1-late-flights"){};
+
+        org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator<AirlinePerformanceResult> windowedOperator = targetAirlinesStream
                 .keyBy(FlightRecord::getAirline)                                                        // Dynamically partition the stream by the airline unique code
                 .window(TumblingEventTimeWindows.of(WINDOW_SIZE))                                       // Segment the event timeline into non-overlapping 1-hour blocks
                 .allowedLateness(allowedLateness)                                                       // Keep windows alive in memory for late records from the simulator
-                .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor()) // Incremental aggregation with context
+                .sideOutputLateData(lateTag)
+                .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor()); // Incremental aggregation with context
+
+        windowedOperator.getSideOutput(lateTag)
+                .process(new it.uniroma2.sae.metrics.LateRecordMetricAnalyzer(WINDOW_SIZE, allowedLateness))
+                .name("Q1: Late Records Metric Analyzer")
+                .uid("q1-late-analyzer");
+
+        DataStream<AirlinePerformanceResult> stream = windowedOperator
                 .name("Q1: Performance")
                 .uid("q1-window-performance");
 
