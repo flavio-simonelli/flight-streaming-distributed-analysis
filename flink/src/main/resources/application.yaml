@@ -19,6 +19,12 @@ flink:
   port: 8081
   watermarkDelayMinutes: 10
   allowedLatenessMinutes: 5
+  allowedLatenessQ1Minutes: 15
+  allowedLatenessQ2_1hMinutes: 15
+  allowedLatenessQ2_6hMinutes: 10
+  allowedLatenessQ2_globalMinutes: 15
+  allowedLatenessQ3_1dMinutes: 5
+  allowedLatenessQ3_7dMinutes: 0
   watermarkIdlenessMinutes: 2
   globalWindowTriggerHours: 1
 

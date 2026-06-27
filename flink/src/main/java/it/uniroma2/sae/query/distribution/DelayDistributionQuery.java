@@ -51,7 +51,8 @@ public class DelayDistributionQuery implements Serializable {
      */
     public static List<DataStreamSink<DelayDistributionResult>> buildAndAttach(DataStream<FlightRecord> inputStream, it.uniroma2.sae.config.ApplicationConfig config) {
         KafkaConfig kafkaConfig = config.getKafka();
-        Duration allowedLateness = Duration.ofMinutes(config.getFlink().getAllowedLatenessMinutes());
+        Duration allowedLateness1d = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ3_1dMinutes());
+        Duration allowedLateness7d = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ3_7dMinutes());
 
         DataStream<FlightRecord> targetAirlinesStream = inputStream
                 .filter(new TargetAirlineFilter())
@@ -67,14 +68,14 @@ public class DelayDistributionQuery implements Serializable {
 
         DataStream<DelayDistributionResult> w1d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(1)))
-                .allowedLateness(allowedLateness)
+                .allowedLateness(allowedLateness1d)
                 .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("1d"))
                 .name("Q3: Window (1d)")
                 .uid("q3-window-1d");
 
         DataStream<DelayDistributionResult> w7d = keyedStream
                 .window(TumblingEventTimeWindows.of(Duration.ofDays(7)))
-                .allowedLateness(allowedLateness)
+                .allowedLateness(allowedLateness7d)
                 .aggregate(new DelayDistributionAggregator(), new DelayDistributionWindowProcessor("7d"))
                 .name("Q3: Window (7d)")
                 .uid("q3-window-7d");

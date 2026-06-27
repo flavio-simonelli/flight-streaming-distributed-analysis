@@ -66,7 +66,7 @@ public class AirlinePerformanceQuery implements Serializable {
         FlinkConfig  flinkConfig = config.getFlink();
 
         // Dynamically fetch the allowed lateness duration specified in the YAML configuration
-        Duration allowedLateness = Duration.ofMinutes(flinkConfig.getAllowedLatenessMinutes());
+        Duration allowedLateness = Duration.ofMinutes(flinkConfig.getAllowedLatenessQ1Minutes());
 
         // Discard any flight record that does not belong to the target airline carriers
         DataStream<FlightRecord> targetAirlinesStream = inputStream

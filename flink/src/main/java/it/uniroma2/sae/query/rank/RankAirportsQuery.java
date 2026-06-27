@@ -39,22 +39,24 @@ public class RankAirportsQuery implements Serializable {
 
         KeyedStream<FlightRecord, Integer> keyedStream = activeFlightsStream.keyBy(FlightRecord::getOriginAirportId);
         KafkaConfig kafkaConfig = config.getKafka();
-        Duration allowedLateness = Duration.ofMinutes(config.getFlink().getAllowedLatenessMinutes());
+        Duration allowedLateness1h = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_1hMinutes());
+        Duration allowedLateness6h = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_6hMinutes());
+        Duration allowedLatenessGlobal = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_globalMinutes());
 
-        DataStream<RankAirportsResult> w1 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(1), "1h", allowedLateness);
-        DataStream<RankAirportsResult> w6 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(6), "6h", allowedLateness);
+        DataStream<RankAirportsResult> w1 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(1), "1h", allowedLateness1h);
+        DataStream<RankAirportsResult> w6 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(6), "6h", allowedLateness6h);
 
         Duration globalTriggerInterval = Duration.ofHours(config.getFlink().getGlobalWindowTriggerHours());
 
         DataStream<RankAirportsResult> wGlobal = keyedStream
                 .window(GlobalWindows.create())
                 .trigger(ContinuousEventTimeTrigger.of(globalTriggerInterval))
-                .allowedLateness(allowedLateness)
+                .allowedLateness(allowedLatenessGlobal)
                 .aggregate(new RankAirportsAggregator(), new RankAirportsGlobalWindowProcessor(globalTriggerInterval))
                 .name("Q2: Global Window")
                 .uid("q2-global-window")
                 .keyBy(RankAirportsResult::getWindowEnd)
-                .process(new RankAirportsRankProcessor(allowedLateness.plusSeconds(1)))
+                .process(new RankAirportsRankProcessor(allowedLatenessGlobal.plusSeconds(1)))
                 .name("Q2: Global Rank")
                 .uid("q2-global-rank");
 
