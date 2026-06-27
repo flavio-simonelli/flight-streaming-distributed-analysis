@@ -16,19 +16,12 @@ import (
 	"simulator/output/terminal"
 )
 
-// main is the entry point of the flight simulator application.
-// It initializes dependencies, sets up the output sink based on configuration,
-// handles graceful shutdown on interrupt signals, and starts the simulation engine.
 func main() {
-	// Initialize the logger and load the configuration.
 	logger.InitLogger()
 	cfg := config.LoadConfig()
 
-	// Parse command line flags to allow setting/overriding properties
-	archivePathFlag := flag.String("archive-path", cfg.InputArchivePath, "Path to input compressed archive file (.tar.gz)")
+	archivePathFlag := flag.String("archive-path", cfg.InputArchivePath, "Path to the compressed archive file (.tar.gz)")
 	flag.Parse()
-
-	// Update configuration with flag values
 	cfg.InputArchivePath = *archivePathFlag
 
 	slog.Info("Avvio Flight Simulator",
@@ -36,8 +29,7 @@ func main() {
 		"SpeedupFactor", cfg.SpeedupFactor,
 		"MaxRecords", cfg.MaxRecords)
 
-	// Sink setup based on configuration
-	// Select the output sink based on the OutputType specified in the configuration.
+	// Initialize output sink
 	var sink output.Sink
 	switch cfg.OutputType {
 	case "kafka":
@@ -46,18 +38,15 @@ func main() {
 		sink = terminal.NewTerminalSink()
 	}
 	defer func(sink output.Sink) {
-		err := sink.Close()
-		if err != nil {
+		if err := sink.Close(); err != nil {
 			slog.Warn("Errore chiusura sink", "err", err)
 		}
 	}(sink)
 
-	// Manage graceful shutdown on interrupt signals
+	// Graceful shutdown handling
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Set up a channel to listen for OS signals (SIGINT and SIGTERM) to allow for graceful shutdown of the simulator.
-	// When a signal is received, it logs the event and cancels the context, which can be used to signal the engine to stop processing.
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -66,13 +55,8 @@ func main() {
 		cancel()
 	}()
 
-	// Build the simulation engine by wiring its components via the Builder.
-	// Components (Loader, Scheduler, Waiter) are resolved from the configuration
-	// automatically; individual overrides can be applied via With* methods.
+	// Build and run the simulation engine
 	simEngine := engine.NewBuilder(cfg, sink).Build()
-
-	// Run the simulation engine.
-	// If it returns an error, log the error and exit with a non-zero status code.
 	if err := simEngine.Run(ctx); err != nil {
 		slog.Error("La simulazione e' terminata con un errore", "err", err)
 		os.Exit(1)

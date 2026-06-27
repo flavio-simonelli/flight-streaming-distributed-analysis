@@ -6,8 +6,7 @@ import (
 	"time"
 )
 
-// FlightRecord represents a full record of flight data,
-// containing all fields from the original BTS dataset.
+// FlightRecord represents a flight record with BTS dataset fields.
 type FlightRecord struct {
 	Year               int32    `json:"YEAR"`
 	Month              int32    `json:"MONTH"`
@@ -38,37 +37,28 @@ type FlightRecord struct {
 	LateAircraftDelay  *float64 `json:"LATE_AIRCRAFT_DELAY,omitempty"`
 }
 
-// ExtractTime extracts the departure time as a time.Time object.
-// It returns the time and a boolean indicating whether the extraction was successful.
+// ExtractTime returns the departure time as a time.Time.
 func (r *FlightRecord) ExtractTime() (time.Time, bool) {
-	// If any of the date components are zero, we consider the timestamp invalid
 	if r.Year == 0 || r.Month == 0 || r.DayOfMonth == 0 {
 		return time.Time{}, false
 	}
 
-	// CRS_DEP_TIME is in the format HHMM, e.g., 1530 for 15:30
 	hour := int(r.CrsDepTime) / 100
 	minute := int(r.CrsDepTime) % 100
 
-	// Create a time.Time object using the extracted date and time components.
-	// We assume the time zone is UTC for simplicity.
 	return time.Date(int(r.Year), time.Month(r.Month), int(r.DayOfMonth), hour, minute, 0, 0, time.UTC), true
 }
 
-// Key generates a unique key for the record.
-// It uses the Event Time as the key, or falls back to the current time if is invalid.
+// Key generates a unique record key based on the event time.
 func (r *FlightRecord) Key() string {
 	flightTime, timeFound := r.ExtractTime()
 	if timeFound {
 		return fmt.Sprintf("%d", flightTime.UnixNano())
 	}
-
-	// Fallback to current time if the flight time is not valid
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-// String returns a string representation of the record.
-// It formats the fields of the record into a readable string format.
+// String returns a readable string representation of the record.
 func (r *FlightRecord) String() string {
 	return fmt.Sprintf("Year: %d, Month: %d, DayOfMonth: %d, Carrier: %s, CrsDepTime: %d, DepDelay: %v, Cancelled: %v, Diverted: %v, OriginAirportID: %v, DestAirportID: %v",
 		r.Year, r.Month, r.DayOfMonth, r.OpUniqueCarrier, r.CrsDepTime,
@@ -77,14 +67,11 @@ func (r *FlightRecord) String() string {
 	)
 }
 
-// Json converts the record to a JSON byte slice.
-// It returns the JSON representation of the record and any error that occurs during marshaling.
+// Json marshals the record to JSON.
 func (r *FlightRecord) Json() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-// deref is a helper function that takes a pointer to a float64 and returns its value.
-// If the pointer is nil, it returns the string "null" to represent a null value in JSON.
 func deref(f *float64) any {
 	if f == nil {
 		return "null"

@@ -5,25 +5,23 @@ import (
 	"strconv"
 )
 
-// Config holds the configuration settings for the flight simulator application.
-// It includes parameters for input data, output type, Kafka settings, and performance tuning.
+// Config defines the application settings loaded from the environment.
 type Config struct {
-	InputArchivePath          string  // Path to the local compressed archive (tar.gz)
-	RemoteTarGzURL            string  // URL to download the remote dataset
-	RemoteTarGzSHA1           string  // Expected SHA1 hash of the downloaded remote dataset archive
-	ExtractedCSVsDir          string  // Directory where TAR.GZ CSV files are extracted
-	OutputType                string  // Type of output sink (e.g., "terminal", "kafka")
-	KafkaBrokers              string  // Comma-separated list of Kafka broker addresses (e.g., "localhost:9092")
-	KafkaTopic                string  // Kafka topic to which the flight records will be sent if using Kafka output
-	MaxRecords                int     // Maximum number of records to process (0 means no limit)
-	SpeedupFactor             int     // Factor to accelerate the timing of flight events (e.g., 100000 means 100,000 times faster than real time)
-	SpinThresholdMs           int     // Active spin threshold in milliseconds for final precision (e.g., 2)
-	OutOfOrderFactor          float64 // Probability [0.0, 1.0] that a record is published out of order to simulate multi-sensor latency
-	OutOfOrderMaxDelayMinutes int     // Maximum out-of-order delay expressed in logical event-time minutes, scaled by SpeedupFactor at publish time
+	InputArchivePath          string  // Path to the local dataset compressed archive (.tar.gz)
+	RemoteTarGzURL            string  // URL of the remote dataset archive
+	RemoteTarGzSHA1           string  // Expected SHA1 hash of the remote dataset archive
+	ExtractedCSVsDir          string  // Target directory to extract CSV files
+	OutputType                string  // Type of sink to output results ("terminal", "kafka")
+	KafkaBrokers              string  // Comma-separated list of Kafka broker addresses
+	KafkaTopic                string  // Destination Kafka topic
+	MaxRecords                int     // Limit on records to process (0 means no limit)
+	SpeedupFactor             int     // Factor to accelerate event emission rate
+	SpinThresholdMs           int     // Active spin wait threshold in milliseconds
+	OutOfOrderFactor          float64 // Probability [0.0, 1.0] of injecting out-of-order latency
+	OutOfOrderMaxDelayMinutes int     // Maximum delay in minutes for out-of-order injection
 }
 
-// LoadConfig reads configuration settings from environment variables and returns a Config struct.
-// It provides default values for each setting if the corresponding environment variable is not set.
+// LoadConfig initializes Config from environment variables and sets defaults.
 func LoadConfig() *Config {
 	// Load environment variables from local .env file if it exists
 	loadDotEnv(".env")
@@ -70,8 +68,7 @@ func LoadConfig() *Config {
 	}
 }
 
-// getEnv is a helper function that retrieves the value of an environment variable.
-// If the variable is not set, it returns a specified fallback value.
+// getEnv retrieves the value of an environment variable or returns the fallback.
 func getEnv(key, fallback string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value

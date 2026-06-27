@@ -8,15 +8,7 @@ import (
 	"simulator/output"
 )
 
-// Builder constructs an Engine by progressively wiring its component dependencies.
-// It applies the GoF Builder pattern, separating the construction of a complex object
-// from its representation and allowing the caller to override individual components
-// (e.g. replace the Loader for testing) without changing the Engine itself.
-//
-// Default components are inferred from the provided Config:
-//   - Loader:    ParquetLoader reading from Config.InputParquetPath
-//   - Scheduler: InOrderScheduler, or OutOfOrderScheduler if out-of-order is configured
-//   - Waiter:    HybridWaiter with Config.SpinThresholdMs
+// Builder constructs an Engine by assembling its dependencies.
 type Builder struct {
 	cfg       *config.Config
 	sink      output.Sink
@@ -25,7 +17,7 @@ type Builder struct {
 	waiter    waiter.Waiter
 }
 
-// NewBuilder initialises a Builder with sensible defaults derived from cfg.
+// NewBuilder initialises a Builder with defaults from cfg.
 func NewBuilder(cfg *config.Config, sink output.Sink) *Builder {
 	var sched scheduler.Scheduler = &scheduler.InOrderScheduler{}
 	if cfg.OutOfOrderFactor > 0 && cfg.OutOfOrderMaxDelayMinutes > 0 {

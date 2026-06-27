@@ -19,31 +19,26 @@ import (
 	"simulator/models"
 )
 
-// CsvLoader implements Loader by reading records from flight CSV files.
-// It handles downloading, caching, and integrity verification of remote datasets,
-// as well as decompression of TAR.GZ files.
+// CsvLoader handles dataset retrieval, validation, extraction, and parsing.
 type CsvLoader struct {
 	cfg *config.Config
 }
 
-// NewCsvLoader creates a CsvLoader based on the configuration.
+// NewCsvLoader creates a new CsvLoader instance.
 func NewCsvLoader(cfg *config.Config) *CsvLoader {
 	return &CsvLoader{cfg: cfg}
 }
 
-// Load ensures the dataset is downloaded and extracted, then reads up to limit records.
+// Load retrieves and extracts the dataset if needed, and returns flight records up to the limit.
 func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
-	// 1. Prepare data directory
 	if err := os.MkdirAll(l.cfg.ExtractedCSVsDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create extraction directory: %w", err)
 	}
 
-	// 2. Resolve dataset archive
 	if err := l.ensureDatasetExtracted(); err != nil {
 		return nil, err
 	}
 
-	// 3. Find and sort the flight CSV files (months 1 to 4)
 	csvFiles, err := l.findFlightCSVFiles()
 	if err != nil {
 		return nil, err
@@ -55,7 +50,6 @@ func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
 
 	slog.Info("Loading records from CSV files", "file_count", len(csvFiles), "limit", limit)
 
-	// 4. Parse CSV files up to limit records
 	var records []models.FlightRecord
 	for _, csvPath := range csvFiles {
 		if limit > 0 && len(records) >= limit {
@@ -75,10 +69,9 @@ func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
 	return records, nil
 }
 
-// ensureDatasetExtracted checks if the CSV files are already extracted.
-// If not, it retrieves and extracts them.
+// ensureDatasetExtracted guarantees flight CSV files exist locally.
+// If absent or corrupt, downloads and decompresses the archive.
 func (l *CsvLoader) ensureDatasetExtracted() error {
-	// Check if we already have the expected CSV files to avoid repeating download/extract
 	files, _ := l.findFlightCSVFiles()
 	if len(files) >= 4 {
 		slog.Info("Flight CSV files already extracted, skipping decompression.", "path", l.cfg.ExtractedCSVsDir)
@@ -87,7 +80,6 @@ func (l *CsvLoader) ensureDatasetExtracted() error {
 
 	archivePath := l.cfg.InputArchivePath
 
-	// Check if the compressed archive already exists locally
 	if _, err := os.Stat(archivePath); err == nil {
 		slog.Info("Compressed archive found locally. Verifying integrity...", "path", archivePath)
 		ok, err := verifySHA1(archivePath, l.cfg.RemoteTarGzSHA1)
@@ -104,7 +96,6 @@ func (l *CsvLoader) ensureDatasetExtracted() error {
 			slog.Info("SHA1 integrity check successful", "path", archivePath)
 		}
 	} else if os.IsNotExist(err) {
-		// Does not exist, download it
 		slog.Info("Compressed archive not found locally. Downloading remote dataset...", "path", archivePath)
 		if err := l.downloadArchive(archivePath); err != nil {
 			return err
@@ -113,7 +104,6 @@ func (l *CsvLoader) ensureDatasetExtracted() error {
 		return fmt.Errorf("error checking archive file state: %w", err)
 	}
 
-	// Extract TAR.GZ
 	slog.Info("Extracting TAR.GZ archive...", "path", archivePath, "dest", l.cfg.ExtractedCSVsDir)
 	if err := untarGz(archivePath, l.cfg.ExtractedCSVsDir); err != nil {
 		return fmt.Errorf("failed to extract TAR.GZ archive: %w", err)
@@ -122,14 +112,12 @@ func (l *CsvLoader) ensureDatasetExtracted() error {
 	return nil
 }
 
-// downloadArchive downloads the remote tar.gz and verifies its integrity.
 func (l *CsvLoader) downloadArchive(destPath string) error {
 	slog.Info("Downloading remote dataset archive...", "url", l.cfg.RemoteTarGzURL, "dest", destPath)
 	if err := downloadFile(l.cfg.RemoteTarGzURL, destPath); err != nil {
 		return fmt.Errorf("failed to download remote archive: %w", err)
 	}
 
-	// Verify SHA1 integrity after download
 	ok, err := verifySHA1(destPath, l.cfg.RemoteTarGzSHA1)
 	if err != nil {
 		return fmt.Errorf("failed to verify archive SHA1 after download: %w", err)
@@ -142,7 +130,7 @@ func (l *CsvLoader) downloadArchive(destPath string) error {
 	return nil
 }
 
-// findFlightCSVFiles finds and returns sorted list of extracted flight CSV files.
+// findFlightCSVFiles scans and returns alphabetically sorted flight report CSV paths.
 func (l *CsvLoader) findFlightCSVFiles() ([]string, error) {
 	entries, err := os.ReadDir(l.cfg.ExtractedCSVsDir)
 	if err != nil {
@@ -167,7 +155,7 @@ func (l *CsvLoader) findFlightCSVFiles() ([]string, error) {
 	return files, nil
 }
 
-// parseCSVFile parses a single flight CSV file, returning records up to the subLimit.
+// parseCSVFile reads records from a single CSV file up to subLimit.
 func (l *CsvLoader) parseCSVFile(filePath string, subLimit int) ([]models.FlightRecord, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -177,7 +165,6 @@ func (l *CsvLoader) parseCSVFile(filePath string, subLimit int) ([]models.Flight
 
 	r := csv.NewReader(f)
 	
-	// Read headers
 	headers, err := r.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read headers: %w", err)
@@ -215,7 +202,7 @@ func (l *CsvLoader) parseCSVFile(filePath string, subLimit int) ([]models.Flight
 	return fileRecs, nil
 }
 
-// parseCSVRow maps a CSV row slice to a FlightRecord using header map.
+// parseCSVRow maps a raw CSV row to a FlightRecord struct.
 func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, error) {
 	getVal := func(col string) string {
 		if idx, ok := headerMap[col]; ok && idx < len(row) {
@@ -227,7 +214,7 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 	var rec models.FlightRecord
 	var err error
 
-	// Required / Crucial time fields
+	// Scheduled date and time values
 	yearStr := getVal("YEAR")
 	if rec.Year, err = parseInt32(yearStr); err != nil {
 		return rec, fmt.Errorf("invalid YEAR '%s': %w", yearStr, err)
@@ -248,14 +235,14 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 		return rec, fmt.Errorf("invalid CRS_DEP_TIME '%s': %w", crsDepStr, err)
 	}
 
-	// String fields
+	// Basic string fields
 	rec.OpUniqueCarrier = getVal("OP_UNIQUE_CARRIER")
 	rec.OpCarrierFlNum = parseString(getVal("OP_CARRIER_FL_NUM"))
 	rec.OriginStateAbr = parseString(getVal("ORIGIN_STATE_ABR"))
 	rec.DestStateAbr = parseString(getVal("DEST_STATE_ABR"))
 	rec.CancellationCode = parseString(getVal("CANCELLATION_CODE"))
 
-	// Pointer Int32 fields
+	// Nullable integer values
 	if rec.OriginAirportID, err = parseInt32Ptr(getVal("ORIGIN_AIRPORT_ID")); err != nil {
 		return rec, fmt.Errorf("invalid ORIGIN_AIRPORT_ID: %w", err)
 	}
@@ -278,7 +265,7 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 		return rec, fmt.Errorf("invalid ARR_TIME: %w", err)
 	}
 
-	// Pointer Float64 fields
+	// Nullable float values
 	if rec.DepDelay, err = parseFloat64Ptr(getVal("DEP_DELAY")); err != nil {
 		return rec, fmt.Errorf("invalid DEP_DELAY: %w", err)
 	}
@@ -316,7 +303,7 @@ func parseCSVRow(row []string, headerMap map[string]int) (models.FlightRecord, e
 	return rec, nil
 }
 
-// Parser Helper Functions
+// Parsing utilities
 
 func parseString(val string) *string {
 	if val == "" {
@@ -359,7 +346,7 @@ func parseFloat64Ptr(val string) (*float64, error) {
 	return &f, nil
 }
 
-// Utility Archive & Downloader Functions
+// Download and decompression utilities
 
 func verifySHA1(filePath string, expectedHash string) (bool, error) {
 	f, err := os.Open(filePath)

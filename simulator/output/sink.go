@@ -5,9 +5,7 @@ import (
 	"simulator/models"
 )
 
-// Sink set the interface for writing data to different output targets (e.g., terminal, Kafka).
-// Implementing this interface allows for flexibility in how the processed data is outputted,
-// enabling the use of various sinks without changing the core processing logic.
+// Sink defines the interface for writing records to an output destination.
 type Sink interface {
 	Write(ctx context.Context, record models.FlightRecord) error
 	Close() error

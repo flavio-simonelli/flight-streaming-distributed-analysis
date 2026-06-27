@@ -6,12 +6,7 @@ import (
 	"simulator/models"
 )
 
-// publishEntry pairs a FlightRecord with its scheduling timestamps.
-// It is an internal type used exclusively within the engine pipeline.
-//
-//   - eventTime: the logical departure time extracted from the record (drives timing simulation).
-//   - publishAt:  the scheduled publish time (drives publish order). For in-order records
-//     publishAt == eventTime; for out-of-order records publishAt > eventTime.
+// publishEntry wraps a FlightRecord with its computed simulation timestamps.
 type publishEntry struct {
 	Record    models.FlightRecord
 	EventTime time.Time

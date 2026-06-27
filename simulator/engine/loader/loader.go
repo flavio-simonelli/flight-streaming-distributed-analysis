@@ -4,11 +4,8 @@ import (
 	"simulator/models"
 )
 
-// Loader is the Strategy interface for reading flight records from a data source.
-// Decoupling the engine from the concrete data format allows alternative implementations
-// (e.g. CSV, JSON, remote sources) without any change to the orchestration logic.
+// Loader defines the behavior for loading flight records.
 type Loader interface {
-	// Load reads up to limit records and returns them as a slice.
-	// If limit <= 0 the entire dataset is loaded.
+	// Load retrieves up to limit records. If limit <= 0, all records are returned.
 	Load(limit int) ([]models.FlightRecord, error)
 }

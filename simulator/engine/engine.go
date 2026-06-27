@@ -18,16 +18,9 @@ import (
 	"simulator/output"
 )
 
-// Engine is the orchestrator of the flight simulation pipeline. It coordinates
-// three injected components - Loader, Scheduler, Waiter - to replay a dataset
-// while faithfully simulating the original inter-event timing.
-//
-// The simulation pipeline consists of two phases:
-//  1. Load & Schedule: records are loaded from the data source, each one assigned
-//     a publishAt timestamp by the Scheduler, and the resulting entries are sorted
-//     by publishAt in a single pass.
-//  2. Publish: entries are iterated in publishAt order; the Waiter enforces the
-//     simulated inter-event gap before each record is forwarded to the Sink.
+// Engine orchestrates the dataset replay process.
+// It loads records, schedules their publication times, sorts them,
+// and publishes them to the output sink simulating real-world gaps.
 type Engine struct {
 	config    *config.Config
 	sink      output.Sink
@@ -36,8 +29,7 @@ type Engine struct {
 	waiter    waiter.Waiter
 }
 
-// Run executes the full simulation pipeline and blocks until all records have
-// been published or the context is cancelled.
+// Run executes the loading, scheduling, and publication stages.
 func (e *Engine) Run(ctx context.Context) error {
 	slog.Info("Phase 1: loading and scheduling dataset...")
 	entries, err := e.loadAndSchedule()
@@ -50,7 +42,7 @@ func (e *Engine) Run(ctx context.Context) error {
 	return e.publish(ctx, entries)
 }
 
-// getCachePath returns the path of the cached ordered file based on run configuration.
+// getCachePath computes the file path for saving/loading pre-sorted datasets.
 func (e *Engine) getCachePath() string {
 	base := filepath.Base(e.config.InputArchivePath)
 	base = strings.TrimSuffix(base, filepath.Ext(base))
@@ -98,14 +90,12 @@ func (e *Engine) saveToCache(path string, entries []publishEntry) error {
 	return nil
 }
 
-// loadAndSchedule loads all records via the Loader, delegates publishAt assignment
-// to the Scheduler, and sorts the entries by publishAt in a single pass.
-//
-// If a cache file containing already ordered entries exists, it loads it directly.
+// loadAndSchedule reads the input dataset, schedules timestamps, and sorts them.
+// Bypasses the read/sort cycle if a valid cache file exists.
 func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 	cachePath := e.getCachePath()
 
-	// Try to load pre-sorted data from cache
+	// Return cached ordered entries if present
 	if _, err := os.Stat(cachePath); err == nil {
 		slog.Info("Found ordered cache file. Loading pre-sorted dataset...", "path", cachePath)
 		entries, err := e.loadFromCache(cachePath)
@@ -115,7 +105,7 @@ func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 		slog.Warn("Failed to load pre-sorted dataset from cache, falling back to full loading and sorting", "err", err)
 	}
 
-	limit := e.config.MaxRecords // <= 0 means load all
+	limit := e.config.MaxRecords
 
 	records, err := e.loader.Load(limit)
 	if err != nil {
@@ -132,18 +122,16 @@ func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 		})
 	}
 
-	// Single sort by PublishAt produces the final publish order.
-	// Records without a valid event time (PublishAt is zero) are placed at the end.
+	// Sort elements chronologically by scheduled publish time
 	sort.SliceStable(entries, func(i, j int) bool {
 		zi := entries[i].PublishAt.IsZero()
 		zj := entries[j].PublishAt.IsZero()
 		if zi || zj {
-			return zj // zero entries sink to the bottom
+			return zj // Move zero timestamps to the end
 		}
 		return entries[i].PublishAt.Before(entries[j].PublishAt)
 	})
 
-	// Save pre-sorted data to cache for future runs
 	slog.Info("Saving sorted dataset to cache...", "path", cachePath)
 	if err := e.saveToCache(cachePath, entries); err != nil {
 		slog.Warn("Failed to save sorted dataset to cache", "err", err)
@@ -152,29 +140,11 @@ func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 	return entries, nil
 }
 
-// publish iterates over the scheduled entries and sends each record to the Sink
-// while simulating the inter-event timing of the original dataset.
-//
-// Timing is driven by the logical event times (not PublishAt), so the simulated
-// pace always reflects the real-world flight schedule. Out-of-order records
-// (whose EventTime is earlier than the previous record's) produce a negative
-// diff and are sent immediately: the consumer receives a stale record with no pause,
-// which is the correct behaviour for a late-arriving event.
+// publish writes the records to the output sink, enforcing simulated time gaps.
 func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 	recordsProcessed := 0
-
-	// previousTime stores the logical event time of the last published record.
-	// It is used to calculate the inter-event wait. When an out-of-order record
-	// arrives its EventTime is earlier than previousTime, diffReal is negative,
-	// and the record is sent immediately with no wait.
 	var previousTime time.Time
-
-	// lastEventTime tracks the physical wall-clock timestamp of when the last
-	// timed event completed (wait + write). It is used to subtract already-elapsed
-	// processing time from the next wait so that the actual publish moment lands
-	// as close as possible to the simulated target time.
 	var lastEventTime time.Time
-
 	isFirstRecord := true
 
 	for i := range entries {
@@ -195,8 +165,7 @@ func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 				isFirstRecord = false
 				slog.Debug("First record", "event_time", entry.EventTime.Format("2006-01-02 15:04"))
 			} else {
-				// diffReal is the logical time gap between this record's event and the previous one.
-				// A negative value means this is an out-of-order record: it is published immediately.
+				// Compute relative departure delay and scale by speedup factor
 				diffReal := entry.EventTime.Sub(previousTime)
 				if diffReal > 0 {
 					targetWait := diffReal / time.Duration(e.config.SpeedupFactor)
@@ -209,7 +178,7 @@ func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 
 					if remaining > 0 {
 						if err := e.waiter.Wait(ctx, remaining); err != nil {
-							return nil // context cancelled
+							return nil
 						}
 					}
 				} else {

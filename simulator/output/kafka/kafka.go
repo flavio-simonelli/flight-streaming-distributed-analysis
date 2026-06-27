@@ -12,13 +12,12 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// KafkaSink is an implementation of the output.Sink interface that writes records to a Kafka topic.
-// It implements the output.Sink interface.
+// KafkaSink implements the output.Sink interface to write records to a Kafka topic.
 type KafkaSink struct {
 	writer *kafka.Writer
 }
 
-// NewKafkaSink creates a new instance of KafkaSink with the specified brokers and topic.
+// NewKafkaSink returns a new KafkaSink initialized with brokers and topic name.
 func NewKafkaSink(brokers string, topic string) output.Sink {
 	w := &kafka.Writer{
 		Addr:         kafka.TCP(strings.Split(brokers, ",")...),
@@ -30,9 +29,8 @@ func NewKafkaSink(brokers string, topic string) output.Sink {
 	return &KafkaSink{writer: w}
 }
 
-// Write sends a message to the Kafka topic with the given key and value.
+// Write serializes and writes a FlightRecord to the Kafka topic.
 func (s *KafkaSink) Write(ctx context.Context, record models.FlightRecord) error {
-
 	jr, err := record.Json()
 	if err != nil {
 		return err
@@ -46,6 +44,7 @@ func (s *KafkaSink) Write(ctx context.Context, record models.FlightRecord) error
 	return s.writer.WriteMessages(ctx, msg)
 }
 
+// Close closes the underlying Kafka writer.
 func (s *KafkaSink) Close() error {
 	return s.writer.Close()
 }
