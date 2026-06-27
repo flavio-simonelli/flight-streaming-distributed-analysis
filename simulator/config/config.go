@@ -9,6 +9,11 @@ import (
 // It includes parameters for input data, output type, Kafka settings, and performance tuning.
 type Config struct {
 	InputParquetPath          string  // Path to the input Parquet files containing flight data
+	DataSourceType            string  // Type of datasource: "parquet" or "remote" (download/load TAR.GZ)
+	InputArchivePath          string  // Path to the local compressed archive (tar.gz) for remote/cache datasource
+	RemoteTarGzURL            string  // URL to download the remote dataset for "remote" data source
+	RemoteTarGzSHA1           string  // Expected SHA1 hash of the downloaded remote dataset archive
+	ExtractedCSVsDir          string  // Directory where TAR.GZ CSV files are extracted
 	OutputType                string  // Type of output sink (e.g., "terminal", "kafka")
 	KafkaBrokers              string  // Comma-separated list of Kafka broker addresses (e.g., "localhost:9092")
 	KafkaTopic                string  // Kafka topic to which the flight records will be sent if using Kafka output
@@ -59,6 +64,11 @@ func LoadConfig() *Config {
 	// Create and return a Config struct populated with values from environment variables or defaults.
 	return &Config{
 		InputParquetPath:          getEnv("INPUT_PARQUET_PATH", "./data/flights.parquet"),
+		DataSourceType:            getEnv("DATA_SOURCE_TYPE", "parquet"),
+		InputArchivePath:          getEnv("INPUT_ARCHIVE_PATH", "./data/project-1-data.tar.gz"),
+		RemoteTarGzURL:            getEnv("REMOTE_TARGZ_URL", "http://www.ce.uniroma2.it/courses/sabd2526/project/project-1-data.tar.gz"),
+		RemoteTarGzSHA1:           getEnv("REMOTE_TARGZ_SHA1", "17be276b72bd987e72598b0ea4907c3b19350606"),
+		ExtractedCSVsDir:          getEnv("EXTRACTED_CSVS_DIR", "./data/extracted_csvs"),
 		OutputType:                getEnv("OUTPUT_TYPE", "terminal"),
 		KafkaBrokers:              getEnv("KAFKA_BROKERS", "localhost:9092"),
 		KafkaTopic:                getEnv("KAFKA_TOPIC", "flights-stream"),

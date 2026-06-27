@@ -32,10 +32,18 @@ func NewBuilder(cfg *config.Config, sink output.Sink) *Builder {
 		sched = scheduler.NewOutOfOrderScheduler(&scheduler.InOrderScheduler{}, cfg.OutOfOrderFactor, cfg.OutOfOrderMaxDelayMinutes)
 	}
 
+	var l loader.Loader
+	switch cfg.DataSourceType {
+	case "remote":
+		l = loader.NewCsvLoader(cfg)
+	default:
+		l = loader.NewParquetLoader(cfg.InputParquetPath, cfg.ParquetReaderConcurrency)
+	}
+
 	return &Builder{
 		cfg:       cfg,
 		sink:      sink,
-		loader:    loader.NewParquetLoader(cfg.InputParquetPath, cfg.ParquetReaderConcurrency),
+		loader:    l,
 		scheduler: sched,
 		waiter:    waiter.NewHybridWaiter(cfg.SpinThresholdMs),
 	}

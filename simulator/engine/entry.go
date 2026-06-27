@@ -13,7 +13,7 @@ import (
 //   - publishAt:  the scheduled publish time (drives publish order). For in-order records
 //     publishAt == eventTime; for out-of-order records publishAt > eventTime.
 type publishEntry struct {
-	record    models.FlightRecord
-	eventTime time.Time
-	publishAt time.Time
+	Record    models.FlightRecord
+	EventTime time.Time
+	PublishAt time.Time
 }

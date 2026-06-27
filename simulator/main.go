@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -23,8 +24,21 @@ func main() {
 	logger.InitLogger()
 	cfg := config.LoadConfig()
 
+	// Parse command line flags to allow setting/overriding properties
+	sourceFlag := flag.String("source", cfg.DataSourceType, "Data source type: 'parquet' or 'remote'")
+	parquetPathFlag := flag.String("parquet-path", cfg.InputParquetPath, "Path to input Parquet file")
+	archivePathFlag := flag.String("archive-path", cfg.InputArchivePath, "Path to input compressed archive file (.tar.gz)")
+	flag.Parse()
+
+	// Update configuration with flag values
+	cfg.DataSourceType = *sourceFlag
+	cfg.InputParquetPath = *parquetPathFlag
+	cfg.InputArchivePath = *archivePathFlag
+
 	slog.Info("Avvio Flight Simulator",
-		"Input", cfg.InputParquetPath,
+		"SourceType", cfg.DataSourceType,
+		"InputParquetPath", cfg.InputParquetPath,
+		"InputArchivePath", cfg.InputArchivePath,
 		"SpeedupFactor", cfg.SpeedupFactor,
 		"MaxRecords", cfg.MaxRecords)
 

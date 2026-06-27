@@ -35,9 +35,50 @@ func (l *ParquetLoader) Load(limit int) ([]models.FlightRecord, error) {
 		}
 	}()
 
+	// 1. Detect the number of columns in the schema to choose the correct model
+	metaReader, err := reader.NewParquetReader(fr, nil, 1)
+	if err != nil {
+		return nil, fmt.Errorf("could not initialize parquet meta reader: %w", err)
+	}
+	numColumns := len(metaReader.SchemaHandler.SchemaElements) - 1
+	metaReader.ReadStop()
+
+	// Reset reader file offset after reading schema
+	if _, err := fr.Seek(0, 0); err != nil {
+		return nil, fmt.Errorf("could not seek parquet file: %w", err)
+	}
+
+	// 2. Load based on detected column count
+	if numColumns <= 10 {
+		slog.Info("Schema has <= 10 columns. Reading using FlightRecordMinimal.", "columns", numColumns)
+		pr, err := reader.NewParquetReader(fr, new(models.FlightRecordMinimal), l.concurrency)
+		if err != nil {
+			return nil, fmt.Errorf("could not initialize parquet reader (minimal): %w", err)
+		}
+		defer pr.ReadStop()
+
+		numRows := int(pr.GetNumRows())
+		if limit <= 0 || limit > numRows {
+			limit = numRows
+		}
+
+		records := make([]models.FlightRecord, 0, limit)
+		rows := make([]models.FlightRecordMinimal, 1)
+
+		for i := 0; i < limit; i++ {
+			if err := pr.Read(&rows); err != nil {
+				slog.Error("Error reading row", "index", i, "err", err)
+				continue
+			}
+			records = append(records, rows[0].ToFull())
+		}
+		return records, nil
+	}
+
+	slog.Info("Schema has > 10 columns. Reading using FlightRecord.", "columns", numColumns)
 	pr, err := reader.NewParquetReader(fr, new(models.FlightRecord), l.concurrency)
 	if err != nil {
-		return nil, fmt.Errorf("could not initialize parquet reader: %w", err)
+		return nil, fmt.Errorf("could not initialize parquet reader (full): %w", err)
 	}
 	defer pr.ReadStop()
 
@@ -59,3 +100,4 @@ func (l *ParquetLoader) Load(limit int) ([]models.FlightRecord, error) {
 
 	return records, nil
 }
+
