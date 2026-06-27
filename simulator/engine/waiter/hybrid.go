@@ -6,36 +6,23 @@ import (
 	"time"
 )
 
-// HybridWaiter implements Waiter using a two-phase strategy that balances
-// CPU efficiency with sub-millisecond timing precision:
-//
-//  1. Sleep phase: the goroutine yields to the OS scheduler for most of the
-//     wait duration, keeping CPU usage near zero.
-//  2. Spinlock phase: for the final spinThreshold window, the goroutine
-//     busy-waits against a deadline, achieving precision that OS timers
-//     alone cannot guarantee.
-//
-// The spinThreshold should be set to a value slightly above the OS timer
-// resolution (typically 1-5 ms on Linux). Since flight event timestamps
-// have minute-level granularity, even a 2 ms spinlock provides effectively
-// exact timing for the simulated publish stream.
+// HybridWaiter implements Waiter using a sleep phase followed by a high-precision spinlock.
 type HybridWaiter struct {
 	spinThreshold time.Duration
 }
 
-// NewHybridWaiter creates a HybridWaiter with the given spin threshold in milliseconds.
+// NewHybridWaiter creates a HybridWaiter with the given spin threshold.
 func NewHybridWaiter(spinThresholdMs int) *HybridWaiter {
 	return &HybridWaiter{
 		spinThreshold: time.Duration(spinThresholdMs) * time.Millisecond,
 	}
 }
 
-// Wait blocks for duration d using the two-phase hybrid strategy.
-// If ctx is cancelled during either phase, the wait is aborted and ctx.Err() is returned.
+// Wait blocks for duration d using a hybrid sleep/spinlock mechanism.
 func (w *HybridWaiter) Wait(ctx context.Context, d time.Duration) error {
 	deadline := time.Now().Add(d)
 
-	// Phase 1: Low-CPU sleep for the majority of the wait duration
+	// Low-CPU sleep phase for the majority of the wait
 	if d > w.spinThreshold {
 		select {
 		case <-time.After(d - w.spinThreshold):
@@ -45,7 +32,7 @@ func (w *HybridWaiter) Wait(ctx context.Context, d time.Duration) error {
 		}
 	}
 
-	// Phase 2: High-precision active spinlock to cover the remaining time up to the deadline
+	// Active spinlock phase for maximum timing precision
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():

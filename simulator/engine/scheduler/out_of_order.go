@@ -8,25 +8,14 @@ import (
 	"simulator/models"
 )
 
-// OutOfOrderScheduler is a Decorator that wraps an inner Scheduler and, with a
-// configurable probability, shifts a record's publishAt forward by a random number
-// of logical minutes. This causes the record to appear later in the publish stream
-// than its event time would naturally dictate, faithfully simulating the variable
-// network latency of geographically distributed sensors.
-//
-// The delay is expressed in logical event-time minutes to match the minute-level
-// granularity of flight timestamps (CRS_DEP_TIME has no seconds component).
-//
-// GoF pattern: Decorator - adds out-of-order behaviour to any existing Scheduler
-// without modifying it.
+// OutOfOrderScheduler introduces random delays to simulate network latency.
 type OutOfOrderScheduler struct {
 	inner           Scheduler
-	factor          float64 // probability [0.0, 1.0] of delaying a given record
-	maxDelayMinutes int     // upper bound for the random delay (inclusive)
+	factor          float64 // probability [0.0, 1.0] of delaying a record
+	maxDelayMinutes int     // upper bound for the random delay in minutes
 }
 
-// NewOutOfOrderScheduler creates an OutOfOrderScheduler that decorates inner.
-// factor is clamped to [0.0, 1.0]; maxDelayMinutes must be >= 1.
+// NewOutOfOrderScheduler creates an OutOfOrderScheduler.
 func NewOutOfOrderScheduler(inner Scheduler, factor float64, maxDelayMinutes int) *OutOfOrderScheduler {
 	return &OutOfOrderScheduler{
 		inner:           inner,
@@ -35,8 +24,7 @@ func NewOutOfOrderScheduler(inner Scheduler, factor float64, maxDelayMinutes int
 	}
 }
 
-// Schedule delegates to the inner Scheduler and then, with probability factor,
-// adds a uniform random delay in [1, maxDelayMinutes] logical minutes to publishAt.
+// Schedule delegates scheduling to the inner Scheduler and applies a random offset.
 func (s *OutOfOrderScheduler) Schedule(rec models.FlightRecord, eventTime time.Time) time.Time {
 	base := s.inner.Schedule(rec, eventTime)
 
