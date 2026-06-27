@@ -153,7 +153,7 @@ services:
       entrypoint: [ "/bin/sh", "-c" ]
       command:
         - |
-          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-stream --replication-factor 1 --partitions 1
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-stream --replication-factor 1 --partitions 6
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-results --replication-factor 1 --partitions 1
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q1-results --replication-factor 1 --partitions 1
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka.flight-analysis.local:9092 --create --if-not-exists --topic flights-q2-1h-results --replication-factor 1 --partitions 1
