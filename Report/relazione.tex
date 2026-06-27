@@ -59,7 +59,7 @@
 
 \begin{document}
 
-\title{Titolo del Secondo Progetto \\ \vspace{0.15cm} \large Sottotitolo del Progetto}
+\title{Sky Analytics Stream \\ \vspace{0.15cm} \large Architettura Distribuita per l'Analisi in Tempo Reale del Traffico Aereo}
 
 % IEEE Configuration
 \author{
@@ -100,14 +100,14 @@
 % ------------------------------
 
 \begin{abstract}
-% Inserire qui l'abstract del secondo progetto.
+Questo lavoro presenta \textit{Sky Analytics Stream}, una pipeline distribuita ed elastica per l'analisi e il monitoraggio in tempo reale del traffico aereo negli Stati Uniti. L'architettura elabora un flusso continuo di circa 2.2 milioni di eventi storici (da gennaio ad aprile 2025) attraverso una fase di replay accelerata in event-time. Il sistema integra un simulatore ad alte prestazioni sviluppato in Go per l'ingestione dei dati in Apache Kafka, e Apache Flink come motore di stream processing per l'elaborazione distribuita. Tramite un'unica topologia a grafo aciclico diretto (DAG), Flink esegue concorrentemente tre query analitiche: il calcolo orario delle metriche prestazionali delle compagnie aeree, il tracciamento in tempo reale delle classifiche (Top-10) degli aeroporti con ritardi severi, e la stima della distribuzione dei ritardi tramite l'algoritmo di sketch DDSketch. I risultati analitici e le metriche di telemetria sono storicizzati in InfluxDB tramite Telegraf e visualizzati su dashboard Grafana dedicate. La valutazione sperimentale, condotta su istanze Amazon EC2 con fattori di accelerazione fino a 43.200x ($\approx$ 9.150 eventi/secondo), dimostra la scalabilità e l'efficienza della pipeline, evidenziando latenze di processamento sub-secondarie e un'elevata tolleranza al disordine dei dati (\textit{out-of-order}) e ai guasti grazie al checkpointing incrementale basato su RocksDB.
 \end{abstract}
 
 % ------------------------------
 
 % IEEE Configuration
 \begin{IEEEkeywords}
-% Inserire qui le parole chiave.
+Apache Flink, Stream Processing, Apache Kafka, Traffico Aereo, Percentili Approssimati, Tolleranza ai Guasti.
 \end{IEEEkeywords}
 
 % ACM Configuration
@@ -148,7 +148,13 @@
 % Inserire qui le conclusioni.
 
 \begin{thebibliography}{10}
-% Inserire qui i riferimenti bibliografici.
+
+\bibitem{fernando2023quantiles}
+L.~Fernando, H.~Bindra, and K.~Daudjee, ``An experimental analysis of quantile sketches over data streams,'' in \emph{Proceedings of the 26th International Conference on Extending Database Technology (EDBT '23)}, pp. 1--12, 2023.
+
+\bibitem{masson2019ddsketch}
+C.~Masson, J.~E. Rim, and H.~K. Lee, ``DDSketch: A fast and fully-mergeable quantile sketch with relative-error guarantees,'' \emph{Proceedings of the VLDB Endowment}, vol. 12, no. 12, pp. 2195--2205, 2019.
+
 \end{thebibliography}
 
 \clearpage

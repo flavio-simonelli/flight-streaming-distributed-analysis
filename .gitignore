@@ -19,3 +19,12 @@ chaos.iml
 
 # Processing
 flink/target
+
+# LaTeX
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
