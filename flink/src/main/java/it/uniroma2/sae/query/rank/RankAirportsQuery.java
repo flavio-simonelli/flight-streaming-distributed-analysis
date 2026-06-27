@@ -5,8 +5,8 @@ import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.metrics.LateRecordMetricAnalyzer;
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.sink.SinkBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -109,10 +109,8 @@ public class RankAirportsQuery implements Serializable {
             String pipelineName,
             String uid) {
 
-        KafkaSink<RankAirportsResult> sink = KafkaSink.<RankAirportsResult>builder()
-                .setBootstrapServers(kafkaConfig.getHost() + ":" + kafkaConfig.getInternalPort())
-                .setRecordSerializer(new RankAirportsRecordSerializer(kafkaConfig, queryKey))
-                .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+        KafkaSink<RankAirportsResult> sink = new SinkBuilder<RankAirportsResult>(kafkaConfig)
+                .withRecordSerializer(new RankAirportsRecordSerializer(kafkaConfig, queryKey))
                 .build();
 
         return stream.sinkTo(sink)
