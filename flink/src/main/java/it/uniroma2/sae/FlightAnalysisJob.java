@@ -81,9 +81,6 @@ public class FlightAnalysisJob {
             flinkCpConfig.setTolerableCheckpointFailureNumber(checkpointCfg.getTolerableFailedCheckpoints());
             flinkCpConfig.enableUnalignedCheckpoints(checkpointCfg.isUnalignedCheckpoints());
             flinkCpConfig.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
-            flinkCpConfig.setExternalizedCheckpointCleanup(
-                    org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
-            );
         }
 
         // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
