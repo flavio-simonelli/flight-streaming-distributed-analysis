@@ -15,6 +15,7 @@ services:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: ${NODE_HOSTNAME}
+        jobmanager.scheduler: Adaptive
         metrics.reporter.influxdb.factory.class: org.apache.flink.metrics.influxdb.InfluxdbReporterFactory
         metrics.reporter.influxdb.host: influxdb.flight-analysis.local
         metrics.reporter.influxdb.port: 8086
