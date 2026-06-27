@@ -6,67 +6,36 @@ import (
 	"time"
 )
 
-// FlightRecordMinimal represents the legacy/minimal record schema with only 10 fields,
-// matching the schema of typical cut-down Parquet dataset files.
-type FlightRecordMinimal struct {
-	Year            int32    `parquet:"name=YEAR, type=INT32" json:"YEAR"`
-	Month           int32    `parquet:"name=MONTH, type=INT32" json:"MONTH"`
-	DayOfMonth      int32    `parquet:"name=DAY_OF_MONTH, type=INT32" json:"DAY_OF_MONTH"`
-	OpUniqueCarrier string   `parquet:"name=OP_UNIQUE_CARRIER, type=BYTE_ARRAY, convertedtype=UTF8" json:"OP_UNIQUE_CARRIER"`
-	CrsDepTime      int32    `parquet:"name=CRS_DEP_TIME, type=INT32" json:"CRS_DEP_TIME"`
-	DepDelay        *float64 `parquet:"name=DEP_DELAY, type=DOUBLE" json:"DEP_DELAY"`
-	Cancelled       *float64 `parquet:"name=CANCELLED, type=DOUBLE" json:"CANCELLED"`
-	Diverted        *float64 `parquet:"name=DIVERTED, type=DOUBLE" json:"DIVERTED"`
-	OriginAirportID *int32   `parquet:"name=ORIGIN_AIRPORT_ID, type=INT32" json:"ORIGIN_AIRPORT_ID"`
-	DestAirportID   *int32   `parquet:"name=DEST_AIRPORT_ID, type=INT32" json:"DEST_AIRPORT_ID"`
-}
-
-// ToFull converts a FlightRecordMinimal to a full FlightRecord.
-func (m *FlightRecordMinimal) ToFull() FlightRecord {
-	return FlightRecord{
-		Year:            m.Year,
-		Month:           m.Month,
-		DayOfMonth:      m.DayOfMonth,
-		OpUniqueCarrier: m.OpUniqueCarrier,
-		CrsDepTime:      m.CrsDepTime,
-		DepDelay:        m.DepDelay,
-		Cancelled:       m.Cancelled,
-		Diverted:        m.Diverted,
-		OriginAirportID: m.OriginAirportID,
-		DestAirportID:   m.DestAirportID,
-	}
-}
-
 // FlightRecord represents a full record of flight data,
 // containing all fields from the original BTS dataset.
 type FlightRecord struct {
-	Year               int32    `parquet:"name=YEAR, type=INT32" json:"YEAR"`
-	Month              int32    `parquet:"name=MONTH, type=INT32" json:"MONTH"`
-	DayOfMonth         int32    `parquet:"name=DAY_OF_MONTH, type=INT32" json:"DAY_OF_MONTH"`
-	OpUniqueCarrier    string   `parquet:"name=OP_UNIQUE_CARRIER, type=BYTE_ARRAY, convertedtype=UTF8" json:"OP_UNIQUE_CARRIER"`
-	OpCarrierFlNum     *string  `parquet:"name=OP_CARRIER_FL_NUM, type=BYTE_ARRAY, convertedtype=UTF8" json:"OP_CARRIER_FL_NUM,omitempty"`
-	OriginAirportID    *int32   `parquet:"name=ORIGIN_AIRPORT_ID, type=INT32" json:"ORIGIN_AIRPORT_ID,omitempty"`
-	OriginCityMarketID *int32   `parquet:"name=ORIGIN_CITY_MARKET_ID, type=INT32" json:"ORIGIN_CITY_MARKET_ID,omitempty"`
-	OriginStateAbr     *string  `parquet:"name=ORIGIN_STATE_ABR, type=BYTE_ARRAY, convertedtype=UTF8" json:"ORIGIN_STATE_ABR,omitempty"`
-	DestAirportID      *int32   `parquet:"name=DEST_AIRPORT_ID, type=INT32" json:"DEST_AIRPORT_ID,omitempty"`
-	DestCityMarketID   *int32   `parquet:"name=DEST_CITY_MARKET_ID, type=INT32" json:"DEST_CITY_MARKET_ID,omitempty"`
-	DestStateAbr       *string  `parquet:"name=DEST_STATE_ABR, type=BYTE_ARRAY, convertedtype=UTF8" json:"DEST_STATE_ABR,omitempty"`
-	CrsDepTime         int32    `parquet:"name=CRS_DEP_TIME, type=INT32" json:"CRS_DEP_TIME"`
-	DepTime            *int32   `parquet:"name=DEP_TIME, type=INT32" json:"DEP_TIME,omitempty"`
-	DepDelay           *float64 `parquet:"name=DEP_DELAY, type=DOUBLE" json:"DEP_DELAY,omitempty"`
-	CrsArrTime         *int32   `parquet:"name=CRS_ARR_TIME, type=INT32" json:"CRS_ARR_TIME,omitempty"`
-	ArrTime            *int32   `parquet:"name=ARR_TIME, type=INT32" json:"ARR_TIME,omitempty"`
-	ArrDelay           *float64 `parquet:"name=ARR_DELAY, type=DOUBLE" json:"ARR_DELAY,omitempty"`
-	Cancelled          *float64 `parquet:"name=CANCELLED, type=DOUBLE" json:"CANCELLED,omitempty"`
-	CancellationCode   *string  `parquet:"name=CANCELLATION_CODE, type=BYTE_ARRAY, convertedtype=UTF8" json:"CANCELLATION_CODE,omitempty"`
-	Diverted           *float64 `parquet:"name=DIVERTED, type=DOUBLE" json:"DIVERTED,omitempty"`
-	ActualElapsedTime  *float64 `parquet:"name=ACTUAL_ELAPSED_TIME, type=DOUBLE" json:"ACTUAL_ELAPSED_TIME,omitempty"`
-	Distance           *float64 `parquet:"name=DISTANCE, type=DOUBLE" json:"DISTANCE,omitempty"`
-	CarrierDelay       *float64 `parquet:"name=CARRIER_DELAY, type=DOUBLE" json:"CARRIER_DELAY,omitempty"`
-	WeatherDelay       *float64 `parquet:"name=WEATHER_DELAY, type=DOUBLE" json:"WEATHER_DELAY,omitempty"`
-	NasDelay           *float64 `parquet:"name=NAS_DELAY, type=DOUBLE" json:"NAS_DELAY,omitempty"`
-	SecurityDelay      *float64 `parquet:"name=SECURITY_DELAY, type=DOUBLE" json:"SECURITY_DELAY,omitempty"`
-	LateAircraftDelay  *float64 `parquet:"name=LATE_AIRCRAFT_DELAY, type=DOUBLE" json:"LATE_AIRCRAFT_DELAY,omitempty"`
+	Year               int32    `json:"YEAR"`
+	Month              int32    `json:"MONTH"`
+	DayOfMonth         int32    `json:"DAY_OF_MONTH"`
+	OpUniqueCarrier    string   `json:"OP_UNIQUE_CARRIER"`
+	OpCarrierFlNum     *string  `json:"OP_CARRIER_FL_NUM,omitempty"`
+	OriginAirportID    *int32   `json:"ORIGIN_AIRPORT_ID,omitempty"`
+	OriginCityMarketID *int32   `json:"ORIGIN_CITY_MARKET_ID,omitempty"`
+	OriginStateAbr     *string  `json:"ORIGIN_STATE_ABR,omitempty"`
+	DestAirportID      *int32   `json:"DEST_AIRPORT_ID,omitempty"`
+	DestCityMarketID   *int32   `json:"DEST_CITY_MARKET_ID,omitempty"`
+	DestStateAbr       *string  `json:"DEST_STATE_ABR,omitempty"`
+	CrsDepTime         int32    `json:"CRS_DEP_TIME"`
+	DepTime            *int32   `json:"DEP_TIME,omitempty"`
+	DepDelay           *float64 `json:"DEP_DELAY,omitempty"`
+	CrsArrTime         *int32   `json:"CRS_ARR_TIME,omitempty"`
+	ArrTime            *int32   `json:"ARR_TIME,omitempty"`
+	ArrDelay           *float64 `json:"ARR_DELAY,omitempty"`
+	Cancelled          *float64 `json:"CANCELLED,omitempty"`
+	CancellationCode   *string  `json:"CANCELLATION_CODE,omitempty"`
+	Diverted           *float64 `json:"DIVERTED,omitempty"`
+	ActualElapsedTime  *float64 `json:"ACTUAL_ELAPSED_TIME,omitempty"`
+	Distance           *float64 `json:"DISTANCE,omitempty"`
+	CarrierDelay       *float64 `json:"CARRIER_DELAY,omitempty"`
+	WeatherDelay       *float64 `json:"WEATHER_DELAY,omitempty"`
+	NasDelay           *float64 `json:"NAS_DELAY,omitempty"`
+	SecurityDelay      *float64 `json:"SECURITY_DELAY,omitempty"`
+	LateAircraftDelay  *float64 `json:"LATE_AIRCRAFT_DELAY,omitempty"`
 }
 
 // ExtractTime extracts the departure time as a time.Time object.

@@ -52,16 +52,10 @@ func (e *Engine) Run(ctx context.Context) error {
 
 // getCachePath returns the path of the cached ordered file based on run configuration.
 func (e *Engine) getCachePath() string {
-	base := "project-1-data"
-	if e.config.DataSourceType == "parquet" {
-		base = filepath.Base(e.config.InputParquetPath)
-		base = strings.TrimSuffix(base, filepath.Ext(base))
-	} else {
-		base = filepath.Base(e.config.InputArchivePath)
-		base = strings.TrimSuffix(base, filepath.Ext(base))
-		if strings.HasSuffix(base, ".tar") {
-			base = strings.TrimSuffix(base, ".tar")
-		}
+	base := filepath.Base(e.config.InputArchivePath)
+	base = strings.TrimSuffix(base, filepath.Ext(base))
+	if strings.HasSuffix(base, ".tar") {
+		base = strings.TrimSuffix(base, ".tar")
 	}
 	return fmt.Sprintf("data/%s_limit%d_oof%.2f_oodelay%d_ordered.gob",
 		base,

@@ -8,10 +8,8 @@ import (
 // Config holds the configuration settings for the flight simulator application.
 // It includes parameters for input data, output type, Kafka settings, and performance tuning.
 type Config struct {
-	InputParquetPath          string  // Path to the input Parquet files containing flight data
-	DataSourceType            string  // Type of datasource: "parquet" or "remote" (download/load TAR.GZ)
-	InputArchivePath          string  // Path to the local compressed archive (tar.gz) for remote/cache datasource
-	RemoteTarGzURL            string  // URL to download the remote dataset for "remote" data source
+	InputArchivePath          string  // Path to the local compressed archive (tar.gz)
+	RemoteTarGzURL            string  // URL to download the remote dataset
 	RemoteTarGzSHA1           string  // Expected SHA1 hash of the downloaded remote dataset archive
 	ExtractedCSVsDir          string  // Directory where TAR.GZ CSV files are extracted
 	OutputType                string  // Type of output sink (e.g., "terminal", "kafka")
@@ -22,7 +20,6 @@ type Config struct {
 	SpinThresholdMs           int     // Active spin threshold in milliseconds for final precision (e.g., 2)
 	OutOfOrderFactor          float64 // Probability [0.0, 1.0] that a record is published out of order to simulate multi-sensor latency
 	OutOfOrderMaxDelayMinutes int     // Maximum out-of-order delay expressed in logical event-time minutes, scaled by SpeedupFactor at publish time
-	ParquetReaderConcurrency  int64   // Number of parallel reader goroutines for loading Parquet data
 }
 
 // LoadConfig reads configuration settings from environment variables and returns a Config struct.
@@ -56,15 +53,8 @@ func LoadConfig() *Config {
 		ooMaxDelayMinutes = 0
 	}
 
-	parquetConcurrency, _ := strconv.ParseInt(getEnv("PARQUET_READER_CONCURRENCY", "4"), 10, 64)
-	if parquetConcurrency <= 0 {
-		parquetConcurrency = 4
-	}
-
 	// Create and return a Config struct populated with values from environment variables or defaults.
 	return &Config{
-		InputParquetPath:          getEnv("INPUT_PARQUET_PATH", "./data/flights.parquet"),
-		DataSourceType:            getEnv("DATA_SOURCE_TYPE", "parquet"),
 		InputArchivePath:          getEnv("INPUT_ARCHIVE_PATH", "./data/project-1-data.tar.gz"),
 		RemoteTarGzURL:            getEnv("REMOTE_TARGZ_URL", "http://www.ce.uniroma2.it/courses/sabd2526/project/project-1-data.tar.gz"),
 		RemoteTarGzSHA1:           getEnv("REMOTE_TARGZ_SHA1", "17be276b72bd987e72598b0ea4907c3b19350606"),
@@ -77,7 +67,6 @@ func LoadConfig() *Config {
 		SpinThresholdMs:           spinMs,
 		OutOfOrderFactor:          ooFactor,
 		OutOfOrderMaxDelayMinutes: ooMaxDelayMinutes,
-		ParquetReaderConcurrency:  parquetConcurrency,
 	}
 }
 
