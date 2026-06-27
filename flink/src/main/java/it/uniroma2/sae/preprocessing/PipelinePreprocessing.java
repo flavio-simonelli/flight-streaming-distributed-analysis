@@ -1,7 +1,9 @@
 package it.uniroma2.sae.preprocessing;
 
 import it.uniroma2.sae.model.FlightRecord;
-import org.apache.flink.api.common.functions.FilterFunction;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.RichFilterFunction;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.io.Serial;
@@ -32,16 +34,22 @@ public class PipelinePreprocessing implements Serializable {
 
     /**
      * Filter function that discards anomalous records based on business logic rules.
+     * Registers a custom Flink Counter metric {@code corrupted_records_total} to monitor
+     * the quality and volume of discarded/anomalous input records.
      */
-    public static class LogicalInconsistencyFilter extends org.apache.flink.api.common.functions.RichFilterFunction<FlightRecord> {
+    public static class LogicalInconsistencyFilter extends RichFilterFunction<FlightRecord> {
 
         @Serial
         private static final long serialVersionUID = 1L;
 
-        private transient org.apache.flink.metrics.Counter corruptedRecordsCounter;
+        /**
+         * Flink metric counter that tracks the total number of dropped/corrupted flight records.
+         * Useful for monitoring the health of the input data stream.
+         */
+        private transient Counter corruptedRecordsCounter;
 
         @Override
-        public void open(org.apache.flink.api.common.functions.OpenContext context) throws Exception {
+        public void open(OpenContext context) throws Exception {
             super.open(context);
             this.corruptedRecordsCounter = getRuntimeContext()
                     .getMetricGroup()
