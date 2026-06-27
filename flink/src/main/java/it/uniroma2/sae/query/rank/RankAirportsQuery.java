@@ -64,7 +64,7 @@ public class RankAirportsQuery implements Serializable {
                 // Architectural Note: A single-stage ranking is used here. For extremely high-cardinality streams 
                 // (e.g., millions of keys), a "Two-Stage Top-N" pattern (local process -> keyBy(windowEnd) -> global process) 
                 // is preferred to avoid central bottlenecks. Since the dataset has a very small number of active airports 
-                // (~50), a single-stage ranking is much faster as it avoids additional serialization and network overhead.
+                // (~333), a single-stage ranking is much faster as it avoids additional serialization and network overhead.
                 .keyBy(RankAirportsResult::getWindowEnd)
                 .process(new RankAirportsRankProcessor(allowedLatenessGlobal.plusSeconds(1)))
                 .name("Q2: Global Rank")
@@ -100,7 +100,7 @@ public class RankAirportsQuery implements Serializable {
         // Architectural Note: A single-stage ranking is used here. For extremely high-cardinality streams 
         // (e.g., millions of keys), a "Two-Stage Top-N" pattern (local process -> keyBy(windowEnd) -> global process) 
         // is preferred to avoid central bottlenecks. Since the dataset has a very small number of active airports 
-        // (~50), a single-stage ranking is much faster as it avoids additional serialization and network overhead.
+        // (~333), a single-stage ranking is much faster as it avoids additional serialization and network overhead.
         return windowedOperator
                 .name("Q2: Window (" + label + ")")
                 .uid("q2-window-" + label)
