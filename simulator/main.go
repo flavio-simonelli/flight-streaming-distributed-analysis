@@ -20,6 +20,7 @@ func main() {
 	logger.InitLogger()
 	cfg := config.LoadConfig()
 
+	// Allow overriding the archive path from the command line without changing the env config.
 	archivePathFlag := flag.String("archive-path", cfg.InputArchivePath, "Path to the compressed archive file (.tar.gz)")
 	flag.Parse()
 	cfg.InputArchivePath = *archivePathFlag
@@ -29,7 +30,7 @@ func main() {
 		"SpeedupFactor", cfg.SpeedupFactor,
 		"MaxRecords", cfg.MaxRecords)
 
-	// Initialize output sink
+	// Pick the output sink at startup so the rest of the pipeline can stay agnostic.
 	var sink output.Sink
 	switch cfg.OutputType {
 	case "kafka":
@@ -37,13 +38,14 @@ func main() {
 	default:
 		sink = terminal.NewTerminalSink()
 	}
+	// Make sure the sink is closed even if the simulation exits early.
 	defer func(sink output.Sink) {
 		if err := sink.Close(); err != nil {
 			slog.Warn("Errore chiusura sink", "err", err)
 		}
 	}(sink)
 
-	// Graceful shutdown handling
+	// Cancel the simulation context when the process receives an interrupt or termination signal.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -55,7 +57,7 @@ func main() {
 		cancel()
 	}()
 
-	// Build and run the simulation engine
+	// Assemble the engine with the selected dependencies and start the replay loop.
 	simEngine := engine.NewBuilder(cfg, sink).Build()
 	if err := simEngine.Run(ctx); err != nil {
 		slog.Error("La simulazione e' terminata con un errore", "err", err)

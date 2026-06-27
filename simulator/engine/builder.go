@@ -19,6 +19,8 @@ type Builder struct {
 
 // NewBuilder initialises a Builder with defaults from cfg.
 func NewBuilder(cfg *config.Config, sink output.Sink) *Builder {
+	// When out-of-order replay is enabled, wrap the in-order scheduler so the
+	// base ordering logic remains the default behavior.
 	var sched scheduler.Scheduler = &scheduler.InOrderScheduler{}
 	if cfg.OutOfOrderFactor > 0 && cfg.OutOfOrderMaxDelayMinutes > 0 {
 		sched = scheduler.NewOutOfOrderScheduler(&scheduler.InOrderScheduler{}, cfg.OutOfOrderFactor, cfg.OutOfOrderMaxDelayMinutes)
