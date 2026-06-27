@@ -6,12 +6,12 @@ import (
 	"simulator/models"
 )
 
-// Scheduler defines the interface for computing publication timestamps.
+// Scheduler defines how publication timestamps are computed for a record.
 type Scheduler interface {
 	Schedule(rec models.FlightRecord, eventTime time.Time) time.Time
 }
 
-// InOrderScheduler schedules records in their original chronological order.
+// InOrderScheduler keeps records in their original chronological order.
 type InOrderScheduler struct{}
 
 // Schedule returns eventTime unchanged.

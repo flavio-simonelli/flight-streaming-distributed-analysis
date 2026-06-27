@@ -20,7 +20,7 @@ import (
 	"simulator/models"
 )
 
-// CsvLoader handles dataset download, SHA1 verification, direct TAR.GZ parsing, and caching.
+// CsvLoader handles dataset download, SHA1 verification, TAR.GZ parsing, and caching.
 type CsvLoader struct {
 	cfg *config.Config
 }
@@ -30,23 +30,21 @@ func NewCsvLoader(cfg *config.Config) *CsvLoader {
 	return &CsvLoader{cfg: cfg}
 }
 
-// getCachePath returns the path of the GOB file storing the fully ordered dataset.
+// getCachePath returns the GOB file path used to store the sorted dataset.
 func (l *CsvLoader) getCachePath() string {
 	base := filepath.Base(l.cfg.InputArchivePath)
 	base = strings.TrimSuffix(base, filepath.Ext(base))
-	if strings.HasSuffix(base, ".tar") {
-		base = strings.TrimSuffix(base, ".tar")
-	}
+	base = strings.TrimSuffix(base, ".tar")
 	return fmt.Sprintf("data/%s_ordered.gob", base)
 }
 
-// Load retrieves records from the ordered GOB cache, or parses TAR.GZ on the fly if cache is missing.
+// Load retrieves records from the cache, or parses the TAR.GZ archive if the cache is missing.
 func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
 	cachePath := l.getCachePath()
 
 	var records []models.FlightRecord
 
-	// Check if pre-sorted cache exists
+	// Reuse the cached ordered dataset when it is already available.
 	if _, err := os.Stat(cachePath); err == nil {
 		slog.Info("Found ordered cache file. Loading pre-sorted dataset...", "path", cachePath)
 		var errCache error
@@ -61,13 +59,13 @@ func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
 		slog.Warn("Failed to load pre-sorted dataset from cache, falling back to TAR.GZ parsing", "err", errCache)
 	}
 
-	// Parse records directly from the TAR.GZ archive stream
+	// Otherwise parse the archive directly.
 	records, err := l.parseTarGz(l.cfg.InputArchivePath)
 	if err != nil {
 		return nil, err
 	}
 
-	// Sort chronologically by EventTime
+	// Sort records by their extracted event time.
 	slog.Info("Sorting dataset chronologically by event time...", "total_records", len(records))
 	sort.SliceStable(records, func(i, j int) bool {
 		ti, okI := records[i].ExtractTime()
@@ -78,7 +76,7 @@ func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
 		return ti.Before(tj)
 	})
 
-	// Save pre-sorted records to cache
+	// Persist the sorted dataset so future runs can skip parsing.
 	slog.Info("Saving sorted dataset to cache...", "path", cachePath)
 	if err := l.saveToCache(cachePath, records); err != nil {
 		slog.Warn("Failed to save sorted dataset to cache", "err", err)
@@ -90,19 +88,19 @@ func (l *CsvLoader) Load(limit int) ([]models.FlightRecord, error) {
 	return records, nil
 }
 
-// EnsureDataset verifies the integrity of the dataset source archive.
-// Returns true if a fresh download occurred.
+// EnsureDataset verifies the dataset source archive.
+// It returns true if a fresh download occurred.
 func (l *CsvLoader) EnsureDataset() (bool, error) {
 	archivePath := l.cfg.InputArchivePath
 	cachePath := l.getCachePath()
 	downloaded := false
 
-	// Ensure destination directory exists
+	// Create the destination directory if needed.
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0755); err != nil {
 		return false, fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Check if the compressed archive exists locally
+	// If the archive is already present, verify its checksum before reusing it.
 	if _, err := os.Stat(archivePath); err == nil {
 		slog.Info("Compressed archive found locally. Verifying integrity...", "path", archivePath)
 		ok, err := verifySHA1(archivePath, l.cfg.TargzSHA1)

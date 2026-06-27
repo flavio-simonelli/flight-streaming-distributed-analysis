@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// FlightRecord represents a flight record with BTS dataset fields.
+// FlightRecord represents one row from the BTS flight dataset.
 type FlightRecord struct {
 	Year               int32    `json:"YEAR"`
 	Month              int32    `json:"MONTH"`
@@ -37,7 +37,7 @@ type FlightRecord struct {
 	LateAircraftDelay  *float64 `json:"LATE_AIRCRAFT_DELAY,omitempty"`
 }
 
-// ExtractTime returns the departure time as a time.Time.
+// ExtractTime returns the scheduled departure time as a time.Time value.
 func (r *FlightRecord) ExtractTime() (time.Time, bool) {
 	if r.Year == 0 || r.Month == 0 || r.DayOfMonth == 0 {
 		return time.Time{}, false
@@ -49,7 +49,7 @@ func (r *FlightRecord) ExtractTime() (time.Time, bool) {
 	return time.Date(int(r.Year), time.Month(r.Month), int(r.DayOfMonth), hour, minute, 0, 0, time.UTC), true
 }
 
-// Key generates a unique record key based on the event time.
+// Key generates a record key based on the event time when it is available.
 func (r *FlightRecord) Key() string {
 	flightTime, timeFound := r.ExtractTime()
 	if timeFound {
@@ -58,7 +58,7 @@ func (r *FlightRecord) Key() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-// String returns a readable string representation of the record.
+// String returns a human-readable summary of the record.
 func (r *FlightRecord) String() string {
 	return fmt.Sprintf("Year: %d, Month: %d, DayOfMonth: %d, Carrier: %s, CrsDepTime: %d, DepDelay: %v, Cancelled: %v, Diverted: %v, OriginAirportID: %v, DestAirportID: %v",
 		r.Year, r.Month, r.DayOfMonth, r.OpUniqueCarrier, r.CrsDepTime,

@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-// loadDotEnv loads environment variables from a .env file.
+// loadDotEnv loads environment variables from a .env file when it exists.
 func loadDotEnv(filepath string) {
 	file, err := os.Open(filepath)
 	if err != nil {
-		return // File missing is a no-op
+		return // Missing .env files are ignored.
 	}
 	defer file.Close()
 
@@ -29,7 +29,7 @@ func loadDotEnv(filepath string) {
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 
-		// Remove enclosing quotes if present
+		// Strip matching quotes around the value, if any.
 		if (strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"")) ||
 			(strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'")) {
 			if len(value) >= 2 {
@@ -37,9 +37,11 @@ func loadDotEnv(filepath string) {
 			}
 		}
 
-		// Keep existing OS environment variable if already set
+		// Do not override variables that are already defined in the OS environment.
 		if _, exists := os.LookupEnv(key); !exists {
 			_ = os.Setenv(key, value)
 		}
 	}
+
+	_ = scanner.Err()
 }

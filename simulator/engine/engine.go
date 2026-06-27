@@ -15,8 +15,8 @@ import (
 )
 
 // Engine orchestrates the dataset replay process.
-// It loads records, schedules their publication times, sorts them,
-// and publishes them to the output sink simulating real-world gaps.
+// It loads records, computes when each record should be published,
+// orders them accordingly, and writes them to the output sink with simulated timing gaps.
 type Engine struct {
 	config    *config.Config
 	sink      output.Sink
@@ -56,7 +56,7 @@ func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 	for _, rec := range records {
 		eventTime, _ := rec.ExtractTime()
 		// Keep both the original event time and the computed publish time.
-		// The latter may be shifted by the scheduler to simulate out-of-order delivery.
+		// The scheduler may shift the publish time to simulate out-of-order delivery.
 		entries = append(entries, publishEntry{
 			Record:    rec,
 			EventTime: eventTime,
@@ -64,13 +64,13 @@ func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 		})
 	}
 
-		// Sort by publish time so the replay loop can emit records in the exact
-		// order computed by the scheduler, while still preserving stable ties.
+	// Sort by publish time so the replay loop emits records in the exact
+	// order computed by the scheduler while still preserving stable ties.
 	sort.SliceStable(entries, func(i, j int) bool {
 		zi := entries[i].PublishAt.IsZero()
 		zj := entries[j].PublishAt.IsZero()
 		if zi || zj {
-			return zj // Move zero timestamps to the end
+			return zj // Push zero timestamps to the end.
 		}
 		return entries[i].PublishAt.Before(entries[j].PublishAt)
 	})
@@ -99,12 +99,12 @@ func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 		if timeFound {
 			if isFirstRecord {
 				previousTime = entry.EventTime
-				// lastEventTime stores the wall-clock moment when the first record was sent.
+				// lastEventTime tracks when the first record was actually sent.
 				lastEventTime = time.Now()
 				isFirstRecord = false
 				slog.Debug("First record", "event_time", entry.EventTime.Format("2006-01-02 15:04"))
 			} else {
-				// Compare consecutive event times and scale the gap to the simulated pace.
+				// Compare consecutive event times and scale the gap to the configured simulation speed.
 				diffReal := entry.EventTime.Sub(previousTime)
 				if diffReal > 0 {
 					targetWait := diffReal / time.Duration(e.config.SpeedupFactor)
@@ -121,7 +121,7 @@ func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 						}
 					}
 				} else {
-					// If the dataset goes backwards in time, emit the record immediately.
+					// If the dataset goes backwards in time, publish the record immediately.
 					slog.Debug("Out-of-order record: publishing immediately",
 						"event_time", entry.EventTime.Format("2006-01-02 15:04"),
 						"previous_time", previousTime.Format("2006-01-02 15:04"),

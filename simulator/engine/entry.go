@@ -6,7 +6,7 @@ import (
 	"simulator/models"
 )
 
-// publishEntry wraps a FlightRecord with its computed simulation timestamps.
+// publishEntry couples a record with its original and simulated publication times.
 type publishEntry struct {
 	Record    models.FlightRecord
 	EventTime time.Time

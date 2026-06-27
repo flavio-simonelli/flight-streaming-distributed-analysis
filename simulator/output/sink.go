@@ -5,7 +5,7 @@ import (
 	"simulator/models"
 )
 
-// Sink defines the interface for writing records to an output destination.
+// Sink abstracts the destination used to emit replayed records.
 type Sink interface {
 	Write(ctx context.Context, record models.FlightRecord) error
 	Close() error

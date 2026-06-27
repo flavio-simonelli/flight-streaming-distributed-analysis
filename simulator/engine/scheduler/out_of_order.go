@@ -8,14 +8,14 @@ import (
 	"simulator/models"
 )
 
-// OutOfOrderScheduler introduces random delays to simulate network latency.
+// OutOfOrderScheduler wraps another scheduler and randomly delays some records.
 type OutOfOrderScheduler struct {
 	inner           Scheduler
 	factor          float64 // probability [0.0, 1.0] of delaying a record
 	maxDelayMinutes int     // upper bound for the random delay in minutes
 }
 
-// NewOutOfOrderScheduler creates an OutOfOrderScheduler.
+// NewOutOfOrderScheduler creates an out-of-order scheduler on top of a base scheduler.
 func NewOutOfOrderScheduler(inner Scheduler, factor float64, maxDelayMinutes int) *OutOfOrderScheduler {
 	return &OutOfOrderScheduler{
 		inner:           inner,
@@ -24,7 +24,7 @@ func NewOutOfOrderScheduler(inner Scheduler, factor float64, maxDelayMinutes int
 	}
 }
 
-// Schedule delegates scheduling to the inner Scheduler and applies a random offset.
+// Schedule computes the base publish time and optionally pushes it forward by a random delay.
 func (s *OutOfOrderScheduler) Schedule(rec models.FlightRecord, eventTime time.Time) time.Time {
 	base := s.inner.Schedule(rec, eventTime)
 

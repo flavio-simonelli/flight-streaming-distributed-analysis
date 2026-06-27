@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// HybridWaiter implements Waiter using a sleep phase followed by a high-precision spinlock.
+// HybridWaiter waits with sleep first, then spins briefly for tighter timing.
 type HybridWaiter struct {
 	spinThreshold time.Duration
 }
@@ -18,11 +18,11 @@ func NewHybridWaiter(spinThresholdMs int) *HybridWaiter {
 	}
 }
 
-// Wait blocks for duration d using a hybrid sleep/spinlock mechanism.
+// Wait blocks until d has elapsed, or returns early if the context is cancelled.
 func (w *HybridWaiter) Wait(ctx context.Context, d time.Duration) error {
 	deadline := time.Now().Add(d)
 
-	// Low-CPU sleep phase for the majority of the wait
+	// Sleep for most of the interval to avoid busy waiting.
 	if d > w.spinThreshold {
 		select {
 		case <-time.After(d - w.spinThreshold):
@@ -32,7 +32,7 @@ func (w *HybridWaiter) Wait(ctx context.Context, d time.Duration) error {
 		}
 	}
 
-	// Active spinlock phase for maximum timing precision
+	// Spin only for the final slice to improve timing precision.
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():

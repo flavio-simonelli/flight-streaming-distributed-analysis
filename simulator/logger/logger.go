@@ -5,16 +5,16 @@ import (
 	"os"
 )
 
-// InitLogger configures the default slog logger with customized attributes.
+// InitLogger configures the default slog logger with custom formatting.
 func InitLogger() {
 	opts := &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			// Format time as HH:MM:SS
+			// Format timestamps as HH:MM:SS.
 			if a.Key == slog.TimeKey {
 				return slog.String("time", a.Value.Time().Format("15:04:05"))
 			}
-			// Enclose level string in brackets, e.g. [INFO]
+			// Wrap the level in brackets, for example [INFO].
 			if a.Key == slog.LevelKey {
 				return slog.String("level", "["+a.Value.String()+"]")
 			}

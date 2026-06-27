@@ -4,10 +4,10 @@ import (
 	"simulator/models"
 )
 
-// Loader defines the behavior for loading flight records.
+// Loader defines how flight records are prepared and loaded.
 type Loader interface {
-	// EnsureDataset verifies the integrity of the dataset source, downloading and extracting it if needed.
-	// Returns true if a fresh download/extraction occurred, indicating potential data updates.
+	// EnsureDataset verifies the dataset source and downloads or extracts it when needed.
+	// It returns true if a fresh download or extraction occurred.
 	EnsureDataset() (bool, error)
 
 	// Load retrieves up to limit records. If limit <= 0, all records are returned.

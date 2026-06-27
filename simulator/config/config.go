@@ -5,24 +5,24 @@ import (
 	"strconv"
 )
 
-// Config defines the application settings loaded from the environment.
+// Config holds the application settings loaded from the environment or defaults.
 type Config struct {
-	InputArchivePath          string  // Path to the local dataset compressed archive (.tar.gz)
-	RemoteTarGzURL            string  // URL of the remote dataset archive
-	TargzSHA1                 string  // Expected SHA1 hash of the remote dataset archive
-	OutputType                string  // Type of sink to output results ("terminal", "kafka")
+	InputArchivePath          string  // Local path to the dataset archive (.tar.gz)
+	RemoteTarGzURL            string  // Remote URL used to download the dataset archive
+	TargzSHA1                 string  // Expected SHA1 hash of the remote archive
+	OutputType                string  // Output sink to use ("terminal" or "kafka")
 	KafkaBrokers              string  // Comma-separated list of Kafka broker addresses
-	KafkaTopic                string  // Destination Kafka topic
-	MaxRecords                int     // Limit on records to process (0 means no limit)
-	SpeedupFactor             int     // Factor to accelerate event emission rate
-	SpinThresholdMs           int     // Active spin wait threshold in milliseconds
+	KafkaTopic                string  // Kafka topic where records are published
+	MaxRecords                int     // Maximum number of records to process (0 means no limit)
+	SpeedupFactor             int     // Factor used to accelerate event emission
+	SpinThresholdMs           int     // Threshold for the active spin phase, in milliseconds
 	OutOfOrderFactor          float64 // Probability [0.0, 1.0] of injecting out-of-order latency
-	OutOfOrderMaxDelayMinutes int     // Maximum delay in minutes for out-of-order injection
+	OutOfOrderMaxDelayMinutes int     // Maximum delay, in minutes, applied to out-of-order records
 }
 
-// LoadConfig initializes Config from environment variables and sets defaults.
+// LoadConfig builds a Config from environment variables and sensible defaults.
 func LoadConfig() *Config {
-	// Load environment variables from local .env file if it exists
+	// Load environment variables from a local .env file when present.
 	loadDotEnv(".env")
 
 	maxRecs, _ := strconv.Atoi(getEnv("MAX_RECORDS", "0"))
@@ -37,7 +37,7 @@ func LoadConfig() *Config {
 		spinMs = 0
 	}
 
-	// OutOfOrderFactor is clamped to [0.0, 1.0]
+	// Clamp the out-of-order probability to the valid range [0.0, 1.0].
 	ooFactor, _ := strconv.ParseFloat(getEnv("OUT_OF_ORDER_FACTOR", "0.0"), 64)
 	if ooFactor < 0.0 {
 		ooFactor = 0.0
@@ -50,7 +50,7 @@ func LoadConfig() *Config {
 		ooMaxDelayMinutes = 0
 	}
 
-	// Create and return a Config struct populated with values from environment variables or defaults.
+	// Build the final Config using environment values or fallback defaults.
 	return &Config{
 		InputArchivePath:          getEnv("INPUT_ARCHIVE_PATH", "./data/project-1-data.tar.gz"),
 		RemoteTarGzURL:            getEnv("REMOTE_TARGZ_URL", "http://www.ce.uniroma2.it/courses/sabd2526/project/project-1-data.tar.gz"),
@@ -66,7 +66,7 @@ func LoadConfig() *Config {
 	}
 }
 
-// getEnv retrieves the value of an environment variable or returns the fallback.
+// getEnv returns an environment variable value or the provided fallback.
 func getEnv(key, fallback string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
