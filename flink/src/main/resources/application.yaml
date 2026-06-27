@@ -17,6 +17,7 @@ kafka:
 flink:
   host: "flink.flight-analysis.local"
   port: 8081
+  maxParallelism: 6
   watermarkDelayMinutes: 10
   allowedLatenessMinutes: 5
   allowedLatenessQ1Minutes: 15

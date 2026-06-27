@@ -53,6 +53,10 @@ public class FlightAnalysisJob {
             );
         }
 
+        if (config.getFlink().getMaxParallelism() > 0) {
+            env.setMaxParallelism(config.getFlink().getMaxParallelism());
+        }
+
         CheckpointConfig checkpointCfg = config.getFlink().getCheckpoint();
 
         // Enables and configures Flink's checkpointing mechanism (Fault Tolerance).

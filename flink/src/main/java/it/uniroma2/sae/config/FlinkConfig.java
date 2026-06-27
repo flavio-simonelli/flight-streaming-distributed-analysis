@@ -16,6 +16,7 @@ public class FlinkConfig {
     private Integer allowedLatenessQ3_7dMinutes;
     private int watermarkIdlenessMinutes = 2;
     private int globalWindowTriggerHours = 1;
+    private int maxParallelism = 6;
 
     /** Checkpoint storage backend and behavior configuration. */
     private CheckpointConfig checkpoint;
@@ -82,4 +83,7 @@ public class FlinkConfig {
 
     public CheckpointConfig getCheckpoint() { return checkpoint; }
     public void setCheckpoint(CheckpointConfig checkpoint) { this.checkpoint = checkpoint; }
+
+    public int getMaxParallelism() { return maxParallelism; }
+    public void setMaxParallelism(int maxParallelism) { this.maxParallelism = maxParallelism; }
 }
