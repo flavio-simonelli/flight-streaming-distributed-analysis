@@ -22,9 +22,10 @@ func NewKafkaSink(brokers string, topic string) output.Sink {
 	w := &kafka.Writer{
 		Addr:         kafka.TCP(strings.Split(brokers, ",")...),
 		Topic:        topic,
-		Balancer:     &kafka.LeastBytes{},
-		BatchSize:    1,
-		BatchTimeout: 10 * time.Millisecond,
+		Balancer:     &kafka.RoundRobin{},
+		BatchSize:    100,
+		BatchTimeout: 1 * time.Millisecond,
+		Async:        true,
 	}
 	return &KafkaSink{writer: w}
 }
@@ -38,7 +39,7 @@ func (s *KafkaSink) Write(ctx context.Context, record models.FlightRecord) error
 
 	slog.Debug("Invio record a Kafka", "record", jr)
 	msg := kafka.Message{
-		Key:   []byte(record.Key()),
+		Key:   nil,
 		Value: jr,
 	}
 	return s.writer.WriteMessages(ctx, msg)
