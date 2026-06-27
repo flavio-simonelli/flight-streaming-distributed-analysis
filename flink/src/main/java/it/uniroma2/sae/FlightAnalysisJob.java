@@ -67,20 +67,18 @@ public class FlightAnalysisJob {
         // - Establishes a maximum timeout after which a pending checkpoint is aborted.
         // - Initializes and applies the target storage backend (HDFS, S3, or Local) based on configuration.
         if (checkpointCfg != null && checkpointCfg.isEnabled()) {
-            env.enableCheckpointing(checkpointCfg.getIntervalMillis());
-
             Configuration flinkConfig = new Configuration();
+
+            flinkConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(checkpointCfg.getIntervalMillis()));
             flinkConfig.set(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.EXACTLY_ONCE);
             flinkConfig.set(CheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS, Duration.ofMillis(checkpointCfg.getMinPauseMillis()));
             flinkConfig.set(CheckpointingOptions.CHECKPOINTING_TIMEOUT, Duration.ofMillis(checkpointCfg.getTimeoutMillis()));
-            configureCheckpointStorage(env, flinkConfig, checkpointCfg);
-            env.configure(flinkConfig);
+            flinkConfig.set(CheckpointingOptions.TOLERABLE_FAILURE_NUMBER, checkpointCfg.getTolerableFailedCheckpoints());
+            flinkConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, checkpointCfg.isUnalignedCheckpoints());
+            flinkConfig.set(CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, checkpointCfg.getMaxConcurrentCheckpoints());
 
-            // Configure advanced fault tolerance parameters for production stability
-            org.apache.flink.streaming.api.environment.CheckpointConfig flinkCpConfig = env.getCheckpointConfig();
-            flinkCpConfig.setTolerableCheckpointFailureNumber(checkpointCfg.getTolerableFailedCheckpoints());
-            flinkCpConfig.enableUnalignedCheckpoints(checkpointCfg.isUnalignedCheckpoints());
-            flinkCpConfig.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
+            configureCheckpointStorage(flinkConfig, checkpointCfg);
+            env.configure(flinkConfig);
         }
 
         // Assign event-time watermarks based on CRS_DEP_TIME embedded in each record.
@@ -137,11 +135,10 @@ public class FlightAnalysisJob {
      *   <li>null / empty — no explicit storage configured; Flink uses its default.</li>
      * </ul>
      *
-     * @param env    the Flink {@link StreamExecutionEnvironment} to configure
-     * @param cpCfg  the checkpoint storage configuration read from YAML (may be null)
+     * @param flinkConfig the Flink {@link Configuration} to set storage options on
+     * @param cpCfg       the checkpoint storage configuration read from YAML (may be null)
      */
     private static void configureCheckpointStorage(
-            StreamExecutionEnvironment env,
             Configuration flinkConfig,
             CheckpointConfig cpCfg) {
 
