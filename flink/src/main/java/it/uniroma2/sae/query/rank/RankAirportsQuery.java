@@ -43,12 +43,12 @@ public class RankAirportsQuery implements Serializable {
                 .name("Q2: Filter Active Flights")
                 .uid("q2-filter-active-flights");
 
-        KeyedStream<FlightRecord, Integer> keyedStream = activeFlightsStream.keyBy(FlightRecord::getOriginAirportId);
         KafkaConfig kafkaConfig = config.getKafka();
         Duration allowedLateness1h = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_1hMinutes());
         Duration allowedLateness6h = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_6hMinutes());
         Duration allowedLatenessGlobal = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_globalMinutes());
 
+        KeyedStream<FlightRecord, Integer> keyedStream = activeFlightsStream.keyBy(FlightRecord::getOriginAirportId);
         DataStream<RankAirportsResult> w1 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(1), "1h", allowedLateness1h);
         DataStream<RankAirportsResult> w6 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(6), "6h", allowedLateness6h);
 

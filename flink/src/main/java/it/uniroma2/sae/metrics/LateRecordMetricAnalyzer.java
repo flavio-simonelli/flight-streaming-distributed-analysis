@@ -1,8 +1,13 @@
 package it.uniroma2.sae.metrics;
 
 import it.uniroma2.sae.model.FlightRecord;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 import java.io.Serial;
@@ -13,13 +18,13 @@ import java.time.Duration;
  * A custom {@link ProcessFunction} designed to analyze, track, and report the event-time
  * lateness distribution of delayed {@link FlightRecord} events.
  * <p>
- * This analyzer intercepts late-arriving elements routed through a side output, computing
- * their logical event-time delay relative to the window's final deadline. It registers and
- * exposes lightweight, highly optimized Flink metrics to monitor streaming health without
- * the memory overhead of windowed histograms.
+ * This version implements {@link CheckpointedFunction} to ensure that the aggregate historical
+ * peak lateness metric is saved within Flink's managed operator state, making it fault-tolerant
+ * and preserving its value across cluster crashes and restarts.
  * </p>
  */
-public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, FlightRecord> implements Serializable {
+public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, FlightRecord>
+        implements CheckpointedFunction, Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -33,8 +38,11 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
     /** Flink metric counter used to accumulate the total number of late records encountered. */
     private transient Counter totalLateRecordsCounter;
 
-    /** Transient state tracking the absolute maximum event-time delay observed since application startup. */
+    /** In-memory tracking variable for the peak historical lateness. */
     private transient long maxLatenessMinutes = 0;
+
+    /** Managed Flink operator state used to persist the maximum lateness across checkpoints. */
+    private transient ListState<Long> checkpointedMaxLatenessState;
 
     /**
      * Constructs a new {@code LateRecordMetricAnalyzer} with specified window parameters.
@@ -49,10 +57,6 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
 
     /**
      * Initializes the process function and registers custom metrics within Flink's runtime context.
-     * <p>
-     * This method provisions a cumulative {@link Counter} for the aggregate late record volume
-     * and a custom {@link org.apache.flink.metrics.Gauge} to report the monotonic historical peak lateness.
-     * </p>
      *
      * @param context the runtime open context provided by the Flink ecosystem
      * @throws Exception if an error occurs during metric group registration
@@ -66,7 +70,7 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
                 .getMetricGroup()
                 .counter("total_late_records_count");
 
-        // Register the Gauge for monitoring the absolute maximum lateness peak
+        // Register the Gauge using the local variable synchronized via state recovery
         getRuntimeContext()
                 .getMetricGroup()
                 .gauge("max_lateness_minutes_absolute", () -> maxLatenessMinutes);
@@ -74,11 +78,6 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
 
     /**
      * Processes each late-arriving flight record, evaluating its event-time delay against the window deadline.
-     * <p>
-     * The logical delay is computed by subtracting the window's maximum closing deadline
-     * ({@code windowEnd + allowedLateness}) from the current input watermark. If a positive lateness
-     * is detected, metrics are updated accordingly. The element is always forwarded to ensure downstream availability.
-     * </p>
      *
      * @param record the incoming late flight record to evaluate
      * @param ctx    the execution context providing access to elements, timestamps, and timers
@@ -93,30 +92,60 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
             return;
         }
 
-        // Fetch the current progress of the logical event-time clock (Watermark)
         long watermark = ctx.timerService().currentWatermark();
-
-        // Reconstruct the boundary parameters of the target window
         long windowStart = eventTime - (eventTime % windowSizeMs);
         long windowEnd = windowStart + windowSizeMs;
         long windowDeadline = windowEnd + allowedLatenessMs;
 
-        // Calculate the logical delay in minutes relative to the event-time timeline
         double latenessMinutes = (watermark - windowDeadline) / 60000.0;
 
         if (latenessMinutes > 0) {
             long currentLateness = (long) latenessMinutes;
 
-            // Increment the aggregate cumulative counter
             totalLateRecordsCounter.inc();
 
-            // Atomically update the peak historical lateness if the current boundary is exceeded
             if (currentLateness > maxLatenessMinutes) {
                 maxLatenessMinutes = currentLateness;
             }
         }
 
-        // Pass the record through to preserve pipeline throughput
         out.collect(record);
+    }
+
+    /**
+     * Invoked when Flink triggers a snapshot/checkpoint. Synchronizes the local memory
+     * variable into Flink's fault-tolerant state backend storage.
+     *
+     * @param context the context for taking a snapshot
+     * @throws Exception if state appending or clearing fails
+     */
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        checkpointedMaxLatenessState.clear();
+        checkpointedMaxLatenessState.add(maxLatenessMinutes);
+    }
+
+    /**
+     * Invoked during task initialization to restore state from a previous checkpoint or savepoint.
+     * Re-populates the local {@code maxLatenessMinutes} variable if a recovery occurs.
+     *
+     * @param context the context for initializing the operator state
+     * @throws Exception if state descriptor registration or unpacking fails
+     */
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        ListStateDescriptor<Long> descriptor = new ListStateDescriptor<>(
+                "max-lateness-state-store",
+                Types.LONG
+        );
+
+        this.checkpointedMaxLatenessState = context.getOperatorStateStore().getListState(descriptor);
+
+        // If the job is recovering from a previous failure, restore the maximum metric value
+        if (context.isRestored()) {
+            for (Long val : checkpointedMaxLatenessState.get()) {
+                this.maxLatenessMinutes = val;
+            }
+        }
     }
 }
