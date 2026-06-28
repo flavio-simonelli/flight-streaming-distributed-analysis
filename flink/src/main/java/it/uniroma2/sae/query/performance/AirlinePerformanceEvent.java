@@ -1,5 +1,6 @@
 package it.uniroma2.sae.query.performance;
 
+import it.uniroma2.sae.model.FlightRecord;
 import java.io.Serial;
 import java.io.Serializable;
 
@@ -17,6 +18,13 @@ public class AirlinePerformanceEvent implements Serializable {
     private boolean diverted;
 
     public AirlinePerformanceEvent() {}
+
+    public AirlinePerformanceEvent(FlightRecord event) {
+        this.airline = event.getAirline();
+        this.cancelled = event.isCancelled();
+        this.depDelay = event.getDepDelay();
+        this.diverted = event.isDiverted();
+    }
 
     public AirlinePerformanceEvent(String airline, boolean cancelled, double depDelay, boolean diverted) {
         this.airline = airline;

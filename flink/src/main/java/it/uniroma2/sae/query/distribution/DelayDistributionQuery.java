@@ -77,11 +77,7 @@ public class DelayDistributionQuery implements Serializable {
 
         // Project the streams to a lightweight model containing only the fields of interest
         DataStream<DelayDistributionEvent> projectedStream = activeFlightsStream
-                .map(event -> new DelayDistributionEvent(
-                        event.getAirline(),
-                        event.getScheduledDepartureHour(),
-                        event.getDepDelay()
-                ))
+                .map(DelayDistributionEvent::new)
                 .name("Q3: Project to Lightweight Event")
                 .uid("q3-project-lightweight-event")
                 .returns(TypeInformation.of(DelayDistributionEvent.class));

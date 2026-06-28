@@ -62,12 +62,7 @@ public class AirlinePerformanceQuery implements Serializable {
 
         // Project the streams to a lightweight model containing only the fields of interest
         DataStream<AirlinePerformanceEvent> projectedStream = targetAirlinesStream
-                .map(event -> new AirlinePerformanceEvent(
-                        event.getAirline(),
-                        event.isCancelled(),
-                        event.getDepDelay(),
-                        event.isDiverted()
-                ))
+                .map(AirlinePerformanceEvent::new)
                 .name("Q1: Project to Lightweight Event")
                 .uid("q1-project-lightweight-event")
                 .returns(TypeInformation.of(AirlinePerformanceEvent.class));

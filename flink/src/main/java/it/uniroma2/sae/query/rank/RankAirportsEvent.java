@@ -1,5 +1,6 @@
 package it.uniroma2.sae.query.rank;
 
+import it.uniroma2.sae.model.FlightRecord;
 import java.io.Serial;
 import java.io.Serializable;
 
@@ -17,6 +18,13 @@ public class RankAirportsEvent implements Serializable {
     private double depDelay;
 
     public RankAirportsEvent() {}
+
+    public RankAirportsEvent(FlightRecord event) {
+        this.originAirportId = event.getOriginAirportId();
+        this.airline = event.getAirline();
+        this.destinationAirportId = event.getDestinationAirportId();
+        this.depDelay = event.getDepDelay();
+    }
 
     public RankAirportsEvent(int originAirportId, String airline, int destinationAirportId, double depDelay) {
         this.originAirportId = originAirportId;

@@ -1,5 +1,6 @@
 package it.uniroma2.sae.query.distribution;
 
+import it.uniroma2.sae.model.FlightRecord;
 import java.io.Serial;
 import java.io.Serializable;
 
@@ -16,6 +17,12 @@ public class DelayDistributionEvent implements Serializable {
     private double depDelay;
 
     public DelayDistributionEvent() {}
+
+    public DelayDistributionEvent(FlightRecord event) {
+        this.airline = event.getAirline();
+        this.scheduledDepartureHour = event.getScheduledDepartureHour();
+        this.depDelay = event.getDepDelay();
+    }
 
     public DelayDistributionEvent(String airline, int scheduledDepartureHour, double depDelay) {
         this.airline = airline;

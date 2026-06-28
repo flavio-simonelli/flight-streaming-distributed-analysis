@@ -50,12 +50,7 @@ public class RankAirportsQuery implements Serializable {
 
         // Project the streams to a lightweight model containing only the fields of interest
         DataStream<RankAirportsEvent> projectedStream = activeFlightsStream
-                .map(event -> new RankAirportsEvent(
-                        event.getOriginAirportId(),
-                        event.getAirline(),
-                        event.getDestinationAirportId(),
-                        event.getDepDelay()
-                ))
+                .map(RankAirportsEvent::new)
                 .name("Q2: Project to Lightweight Event")
                 .uid("q2-project-lightweight-event")
                 .returns(TypeInformation.of(RankAirportsEvent.class));
