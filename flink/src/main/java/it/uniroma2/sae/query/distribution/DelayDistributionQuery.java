@@ -75,8 +75,19 @@ public class DelayDistributionQuery implements Serializable {
                 .name("Q3: Filter Active Flights")
                 .uid("q3-filter-active-flights");
 
+        // Project the streams to a lightweight model containing only the fields of interest
+        DataStream<DelayDistributionEvent> projectedStream = activeFlightsStream
+                .map(event -> new DelayDistributionEvent(
+                        event.getAirline(),
+                        event.getScheduledDepartureHour(),
+                        event.getDepDelay()
+                ))
+                .name("Q3: Project to Lightweight Event")
+                .uid("q3-project-lightweight-event")
+                .returns(TypeInformation.of(DelayDistributionEvent.class));
+
         // Partition the distributed stream using a composite key consisting of Airline Code and Scheduled Departure Hour
-        KeyedStream<FlightRecord, Tuple2<String, Integer>> keyedStream = activeFlightsStream
+        KeyedStream<DelayDistributionEvent, Tuple2<String, Integer>> keyedStream = projectedStream
                 .keyBy(
                         event -> Tuple2.of(event.getAirline(), event.getScheduledDepartureHour()),
                         TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {})
@@ -112,7 +123,7 @@ public class DelayDistributionQuery implements Serializable {
      * side-output tracking for late-arriving simulation data, and continuous aggregation execution.
      */
     private static DataStream<DelayDistributionResult> createTumblingWindowPipeline(
-            KeyedStream<FlightRecord, Tuple2<String, Integer>> keyedStream,
+            KeyedStream<DelayDistributionEvent, Tuple2<String, Integer>> keyedStream,
             Duration windowSize,
             Duration allowedLateness,
             String label,
@@ -120,7 +131,7 @@ public class DelayDistributionQuery implements Serializable {
             String analyzerUid,
             String windowUid) {
 
-        OutputTag<FlightRecord> lateTag = new OutputTag<>(lateTagId, TypeInformation.of(FlightRecord.class));
+        OutputTag<DelayDistributionEvent> lateTag = new OutputTag<>(lateTagId, TypeInformation.of(DelayDistributionEvent.class));
 
         SingleOutputStreamOperator<DelayDistributionResult> windowedOperator = keyedStream
                 .window(TumblingEventTimeWindows.of(windowSize))

@@ -1,14 +1,13 @@
 package it.uniroma2.sae.query.distribution;
 
-import it.uniroma2.sae.model.FlightRecord;
 import org.apache.flink.api.common.functions.AggregateFunction;
 
 /**
  * Aggregator for DelayDistributionQuery.
- * Filters out cancelled and diverted flights, adding completed flight delays to the sketch accumulator.
+ * Adds lightweight flight delay events to the sketch accumulator.
  */
 public class DelayDistributionAggregator 
-        implements AggregateFunction<FlightRecord, DelayDistributionAccumulator, DelayDistributionAccumulator> {
+        implements AggregateFunction<DelayDistributionEvent, DelayDistributionAccumulator, DelayDistributionAccumulator> {
 
     @Override
     public DelayDistributionAccumulator createAccumulator() {
@@ -16,7 +15,7 @@ public class DelayDistributionAggregator
     }
 
     @Override
-    public DelayDistributionAccumulator add(FlightRecord value, DelayDistributionAccumulator accumulator) {
+    public DelayDistributionAccumulator add(DelayDistributionEvent value, DelayDistributionAccumulator accumulator) {
         accumulator.add(value.getDepDelay());
         return accumulator;
     }

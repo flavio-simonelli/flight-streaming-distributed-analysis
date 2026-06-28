@@ -93,7 +93,7 @@ public class RankAirportsQuery implements Serializable {
                 .aggregate(new RankAirportsAggregator(), new RankAirportsWindowProcessor(label));
 
         windowedOperator.getSideOutput(lateTag)
-                .process(new LateRecordMetricAnalyzer(windowSize, allowedLateness))
+                .process(new LateRecordMetricAnalyzer<>(windowSize, allowedLateness))
                 .name("Q2: Late Records Metric Analyzer (" + label + ")")
                 .uid("q2-late-analyzer-" + label);
 

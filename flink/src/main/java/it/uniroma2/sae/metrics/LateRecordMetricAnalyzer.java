@@ -27,7 +27,7 @@ import java.time.Duration;
  * and preserving its value across cluster crashes and restarts.
  * </p>
  */
-public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, FlightRecord>
+public class LateRecordMetricAnalyzer<T> extends ProcessFunction<T, T>
         implements CheckpointedFunction, Serializable {
 
     @Serial
@@ -64,6 +64,7 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
      * This factory method encapsulates the graph building steps including naming and UID assignment.
      *
      * @param <T>             the result type of the main window operator
+     * @param <IN>            the input type of the late record stream
      * @param windowedOperator the single output stream operator holding the window logic and side outputs
      * @param lateTag         the output tag identifying the late flight records side channel
      * @param windowSize      the duration of the parent logical window
@@ -71,16 +72,16 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
      * @param operatorName    the custom name to assign to this processing node in the Flink topology
      * @param uid             the unique identifier to assign to this node for state recovery and savepoints
      */
-    public static <T> void attachSideOutput(
+    public static <T, IN> void attachSideOutput(
             SingleOutputStreamOperator<T> windowedOperator,
-            OutputTag<FlightRecord> lateTag,
+            OutputTag<IN> lateTag,
             Duration windowSize,
             Duration allowedLateness,
             String operatorName,
             String uid) {
 
         windowedOperator.getSideOutput(lateTag)
-                .process(new LateRecordMetricAnalyzer(windowSize, allowedLateness))
+                .process(new LateRecordMetricAnalyzer<IN>(windowSize, allowedLateness))
                 .name(operatorName)
                 .uid(uid);
     }
@@ -115,7 +116,7 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
      * @throws Exception if any internal aggregation or metric update fails
      */
     @Override
-    public void processElement(FlightRecord record, Context ctx, Collector<FlightRecord> out) throws Exception {
+    public void processElement(T record, Context ctx, Collector<T> out) throws Exception {
         Long eventTime = ctx.timestamp();
         if (eventTime == null) {
             out.collect(record);

@@ -69,7 +69,7 @@ public class AirlinePerformanceQuery implements Serializable {
                 .aggregate(new AirlinePerformanceAggregator(), new AirlinePerformanceWindowProcessor()); // Incremental aggregation with context
 
         windowedOperator.getSideOutput(LATE_FLIGHTS_TAG)
-                .process(new LateRecordMetricAnalyzer(WINDOW_SIZE, allowedLateness))
+                .process(new LateRecordMetricAnalyzer<>(WINDOW_SIZE, allowedLateness))
                 .name("Q1: Late Records Metric Analyzer")
                 .uid("q1-late-analyzer");
 
