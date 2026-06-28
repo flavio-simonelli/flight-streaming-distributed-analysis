@@ -40,7 +40,7 @@ public class AirlinePerformanceResult implements Serializable {
     @JsonProperty("completed")
     private final long completed;
 
-    /** The count of scheduled flights that were cancelled. */
+    /** The count of scheduled flights that were canceled. */
     @JsonProperty("cancelled")
     private final long cancelled;
 
@@ -52,7 +52,7 @@ public class AirlinePerformanceResult implements Serializable {
     @JsonProperty("dep_delay_mean")
     private final double depDelayMean;
 
-    /** The percentage of flights cancelled relative to total observed operations. */
+    /** The percentage of flights canceled relative to total observed operations. */
     @JsonProperty("cancellation_rate")
     private final double cancellationRate;
 
