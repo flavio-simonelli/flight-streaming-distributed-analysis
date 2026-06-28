@@ -48,7 +48,19 @@ public class RankAirportsQuery implements Serializable {
         Duration allowedLateness6h = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_6hMinutes());
         Duration allowedLatenessGlobal = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_globalMinutes());
 
-        KeyedStream<FlightRecord, Integer> keyedStream = activeFlightsStream.keyBy(FlightRecord::getOriginAirportId);
+        // Project the streams to a lightweight model containing only the fields of interest
+        DataStream<RankAirportsEvent> projectedStream = activeFlightsStream
+                .map(event -> new RankAirportsEvent(
+                        event.getOriginAirportId(),
+                        event.getAirline(),
+                        event.getDestinationAirportId(),
+                        event.getDepDelay()
+                ))
+                .name("Q2: Project to Lightweight Event")
+                .uid("q2-project-lightweight-event")
+                .returns(TypeInformation.of(RankAirportsEvent.class));
+
+        KeyedStream<RankAirportsEvent, Integer> keyedStream = projectedStream.keyBy(RankAirportsEvent::getOriginAirportId);
         DataStream<RankAirportsResult> w1 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(1), "1h", allowedLateness1h);
         DataStream<RankAirportsResult> w6 = createTumblingWindowPipeline(keyedStream, Duration.ofHours(6), "6h", allowedLateness6h);
 
@@ -78,13 +90,13 @@ public class RankAirportsQuery implements Serializable {
     }
 
     private static DataStream<RankAirportsResult> createTumblingWindowPipeline(
-            KeyedStream<FlightRecord, Integer> keyedStream,
+            KeyedStream<RankAirportsEvent, Integer> keyedStream,
             Duration windowSize,
             String label,
             Duration allowedLateness) {
 
-        OutputTag<FlightRecord> lateTag =
-                new OutputTag<>("q2-late-flights-" + label, TypeInformation.of(FlightRecord.class));
+        OutputTag<RankAirportsEvent> lateTag =
+                new OutputTag<>("q2-late-flights-" + label, TypeInformation.of(RankAirportsEvent.class));
 
         SingleOutputStreamOperator<RankAirportsResult> windowedOperator = keyedStream
                 .window(TumblingEventTimeWindows.of(windowSize))
