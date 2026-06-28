@@ -22,11 +22,11 @@ public class AirlinePerformanceResult implements Serializable {
 
     /** Human-readable formatted string representing the inclusive starting bounds of the time window. */
     @JsonProperty("window_start")
-    private final String windowStart;
+    private final long windowStart;
 
     /** Human-readable formatted string representing the exclusive ending bounds of the time window. */
     @JsonProperty("window_end")
-    private final String windowEnd;
+    private final long windowEnd;
 
     /** The unique carrier code identifying the airline under analysis. */
     @JsonProperty("airline")
@@ -75,7 +75,7 @@ public class AirlinePerformanceResult implements Serializable {
      * @param lateDepartureRate percentage tracking severe departure delay occurrences
      */
     public AirlinePerformanceResult(
-            String windowStart, String windowEnd, String airline,
+            long windowStart, long windowEnd, String airline,
             long numFlights, long cancelled, long diverted, long completed,
             double depDelayMean,
             double cancellationRate, double lateDepartureRate) {
@@ -93,8 +93,8 @@ public class AirlinePerformanceResult implements Serializable {
 
     // --- Getters ---
 
-    public String getWindowStart()    { return windowStart; }
-    public String getWindowEnd()      { return windowEnd; }
+    public long getWindowStart()      { return windowStart; }
+    public long getWindowEnd()        { return windowEnd; }
     public String getAirline()        { return airline; }
     public long getNumFlights()       { return numFlights; }
     public long getCancelled()        { return cancelled; }

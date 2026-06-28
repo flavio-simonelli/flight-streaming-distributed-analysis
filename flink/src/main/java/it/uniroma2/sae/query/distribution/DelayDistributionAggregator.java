@@ -17,9 +17,6 @@ public class DelayDistributionAggregator
 
     @Override
     public DelayDistributionAccumulator add(FlightRecord value, DelayDistributionAccumulator accumulator) {
-        if (value.isCancelled() || value.isDiverted()) {
-            return accumulator;
-        }
         accumulator.add(value.getDepDelay());
         return accumulator;
     }

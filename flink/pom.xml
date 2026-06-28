@@ -43,6 +43,13 @@
             <version>${flink.version}</version>
         </dependency>
 
+        <!-- Flink Percentile -->
+        <dependency>
+            <groupId>com.datadoghq</groupId>
+            <artifactId>sketches-java</artifactId>
+            <version>0.8.3</version>
+        </dependency>
+
         <!-- JSON Annotations -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -86,11 +93,6 @@
             <artifactId>junit-jupiter-engine</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.datadoghq</groupId>
-            <artifactId>sketches-java</artifactId>
-            <version>0.8.3</version>
         </dependency>
 
         <!-- Checkpoint Storage -->

@@ -20,14 +20,17 @@ type KafkaSink struct {
 // NewKafkaSink returns a new KafkaSink initialized with brokers and topic name.
 func NewKafkaSink(brokers string, topic string) output.Sink {
 	w := &kafka.Writer{
-		Addr:      kafka.TCP(strings.Split(brokers, ",")...),
-		Topic:     topic,
-		Balancer:  &kafka.RoundRobin{},
-		BatchSize: 1,
+		Addr:     kafka.TCP(strings.Split(brokers, ",")...),
+		Topic:    topic,
+		Balancer: &kafka.RoundRobin{},
+
+		BatchSize:  100,
+		BatchBytes: 100_000,
 		// The timeout is the real safeguard: if traffic is low, records still leave almost immediately.
-		BatchTimeout: 1 * time.Millisecond,
+		BatchTimeout: 2 * time.Millisecond,
 		// Async mode avoids blocking the replay loop on every single message write.
 		Async: true,
+		// RequiredAcks: kafka.RequireOne,
 	}
 	return &KafkaSink{writer: w}
 }

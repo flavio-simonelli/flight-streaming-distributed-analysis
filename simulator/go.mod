@@ -1,6 +1,6 @@
 module simulator
 
-go 1.25
+go 1.24
 
 require github.com/segmentio/kafka-go v0.4.51
 

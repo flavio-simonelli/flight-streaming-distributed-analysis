@@ -5,8 +5,8 @@ import it.uniroma2.sae.config.FlinkConfig;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.metrics.LateRecordMetricAnalyzer;
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.query.components.TargetAirlineFilter;
 import it.uniroma2.sae.sink.SinkBuilder;
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -40,27 +40,6 @@ public class AirlinePerformanceQuery implements Serializable {
             new OutputTag<>("q1-late-flights", TypeInformation.of(FlightRecord.class));
 
     /**
-     * Dedicated FilterFunction to isolate target carriers.
-     */
-    public static class TargetAirlineFilter implements FilterFunction<FlightRecord> {
-
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        /**
-         * Evaluates if the flight record belongs to one of the targeted airlines.
-         *
-         * @param event the flight event to test
-         * @return true if the flight is not null and matches a target airline code, false otherwise
-         * @throws Exception if an error occurs during filtering execution
-         */
-        @Override
-        public boolean filter(FlightRecord event) throws Exception {
-            return event != null && TARGET_AIRLINES.contains(event.getAirline());
-        }
-    }
-
-    /**
      * Attaches the AirlinePerformanceQuery pipeline to the main preprocessed stream.
      * Maps the topology steps including filtering, key-based windowing, and streaming aggregation.
      *
@@ -77,7 +56,7 @@ public class AirlinePerformanceQuery implements Serializable {
 
         // Discard any flight record that does not belong to the target airline carriers
         DataStream<FlightRecord> targetAirlinesStream = inputStream
-                .filter(new TargetAirlineFilter())
+                .filter(new TargetAirlineFilter(TARGET_AIRLINES))
                 .name("Q1: Filter Target Airlines")
                 .uid("q1-filter-target-airlines");
 

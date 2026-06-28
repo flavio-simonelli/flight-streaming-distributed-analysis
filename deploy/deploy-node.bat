@@ -217,6 +217,7 @@ aws cloudformation deploy ^
   --stack-name "Flight-Stream-flink-master-node" ^
   --template-file "template/cluster-node.yaml" ^
   --parameter-overrides ^
+      InstanceType=c6i.large ^
       SubnetId=%SUBNET_ID% ^
       SecurityGroupId=%SG_ID% ^
       HostedZoneId=%ZONE_ID% ^
@@ -277,6 +278,7 @@ for /L %%N in (1,1,%FLINK_WORKER_COUNT%) do (
       --stack-name "!STACK_NAME!" ^
       --template-file "template/cluster-node.yaml" ^
       --parameter-overrides ^
+          InstanceType=c6i.large ^
           SubnetId=%SUBNET_ID% ^
           SecurityGroupId=%SG_ID% ^
           HostedZoneId=%ZONE_ID% ^

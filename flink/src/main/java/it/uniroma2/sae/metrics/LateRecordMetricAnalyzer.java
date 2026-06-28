@@ -1,6 +1,7 @@
 package it.uniroma2.sae.metrics;
 
 import it.uniroma2.sae.model.FlightRecord;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -8,8 +9,11 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
+
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Duration;
@@ -56,13 +60,39 @@ public class LateRecordMetricAnalyzer extends ProcessFunction<FlightRecord, Flig
     }
 
     /**
+     * Extracts late-arriving records from a window side output and attaches the metric analyzer operator.
+     * This factory method encapsulates the graph building steps including naming and UID assignment.
+     *
+     * @param <T>             the result type of the main window operator
+     * @param windowedOperator the single output stream operator holding the window logic and side outputs
+     * @param lateTag         the output tag identifying the late flight records side channel
+     * @param windowSize      the duration of the parent logical window
+     * @param allowedLateness the duration of the allowed lateness buffer configured for the window
+     * @param operatorName    the custom name to assign to this processing node in the Flink topology
+     * @param uid             the unique identifier to assign to this node for state recovery and savepoints
+     */
+    public static <T> void attachSideOutput(
+            SingleOutputStreamOperator<T> windowedOperator,
+            OutputTag<FlightRecord> lateTag,
+            Duration windowSize,
+            Duration allowedLateness,
+            String operatorName,
+            String uid) {
+
+        windowedOperator.getSideOutput(lateTag)
+                .process(new LateRecordMetricAnalyzer(windowSize, allowedLateness))
+                .name(operatorName)
+                .uid(uid);
+    }
+
+    /**
      * Initializes the process function and registers custom metrics within Flink's runtime context.
      *
      * @param context the runtime open context provided by the Flink ecosystem
      * @throws Exception if an error occurs during metric group registration
      */
     @Override
-    public void open(org.apache.flink.api.common.functions.OpenContext context) throws Exception {
+    public void open(OpenContext context) throws Exception {
         super.open(context);
 
         // Register the cumulative total late record counter

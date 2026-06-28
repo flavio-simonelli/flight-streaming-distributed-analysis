@@ -213,6 +213,7 @@ if [[ "$TARGET" == "influxdb" || "$TARGET" == "all" ]]; then
       --stack-name "${VPC_NAME}-influxdb-node" \
       --template-file "template/cluster-node.yaml" \
       --parameter-overrides \
+          InstanceType="c6i.large" \
           SubnetId="${SUBNET_ID}" \
           SecurityGroupId="${SG_ID}" \
           HostedZoneId="${ZONE_ID}" \
@@ -248,6 +249,7 @@ if [[ "$TARGET" == "flink-master" || "$TARGET" == "all" ]]; then
       --stack-name "${VPC_NAME}-flink-master-node" \
       --template-file "template/cluster-node.yaml" \
       --parameter-overrides \
+          InstanceType="c6i.large" \
           SubnetId="${SUBNET_ID}" \
           SecurityGroupId="${SG_ID}" \
           HostedZoneId="${ZONE_ID}" \

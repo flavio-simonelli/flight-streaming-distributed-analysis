@@ -4,31 +4,24 @@ import com.datadoghq.sketch.ddsketch.DDSketch;
 import com.datadoghq.sketch.ddsketch.mapping.CubicallyInterpolatedMapping;
 import com.datadoghq.sketch.ddsketch.mapping.IndexMapping;
 import com.datadoghq.sketch.ddsketch.store.Bin;
+import com.datadoghq.sketch.ddsketch.store.CollapsingLowestDenseStore;
 import com.datadoghq.sketch.ddsketch.store.Store;
-import com.datadoghq.sketch.ddsketch.store.UnboundedSizeDenseStore;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serial;
-import java.io.Serializable;
+import java.io.*;
 import java.util.Iterator;
 
 /**
- * Mutable accumulator used to approximate delay distributions through a DDSketch.
- *
+ * Mutable accumulator component used to approximate delay distributions through a DDSketch structure.
  * <p>
- * This accumulator is designed for streaming aggregation scenarios where keeping all raw
- * delay samples in memory would be too expensive. DDSketch provides approximate quantile
- * queries with relative-error guarantees while using a compact indexed-bin representation.
+ * This class is specifically engineered for streaming aggregation scenarios where retaining
+ * raw delay samples in memory would be computationally prohibitive. DDSketch provides bounded
+ * relative-error guarantees for quantile estimation while maintaining a highly compact
+ * indexed-bin memory representation.
  * </p>
- *
  * <p>
- * The internal {@link DDSketch} instance is marked as transient because its internal state
- * is manually serialized. The custom serialization logic stores only the positive bins,
- * negative bins, zero count and accuracy configuration. This makes the accumulator safer
- * and more explicit when it is transferred across Flink operators or persisted in state
- * checkpoints.
+ * The internal sketching topology is intentionally decoupled from Java's standard serialization
+ * mechanism by using transient fields and explicit manual binary serialization routines. This architecture
+ * guarantees state safety and deterministic snapshots during Flink operator checkpoints and scale-out tasks.
  * </p>
  */
 public class DelayDistributionAccumulator implements Serializable {
@@ -36,194 +29,185 @@ public class DelayDistributionAccumulator implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    /**
-     * Serialization format version.
-     *
-     * <p>
-     * This field allows future changes to the custom binary layout without silently breaking
-     * compatibility with older checkpoints or serialized accumulator instances.
-     * </p>
-     */
+    /** Internal structural version used to validate binary compatibility during state deserialization. */
     private static final int SERIALIZATION_VERSION = 1;
 
     /**
-     * Relative accuracy used by the DDSketch.
-     *
-     * <p>
-     * A value of {@code 0.01} means that quantile values are approximated with about 1%
-     * relative error.
-     * </p>
+     * The target relative accuracy bound applied to the underlying mapping.
+     * A value of 0.01 limits the maximum approximation error to approximately 1% of the true quantile value.
      */
     private static final double RELATIVE_ACCURACY = 0.01;
 
     /**
-     * Transient DDSketch instance used to store and query the delay distribution.
-     *
-     * <p>
-     * It is transient because the default Java serialization of DDSketch is intentionally
-     * avoided. Instead, only the relevant bin topology is serialized manually.
+     * Maximum number of bins allowed in the underlying sketch stores.
+     * Bounding the store size (e.g., 2048) prevents OutOfMemory crashes in case of extremely
+     * anomalous delay records, collapsing distant outliers into the lowest/highest boundary bins.
      * </p>
+     * Use:
+     * <ul>
+     *     <li>{@code 512}: low-memory mode, acceptable when extreme percentiles are not critical.</li>
+     *     <li>{@code 1024}: balanced setting for compact state.</li>
+     *     <li>{@code 2048}: safer default for this query and delay-oriented percentiles.</li>
+     *     <li>{@code 4096}: useful only when the value range is very large or collapsing must be minimized.</li>
+     * </ul>
+     */
+    private static final int MAX_STORE_BINS = 2048;
+
+    /**
+     * Transient wrapper containing the active quantile sketch structure.
+     * Marked transient to explicitly override Java serialization in favor of a low-overhead custom layout.
      */
     private transient DDSketch sketch;
 
+    private long count;
+    private double exactMin = Double.POSITIVE_INFINITY;
+    private double exactMax = Double.NEGATIVE_INFINITY;
+
     /**
-     * Creates a new empty delay distribution accumulator.
+     * Constructs a new empty {@code DelayDistributionAccumulator} initializing an isolated sketch instance.
      */
     public DelayDistributionAccumulator() {
         this.sketch = newSketch();
     }
 
     /**
-     * Creates a new DDSketch instance using the accumulator default configuration.
+     * Creates a new DDSketch configured for bounded-memory delay quantile estimation.
+     * <p>
+     * The sketch uses a cubically interpolated index mapping to provide relative-error
+     * guarantees for percentile queries, while {@link CollapsingLowestDenseStore} limits
+     * the maximum number of allocated bins. This prevents unbounded memory growth when
+     * anomalous or extremely distant delay values are observed in the stream.
+     * </p>
+     * <p>
+     * The lowest bins are collapsed first, preserving better resolution on higher delay
+     * values, which are typically more relevant for delay-distribution analysis.
+     * </p>
      *
-     * @return a new empty DDSketch
+     * @return an empty DDSketch configured with bounded dense stores
      */
     private static DDSketch newSketch() {
         return new DDSketch(
                 new CubicallyInterpolatedMapping(RELATIVE_ACCURACY),
-                UnboundedSizeDenseStore::new
+                // Use CollapsingLowestDenseStore instead of UnboundedSizeDenseStore to cap
+                // the number of allocated bins. The unbounded store preserves all bins but
+                // may grow excessively with extreme outliers; the collapsing store bounds
+                // memory usage by merging the lowest bins first.
+                () -> new CollapsingLowestDenseStore(MAX_STORE_BINS)
         );
     }
 
     /**
-     * Adds a delay sample to the distribution.
+     * Injects a raw departure delay sample into the current tracking distribution sketch.
+     * Safe-guards internal boundaries by automatically discarding non-finite anomalies (NaN/Infinities).
      *
-     * <p>
-     * Non-finite values such as {@code NaN}, {@code +Infinity} and {@code -Infinity} are ignored
-     * because they cannot be represented meaningfully inside the quantile sketch.
-     * </p>
-     *
-     * @param val delay value to add, expressed in minutes
+     * @param val the departure delay value to register, expressed in minutes
      */
     public void add(double val) {
         if (!Double.isFinite(val)) {
             return;
         }
-
         this.sketch.accept(val);
+
+        this.count++;
+        this.exactMin = Math.min(this.exactMin, val);
+        this.exactMax = Math.max(this.exactMax, val);
     }
 
     /**
-     * Returns the number of samples currently represented by this accumulator.
+     * Retrieves the absolute number of observations successfully tracked within this accumulator.
      *
-     * @return total number of accumulated samples
+     * @return the rounded total count of accumulated flight record observations
      */
     public long getCount() {
-        return Math.round(this.sketch.getCount());
+        return this.count;
     }
 
     /**
-     * Returns the minimum observed delay value.
+     * Computes the absolute minimum operational delay value observed since window initialization.
      *
-     * @return minimum delay value, or {@code 0.0} if the accumulator is empty
+     * @return the minimum tracked delay value, or 0.0 if the distribution contains no data
      */
     public double getMin() {
-        return this.sketch.isEmpty() ? 0.0 : this.sketch.getMinValue();
+        return this.count == 0 ? 0.0 : this.exactMin;
     }
 
     /**
-     * Returns the maximum observed delay value.
+     * Computes the absolute maximum operational delay value observed since window initialization.
      *
-     * @return maximum delay value, or {@code 0.0} if the accumulator is empty
+     * @return the maximum tracked delay value, or 0.0 if the distribution contains no data
      */
     public double getMax() {
-        return this.sketch.isEmpty() ? 0.0 : this.sketch.getMaxValue();
+        return this.count == 0 ? 0.0 : this.exactMax;
     }
 
     /**
-     * Returns the approximate value at the requested quantile.
+     * Computes an approximate value matching the target percentile index using relative-error mapping.
+     * Valid input bounds require a strictly normalized probability range between 0.0 and 1.0.
      *
-     * <p>
-     * The quantile must be in the range {@code [0.0, 1.0]}. For example:
-     * </p>
-     *
-     * <ul>
-     *     <li>{@code 0.50} returns the median</li>
-     *     <li>{@code 0.75} returns the 75th percentile</li>
-     *     <li>{@code 0.95} returns the 95th percentile</li>
-     * </ul>
-     *
-     * @param q target quantile in the range {@code [0.0, 1.0]}
-     * @return approximate value at the requested quantile, or {@code 0.0} if empty
-     * @throws IllegalArgumentException if {@code q} is outside the valid range
+     * @param q the mathematical quantile targeted for resolution (e.g., 0.50 for median, 0.90 for 90th percentile)
+     * @return the approximated operational delay value matching the target percentile, or 0.0 if empty
+     * @throws IllegalArgumentException if the provided quantile variable falls outside the [0.0, 1.0] boundary
      */
     public double getPercentile(double q) {
         if (q < 0.0 || q > 1.0) {
             throw new IllegalArgumentException("Percentile must be between 0.0 and 1.0");
         }
-
         return this.sketch.isEmpty() ? 0.0 : this.sketch.getValueAtQuantile(q);
     }
 
     /**
-     * Merges another accumulator into this accumulator.
+     * Combines the state of another sub-accumulator directly into this sketch instance.
+     * This operational logic is vital for multi-stage network mergers during partial window reduces.
      *
-     * <p>
-     * This method is useful in distributed aggregation pipelines, where partial sketches
-     * are created independently and then combined during reduce or window aggregation phases.
-     * </p>
-     *
-     * @param other accumulator to merge into this one
+     * @param other the independent remote accumulator state targeted for local integration
      */
     public void merge(DelayDistributionAccumulator other) {
         if (other == null || other.sketch == null || other.sketch.isEmpty()) {
             return;
         }
-
         this.sketch.mergeWith(other.sketch);
+
+        this.count += other.count;
+        this.exactMin = Math.min(this.exactMin, other.exactMin);
+        this.exactMax = Math.max(this.exactMax, other.exactMax);
     }
 
+    /* --- SERIALIZATION --- */
+
     /**
-     * Serializes this accumulator using a compact custom binary format.
+     * Serializes the current internal state footprint into a highly compact, specialized binary format.
+     * Sequentially writes out structural metadata, accuracy parameters, and dense array bins.
      *
-     * <p>
-     * The method stores:
-     * </p>
-     *
-     * <ol>
-     *     <li>serialization format version</li>
-     *     <li>DDSketch relative accuracy</li>
-     *     <li>number of zero-valued samples</li>
-     *     <li>positive value store bins</li>
-     *     <li>negative value store bins</li>
-     * </ol>
-     *
-     * <p>
-     * This avoids relying on DDSketch private fields or default Java serialization.
-     * </p>
-     *
-     * @param out output stream used by Java serialization
-     * @throws IOException if writing to the stream fails
+     * @param out the destination object stream assigned by the JVM runtime environment
+     * @throws IOException if network, memory, or disk-bound IO failures halt serialization
      */
     @Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         out.defaultWriteObject();
 
+        // Write the structural serialization version and accuracy configuration
         out.writeInt(SERIALIZATION_VERSION);
         out.writeDouble(RELATIVE_ACCURACY);
 
         Store positiveStore = sketch.getPositiveValueStore();
         Store negativeStore = sketch.getNegativeValueStore();
 
+        // Deduce the independent zero-bound balance to protect sparse indexing
         double zeroCount = computeZeroCount(sketch, positiveStore, negativeStore);
         out.writeDouble(zeroCount);
 
+        // Stream down data blocks belonging to both positive and negative stores
         serializeStore(positiveStore, out);
         serializeStore(negativeStore, out);
     }
 
     /**
-     * Restores this accumulator from the custom binary serialization format.
+     * Reconstructs the exact sketching structure using custom binary deserialization protocols.
+     * Re-establishes the core mathematical indexes without replaying raw events through the execution graph.
      *
-     * <p>
-     * The method rebuilds the DDSketch by reconstructing its index mapping, positive store,
-     * negative store and zero count. This preserves the original bin structure without
-     * replaying raw values through {@link DDSketch#accept(double)}.
-     * </p>
-     *
-     * @param in input stream used by Java deserialization
-     * @throws IOException if the serialized format is invalid or reading fails
-     * @throws ClassNotFoundException if Java default deserialization cannot resolve a class
+     * @param in the source object input stream assigned by the JVM runtime environment
+     * @throws IOException if the incoming byte configuration layout breaks structural consistency rules
+     * @throws ClassNotFoundException if reference lookups fail during standard metadata unpacks
      */
     @Serial
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -235,16 +219,25 @@ public class DelayDistributionAccumulator implements Serializable {
         }
 
         double accuracy = in.readDouble();
+        if (!Double.isFinite(accuracy) || accuracy <= 0.0 || accuracy >= 1.0) {
+            throw new IOException("Invalid DDSketch relative accuracy: " + accuracy);
+        }
+
         double zeroCount = in.readDouble();
+        if (!Double.isFinite(zeroCount) || zeroCount < 0.0) {
+            throw new IOException("Invalid DDSketch zero count: " + zeroCount);
+        }
 
-        Store positiveStore = new UnboundedSizeDenseStore();
-        Store negativeStore = new UnboundedSizeDenseStore();
+        Store positiveStore = new CollapsingLowestDenseStore(MAX_STORE_BINS);
+        Store negativeStore = new CollapsingLowestDenseStore(MAX_STORE_BINS);
 
+        // Dynamically unpack and restore structural store dimensions
         deserializeStore(positiveStore, in);
         deserializeStore(negativeStore, in);
 
         IndexMapping mapping = new CubicallyInterpolatedMapping(accuracy);
 
+        // Reconstitute the unified DDSketch structure using recovered parameters
         this.sketch = DDSketch.of(
                 mapping,
                 negativeStore,
@@ -254,60 +247,26 @@ public class DelayDistributionAccumulator implements Serializable {
     }
 
     /**
-     * Computes the number of zero-valued samples represented by the sketch.
+     * Intercepts and isolates the count of exact zero-valued elements handled by the pipeline.
+     * Extrapolates values by subtracting active store weights from the global sample counter.
      *
-     * <p>
-     * DDSketch stores positive values, negative values and zero values separately. Since the
-     * public store iterators expose only positive and negative bins, the zero count can be
-     * derived as:
-     * </p>
-     *
-     * <pre>
-     * zeroCount = totalCount - positiveCount - negativeCount
-     * </pre>
-     *
-     * @param sketch sketch whose total count is used
-     * @param positiveStore positive value store
-     * @param negativeStore negative value store
-     * @return estimated zero count, never negative
+     * @param sketch the primary sketch instance holding global execution parameters
+     * @param positiveStore the internal store array handling strictly positive values
+     * @param negativeStore the internal store array handling strictly negative values
+     * @return the computed sum of non-delayed neutral zero entries
      */
     private static double computeZeroCount(DDSketch sketch, Store positiveStore, Store negativeStore) {
-        double nonZeroCount = sumStoreCounts(positiveStore) + sumStoreCounts(negativeStore);
+        double nonZeroCount = positiveStore.getTotalCount() + negativeStore.getTotalCount();
         return Math.max(0.0, sketch.getCount() - nonZeroCount);
     }
 
     /**
-     * Computes the sum of all bin weights contained in a store.
+     * Packs active buckets from an individual structural store directly onto the downstream serialized stream.
+     * Serializes layout bounds by emitting index-count pairs explicitly.
      *
-     * @param store store to inspect
-     * @return total count represented by the store
-     */
-    private static double sumStoreCounts(Store store) {
-        double sum = 0.0;
-
-        Iterator<Bin> iterator = store.getAscendingIterator();
-        while (iterator.hasNext()) {
-            sum += iterator.next().getCount();
-        }
-
-        return sum;
-    }
-
-    /**
-     * Serializes all active bins from a DDSketch store.
-     *
-     * <p>
-     * Each bin is written as an index-count pair:
-     * </p>
-     *
-     * <pre>
-     * int    binIndex
-     * double binCount
-     * </pre>
-     *
-     * @param store store to serialize
-     * @param out output stream
-     * @throws IOException if writing to the stream fails
+     * @param store the specific target structural store to compress and export
+     * @param out the open output byte stream targeted for injection
+     * @throws IOException if data writing operations face structural interrupts
      */
     private static void serializeStore(Store store, ObjectOutputStream out) throws IOException {
         int size = countBins(store);
@@ -322,39 +281,33 @@ public class DelayDistributionAccumulator implements Serializable {
     }
 
     /**
-     * Counts the number of active bins in a store.
+     * Counts the total number of non-empty indexed buckets populated inside a specific store.
      *
-     * @param store store to inspect
-     * @return number of active bins
+     * @param store the specific store targeted for inspection
+     * @return the absolute integer count of active storage bins
      */
     private static int countBins(Store store) {
         int count = 0;
-
         Iterator<Bin> iterator = store.getAscendingIterator();
         while (iterator.hasNext()) {
             iterator.next();
             count++;
         }
-
         return count;
     }
 
     /**
-     * Deserializes a DDSketch store from the custom binary format.
+     * Deserializes and re-populates an un-structured store instance from incoming custom stream records.
+     * Asserts data quality criteria on individual bin weights to safeguard state layout consistency.
      *
-     * <p>
-     * The input stream is expected to contain first the number of bins, followed by one
-     * index-count pair for each bin.
-     * </p>
-     *
-     * @param targetStore store to populate
-     * @param in input stream
-     * @throws IOException if the serialized format is invalid or reading fails
+     * @param targetStore the allocated empty store destined to receive recovered bins
+     * @param in the source input stream reading binary packages
+     * @throws IOException if index bounds are corrupted or negative frequency metrics are intercepted
      */
     private static void deserializeStore(Store targetStore, ObjectInputStream in) throws IOException {
         int binCount = in.readInt();
 
-        if (binCount < 0) {
+        if (binCount < 0 || binCount > MAX_STORE_BINS) {
             throw new IOException("Invalid DDSketch bin count: " + binCount);
         }
 
@@ -362,7 +315,7 @@ public class DelayDistributionAccumulator implements Serializable {
             int index = in.readInt();
             double count = in.readDouble();
 
-            if (count < 0.0 || Double.isNaN(count)) {
+            if (!Double.isFinite(count) || count < 0.0) {
                 throw new IOException("Invalid DDSketch bin weight: " + count);
             }
 

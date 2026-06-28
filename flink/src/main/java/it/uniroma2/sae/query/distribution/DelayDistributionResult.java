@@ -1,6 +1,12 @@
 package it.uniroma2.sae.query.distribution;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniroma2.sae.config.KafkaConfig;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
 import java.io.Serial;
 import java.io.Serializable;
 
@@ -48,7 +54,28 @@ public class DelayDistributionResult implements Serializable {
     @JsonProperty("max")
     private double max;
 
-    public DelayDistributionResult() {}
+    static DelayDistributionResult fromAccumulator(
+            long windowStart,
+            long windowEnd,
+            String windowType,
+            Tuple2<String, Integer> key,
+            DelayDistributionAccumulator acc) {
+
+        return new DelayDistributionResult(
+                windowStart,
+                windowEnd,
+                windowType,
+                key.f0,
+                key.f1,
+                acc.getCount(),
+                acc.getMin(),
+                acc.getPercentile(0.25),
+                acc.getPercentile(0.50),
+                acc.getPercentile(0.75),
+                acc.getPercentile(0.90),
+                acc.getMax()
+        );
+    }
 
     public DelayDistributionResult(
             long windowStart, long windowEnd, String windowType,
@@ -103,4 +130,39 @@ public class DelayDistributionResult implements Serializable {
 
     public double getMax() { return max; }
     public void setMax(double max) { this.max = max; }
+
+    /**
+     * Serializer for sending DelayDistributionResult objects to Kafka topics in standard JSON formats.
+     */
+    public static class DelayDistributionRecordSerializer implements KafkaRecordSerializationSchema<DelayDistributionResult> {
+
+        @Serial
+        private static final long serialVersionUID = 1L;
+        private final String topic;
+
+        /** Shared Jackson Object Mapper instance for efficient JSON serialization. */
+        private static final ObjectMapper MAPPER = new ObjectMapper();
+
+        /**
+         * Creates a new serializer mapped to a precise target storage topic.
+         *
+         * @param config the central Kafka topology properties instance
+         * @param queryKey the internal key matching the destination output configuration topic
+         */
+        public DelayDistributionRecordSerializer(KafkaConfig config, String queryKey) {
+            this.topic = config.getOutputTopic(queryKey);
+        }
+
+        @Override
+        public ProducerRecord<byte[], byte[]> serialize(
+                DelayDistributionResult element, KafkaSinkContext ctx, Long timestamp) {
+            byte[] value = null;
+            try {
+                value = MAPPER.writeValueAsBytes(element);
+            } catch (Exception e) {
+                // Defensive fallback serialization handler
+            }
+            return new ProducerRecord<>(topic, null, value);
+        }
+    }
 }

@@ -1,6 +1,5 @@
 package it.uniroma2.sae.query.performance;
 
-import it.uniroma2.sae.utils.DateUtils;
 import it.uniroma2.sae.utils.MathUtils;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -38,12 +37,8 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
         Iterator<AirlinePerformanceAccumulator> iterator = accumulators.iterator();
 
         // Extract raw epoch millisecond boundaries for the current time window instance
-        long windowStartRaw = ctx.window().getStart();
-        long windowEndRaw   = ctx.window().getEnd();
-
-        // Format raw timestamps into human-readable date-time strings according to output layout specifications
-        String windowStartStr = DateUtils.formatTimestamp(windowStartRaw);
-        String windowEndStr   = DateUtils.formatTimestamp(windowEndRaw);
+        long windowStart = ctx.window().getStart();
+        long windowEnd   = ctx.window().getEnd();
 
         // Fallback safety check: handle the rare scenario where an empty accumulator is fired
         if (!iterator.hasNext()) {
@@ -51,8 +46,8 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
 
             // Construct an empty tracking result to ensure structural continuity in downstream systems
             AirlinePerformanceResult result = new AirlinePerformanceResult(
-                    windowStartStr,
-                    windowEndStr,
+                    windowStart,
+                    windowEnd,
                     airline,
                     0,
                     0,
@@ -90,8 +85,8 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
 
         // Map the finalized calculations and counter dimensions into the targeted result structure
         AirlinePerformanceResult result = new AirlinePerformanceResult(
-            windowStartStr,
-            windowEndStr,
+            windowStart,
+            windowEnd,
             airline,
             acc.numFlights,
             acc.cancelled,

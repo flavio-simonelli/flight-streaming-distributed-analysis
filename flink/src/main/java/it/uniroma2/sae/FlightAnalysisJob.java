@@ -5,26 +5,20 @@ import it.uniroma2.sae.config.CheckpointConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
 import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
-import it.uniroma2.sae.query.distribution.DelayDistributionResult;
 import it.uniroma2.sae.query.performance.AirlinePerformanceQuery;
-import it.uniroma2.sae.query.performance.AirlinePerformanceResult;
 import it.uniroma2.sae.query.rank.RankAirportsQuery;
-import it.uniroma2.sae.query.rank.RankAirportsResult;
 import it.uniroma2.sae.source.SourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.core.execution.CheckpointingMode;
-
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.List;
 
 /**
  * Entry point for the Flight Analysis Flink application.

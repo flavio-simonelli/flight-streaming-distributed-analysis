@@ -80,9 +80,12 @@ func (e *Engine) loadAndSchedule() ([]publishEntry, error) {
 
 // publish writes the records to the output sink, enforcing simulated time gaps.
 func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
+	logEvery := 25_000
 	recordsProcessed := 0
 	var previousTime time.Time
 	var lastEventTime time.Time
+	var firstPublishTime time.Time
+	var realStartTime time.Time
 	isFirstRecord := true
 
 	for i := range entries {
@@ -94,18 +97,30 @@ func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 		}
 
 		entry := entries[i]
-		timeFound := !entry.EventTime.IsZero()
+		publishTime := entry.PublishAt
+		if publishTime.IsZero() {
+			publishTime = entry.EventTime
+		}
+
+		timeFound := !publishTime.IsZero()
 
 		if timeFound {
 			if isFirstRecord {
-				previousTime = entry.EventTime
+				previousTime = publishTime
+
+				firstPublishTime = publishTime
+				realStartTime = time.Now()
+
 				// lastEventTime tracks when the first record was actually sent.
-				lastEventTime = time.Now()
+				lastEventTime = realStartTime
+
 				isFirstRecord = false
-				slog.Debug("First record", "event_time", entry.EventTime.Format("2006-01-02 15:04"))
+				slog.Debug("First record",
+					"event_time", entry.EventTime.Format("2006-01-02 15:04"),
+					"publish_at", publishTime.Format("2006-01-02 15:04"))
 			} else {
-				// Compare consecutive event times and scale the gap to the configured simulation speed.
-				diffReal := entry.EventTime.Sub(previousTime)
+				// Compare consecutive simulated publish times and scale the gap to the configured simulation speed.
+				diffReal := publishTime.Sub(previousTime)
 				if diffReal > 0 {
 					targetWait := diffReal / time.Duration(e.config.SpeedupFactor)
 					remaining := targetWait - time.Since(lastEventTime)
@@ -122,12 +137,13 @@ func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 					}
 				} else {
 					// If the dataset goes backwards in time, publish the record immediately.
-					slog.Debug("Out-of-order record: publishing immediately",
+					slog.Debug("Non-increasing publish time: publishing immediately",
 						"event_time", entry.EventTime.Format("2006-01-02 15:04"),
-						"previous_time", previousTime.Format("2006-01-02 15:04"),
-						"late_by_minutes", int(previousTime.Sub(entry.EventTime).Minutes()))
+						"publish_at", publishTime.Format("2006-01-02 15:04"),
+						"previous_publish_time", previousTime.Format("2006-01-02 15:04"),
+						"late_by_minutes", int(previousTime.Sub(publishTime).Minutes()))
 				}
-				previousTime = entry.EventTime
+				previousTime = publishTime
 				lastEventTime = time.Now()
 			}
 		} else {
@@ -138,13 +154,35 @@ func (e *Engine) publish(ctx context.Context, entries []publishEntry) error {
 			slog.Error("Error writing record to sink", "err", err)
 		} else {
 			recordsProcessed++
-			if timeFound {
-				slog.Info("Record sent",
-					"count", recordsProcessed,
-					"event_time", entry.EventTime.Format("2006-01-02 15:04"),
-					"out_of_order", entry.PublishAt.After(entry.EventTime))
-			} else {
-				slog.Info("Record sent", "count", recordsProcessed)
+			if recordsProcessed%logEvery == 0 {
+				if timeFound {
+					delayMinutes := int(entry.PublishAt.Sub(entry.EventTime).Minutes())
+
+					virtualElapsed := publishTime.Sub(firstPublishTime)
+					realElapsed := time.Since(realStartTime)
+
+					effectiveSpeedup := 0.0
+					if realElapsed > 0 {
+						effectiveSpeedup = float64(virtualElapsed) / float64(realElapsed)
+					}
+
+					speedupRatio := 0.0
+					if e.config.SpeedupFactor > 0 {
+						speedupRatio = effectiveSpeedup / float64(e.config.SpeedupFactor)
+					}
+
+					slog.Info("Record sent",
+						"count", recordsProcessed,
+						"event_time", entry.EventTime.Format("2006-01-02 15:04"),
+						"publish_at", entry.PublishAt.Format("2006-01-02 15:04"),
+						"delay_minutes", delayMinutes,
+						"out_of_order", delayMinutes > 0,
+						"target_speedup", e.config.SpeedupFactor,
+						"effective_speedup", effectiveSpeedup,
+						"speedup_ratio", speedupRatio)
+				} else {
+					slog.Info("Record sent", "count", recordsProcessed)
+				}
 			}
 		}
 	}
