@@ -1,13 +1,12 @@
 package it.uniroma2.sae.query.performance;
 
-import it.uniroma2.sae.model.FlightRecord;
 import org.apache.flink.api.common.functions.AggregateFunction;
 
 /**
  * Incremental AggregateFunction for AirlinePerformanceQuery.
  * Processes each flight event and updates running counters.
  */
-public class AirlinePerformanceAggregator implements AggregateFunction<FlightRecord, AirlinePerformanceAccumulator, AirlinePerformanceAccumulator> {
+public class AirlinePerformanceAggregator implements AggregateFunction<AirlinePerformanceEvent, AirlinePerformanceAccumulator, AirlinePerformanceAccumulator> {
 
     /**
      * Initializes a new, empty accumulator for a window instance.
@@ -28,7 +27,7 @@ public class AirlinePerformanceAggregator implements AggregateFunction<FlightRec
      * @return the updated accumulator state container
      */
     @Override
-    public AirlinePerformanceAccumulator add(FlightRecord event, AirlinePerformanceAccumulator acc) {
+    public AirlinePerformanceAccumulator add(AirlinePerformanceEvent event, AirlinePerformanceAccumulator acc) {
         // If the flight was canceled, handle it separately without tracking delay telemetry
         if (event.isCancelled()) {
             acc.addCancelledFlight();

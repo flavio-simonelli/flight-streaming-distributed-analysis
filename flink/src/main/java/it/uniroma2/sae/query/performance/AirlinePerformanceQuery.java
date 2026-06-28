@@ -36,8 +36,8 @@ public class AirlinePerformanceQuery implements Serializable {
     /** The immutable set of specific airline carrier codes targeted by this analysis query. */
     public static final Set<String> TARGET_AIRLINES = Set.of("AA", "DL", "UA", "WN");
 
-    private static final OutputTag<FlightRecord> LATE_FLIGHTS_TAG =
-            new OutputTag<>("q1-late-flights", TypeInformation.of(FlightRecord.class));
+    private static final OutputTag<AirlinePerformanceEvent> LATE_FLIGHTS_TAG =
+            new OutputTag<>("q1-late-flights", TypeInformation.of(AirlinePerformanceEvent.class));
 
     /**
      * Attaches the AirlinePerformanceQuery pipeline to the main preprocessed stream.
@@ -60,9 +60,21 @@ public class AirlinePerformanceQuery implements Serializable {
                 .name("Q1: Filter Target Airlines")
                 .uid("q1-filter-target-airlines");
 
+        // Project the streams to a lightweight model containing only the fields of interest
+        DataStream<AirlinePerformanceEvent> projectedStream = targetAirlinesStream
+                .map(event -> new AirlinePerformanceEvent(
+                        event.getAirline(),
+                        event.isCancelled(),
+                        event.getDepDelay(),
+                        event.isDiverted()
+                ))
+                .name("Q1: Project to Lightweight Event")
+                .uid("q1-project-lightweight-event")
+                .returns(TypeInformation.of(AirlinePerformanceEvent.class));
+
         // Route elements by carrier, open 1-hour windows, apply lateness tolerance, and compute metrics
-        SingleOutputStreamOperator<AirlinePerformanceResult> windowedOperator = targetAirlinesStream
-                .keyBy(FlightRecord::getAirline)                                                        // Dynamically partition the stream by the airline unique code
+        SingleOutputStreamOperator<AirlinePerformanceResult> windowedOperator = projectedStream
+                .keyBy(AirlinePerformanceEvent::getAirline)                                                        // Dynamically partition the stream by the airline unique code
                 .window(TumblingEventTimeWindows.of(WINDOW_SIZE))                                       // Segment the event timeline into non-overlapping 1-hour blocks
                 .allowedLateness(allowedLateness)                                                       // Keep windows alive in memory for late records from the simulator
                 .sideOutputLateData(LATE_FLIGHTS_TAG)
