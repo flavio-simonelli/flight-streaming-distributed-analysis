@@ -5,6 +5,7 @@ import it.uniroma2.sae.config.ApplicationConfig;
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.metrics.LateRecordMetricAnalyzer;
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.query.components.ActiveFlightFilter;
 import it.uniroma2.sae.sink.SinkBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
@@ -39,7 +40,7 @@ public class RankAirportsQuery implements Serializable {
     public static List<DataStreamSink<RankAirportsResult>> buildAndAttach(DataStream<FlightRecord> mainStream, ApplicationConfig config) {
         // Filter out cancelled and diverted flights at the entry of the pipeline to reduce network shuffle overhead
         DataStream<FlightRecord> activeFlightsStream = mainStream
-                .filter(event -> event != null && !event.isCancelled() && !event.isDiverted())
+                .filter(new ActiveFlightFilter())
                 .name("Q2: Filter Active Flights")
                 .uid("q2-filter-active-flights");
 
