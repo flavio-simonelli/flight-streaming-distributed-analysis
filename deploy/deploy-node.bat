@@ -96,7 +96,13 @@ echo [INFO] Deploying %KAFKA_COUNT% Kafka Broker Nodes...
 for /L %%N in (1,1,%KAFKA_COUNT%) do (
     set "NODE_HOST=kafka-%%N.%PRIVATE_DOMAIN_NAME%"
     set "STACK_NAME=Flight-Stream-kafka-node-%%N"
-    
+
+    if %%N==1 (
+        set "INSTANCE_TYPE=t3.large"
+    ) else (
+        set "INSTANCE_TYPE=t3.medium"
+    )
+
     echo [INFO] Cleaning up stale SSH host keys for !NODE_HOST!...
     powershell -Command "if (Test-Path '%KH_PATH%') { $c = Get-Content '%KH_PATH%'; $c | Where-Object { $_ -notmatch 'kafka-%%N' } | Set-Content '%KH_PATH%' }"
 
@@ -123,6 +129,7 @@ for /L %%N in (1,1,%KAFKA_COUNT%) do (
       --stack-name "!STACK_NAME!" ^
       --template-file "template/cluster-node.yaml" ^
       --parameter-overrides ^
+          InstanceType=!INSTANCE_TYPE! ^
           SubnetId=%SUBNET_ID% ^
           SecurityGroupId=%SG_ID% ^
           HostedZoneId=%ZONE_ID% ^

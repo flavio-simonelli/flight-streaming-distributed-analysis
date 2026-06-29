@@ -1,17 +1,16 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Simulation | Dockerfile" type="docker-deploy" factoryName="dockerfile" server-name="Docker">
+  <configuration default="false" name="Simulation | Docker Run" type="docker-deploy" factoryName="dockerfile" server-name="Docker | Local">
     <deployment type="dockerfile">
       <settings>
-        <option name="imageTag" value="flight-simulator" />
-        <option name="containerName" value="simulator" />
-        <option name="commandLineOptions" value="--network sae-net --env-file D:\progetti_uni\sistemi_architetture_bd\proj_stream\simulator\.env" />
+        <option name="imageTag" value="fmasci/sae-simulator:0.1.0" />
+        <option name="containerName" value="flight-simulator" />
+        <option name="commandLineOptions" value="--env-file .env --network sae-net" />
         <option name="sourceFilePath" value="simulator/Dockerfile" />
         <option name="volumeBindings">
           <list>
             <DockerVolumeBindingImpl>
               <option name="containerPath" value="/app/data" />
               <option name="hostPath" value="D:\progetti_uni\sistemi_architetture_bd\proj_stream\simulator\data" />
-              <option name="readOnly" value="true" />
             </DockerVolumeBindingImpl>
           </list>
         </option>

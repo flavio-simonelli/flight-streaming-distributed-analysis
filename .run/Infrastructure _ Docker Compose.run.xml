@@ -1,7 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Infrastructure | Docker Compose" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+  <configuration default="false" name="Infrastructure | Docker Compose" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker | Local">
     <deployment type="docker-compose.yml">
       <settings>
+        <option name="composeProjectName" value="flight-analysis" />
         <option name="envFilePath" value="D:\progetti_uni\sistemi_architetture_bd\proj_stream\.env" />
         <option name="envFilePaths">
           <list>

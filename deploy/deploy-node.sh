@@ -69,7 +69,13 @@ deploy_kafka_node() {
     local QUORUM_VOTERS=$2
     local NODE_HOST="kafka-${N}.${PRIVATE_DOMAIN_NAME}"
     local STACK_NAME="${VPC_NAME}-kafka-node-${N}"
-    
+
+    if [ "$N" -eq 1 ]; then
+        INSTANCE_TYPE="t3.large"
+    else
+        INSTANCE_TYPE="t3.medium"
+    fi
+
     echo "[INFO] Cleaning up stale SSH host keys for ${NODE_HOST}..."
     if [ -f "$KH_PATH" ]; then sed -i.bak "/${NODE_HOST}/d" "$KH_PATH"; fi
 
@@ -99,6 +105,7 @@ deploy_kafka_node() {
       --stack-name "${STACK_NAME}" \
       --template-file "template/cluster-node.yaml" \
       --parameter-overrides \
+          InstanceType="${INSTANCE_TYPE}" \
           SubnetId="${SUBNET_ID}" \
           SecurityGroupId="${SG_ID}" \
           HostedZoneId="${ZONE_ID}" \

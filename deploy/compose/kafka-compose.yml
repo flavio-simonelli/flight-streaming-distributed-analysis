@@ -24,12 +24,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     restart: always
 
   init-kafka:
     image: apache/kafka:4.3.1-rc
     container_name: init-kafka
     network_mode: host
+    restart: no
     depends_on:
       kafka:
         condition: service_healthy
