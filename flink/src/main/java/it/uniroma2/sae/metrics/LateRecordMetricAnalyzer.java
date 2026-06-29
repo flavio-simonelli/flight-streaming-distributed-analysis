@@ -48,6 +48,12 @@ public class LateRecordMetricAnalyzer<T> extends ProcessFunction<T, T>
     /** Managed Flink operator state used to persist the maximum lateness across checkpoints. */
     private transient ListState<Long> checkpointedMaxLatenessState;
 
+    /** In-memory tracking variable for the lateness distribution sketch. */
+    private transient LatenessDistributionAccumulator latenessAccumulator;
+
+    /** Managed Flink operator state used to persist the lateness distribution accumulator across checkpoints. */
+    private transient ListState<LatenessDistributionAccumulator> checkpointedAccumulatorState;
+
     /**
      * Constructs a new {@code LateRecordMetricAnalyzer} with specified window parameters.
      *
@@ -105,6 +111,20 @@ public class LateRecordMetricAnalyzer<T> extends ProcessFunction<T, T>
         getRuntimeContext()
                 .getMetricGroup()
                 .gauge("max_lateness_minutes_absolute", () -> maxLatenessMinutes);
+
+        // Register Gauges for lateness percentiles (50th, 90th, 95th, 99th) using the sketch accumulator
+        getRuntimeContext()
+                .getMetricGroup()
+                .gauge("lateness_p50_minutes", () -> latenessAccumulator.getPercentile(0.50));
+        getRuntimeContext()
+                .getMetricGroup()
+                .gauge("lateness_p90_minutes", () -> latenessAccumulator.getPercentile(0.90));
+        getRuntimeContext()
+                .getMetricGroup()
+                .gauge("lateness_p95_minutes", () -> latenessAccumulator.getPercentile(0.95));
+        getRuntimeContext()
+                .getMetricGroup()
+                .gauge("lateness_p99_minutes", () -> latenessAccumulator.getPercentile(0.99));
     }
 
     /**
@@ -138,6 +158,9 @@ public class LateRecordMetricAnalyzer<T> extends ProcessFunction<T, T>
             if (currentLateness > maxLatenessMinutes) {
                 maxLatenessMinutes = currentLateness;
             }
+
+            // Record the lateness observation in the sketch accumulator
+            latenessAccumulator.add(latenessMinutes);
         }
 
         out.collect(record);
@@ -154,6 +177,9 @@ public class LateRecordMetricAnalyzer<T> extends ProcessFunction<T, T>
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         checkpointedMaxLatenessState.clear();
         checkpointedMaxLatenessState.add(maxLatenessMinutes);
+
+        checkpointedAccumulatorState.clear();
+        checkpointedAccumulatorState.add(latenessAccumulator);
     }
 
     /**
@@ -172,10 +198,23 @@ public class LateRecordMetricAnalyzer<T> extends ProcessFunction<T, T>
 
         this.checkpointedMaxLatenessState = context.getOperatorStateStore().getListState(descriptor);
 
-        // If the job is recovering from a previous failure, restore the maximum metric value
+        ListStateDescriptor<LatenessDistributionAccumulator> accumulatorDescriptor = new ListStateDescriptor<>(
+                "lateness-distribution-state-store",
+                Types.GENERIC(LatenessDistributionAccumulator.class)
+        );
+
+        this.checkpointedAccumulatorState = context.getOperatorStateStore().getListState(accumulatorDescriptor);
+
+        // Always initialize a new accumulator instance
+        this.latenessAccumulator = new LatenessDistributionAccumulator();
+
+        // If the job is recovering from a previous failure, restore the maximum metric value and sketch accumulator
         if (context.isRestored()) {
             for (Long val : checkpointedMaxLatenessState.get()) {
                 this.maxLatenessMinutes = val;
+            }
+            for (LatenessDistributionAccumulator val : checkpointedAccumulatorState.get()) {
+                this.latenessAccumulator = val;
             }
         }
     }
