@@ -17,7 +17,13 @@ public class DelayDistributionAggregator
     @Override
     public DelayDistributionAccumulator add(DelayDistributionEvent value, DelayDistributionAccumulator accumulator) {
         accumulator.add(value.getDepDelay());
-        accumulator.maxSystemIngestionTime = Math.max(accumulator.maxSystemIngestionTime, value.getSystemIngestionTime());
+        long t = value.getSystemIngestionTime();
+        if (t > 0) {
+            accumulator.maxSystemIngestionTime = Math.max(accumulator.maxSystemIngestionTime, t);
+            accumulator.minSystemIngestionTime = Math.min(accumulator.minSystemIngestionTime, t);
+            accumulator.sumSystemIngestionTime += t;
+            accumulator.systemIngestionTimeCount++;
+        }
         return accumulator;
     }
 

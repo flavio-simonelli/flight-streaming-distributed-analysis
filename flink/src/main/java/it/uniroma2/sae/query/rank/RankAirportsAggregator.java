@@ -20,7 +20,13 @@ public class RankAirportsAggregator
     @Override
     public RankAirportsAccumulator add(RankAirportsEvent value, RankAirportsAccumulator accumulator) {
         accumulator.add(value.getAirline(), String.valueOf(value.getDestinationAirportId()), value.getDepDelay());
-        accumulator.setMaxSystemIngestionTime(Math.max(accumulator.getMaxSystemIngestionTime(), value.getSystemIngestionTime()));
+        long t = value.getSystemIngestionTime();
+        if (t > 0) {
+            accumulator.setMaxSystemIngestionTime(Math.max(accumulator.getMaxSystemIngestionTime(), t));
+            accumulator.setMinSystemIngestionTime(Math.min(accumulator.getMinSystemIngestionTime(), t));
+            accumulator.setSumSystemIngestionTime(accumulator.getSumSystemIngestionTime() + t);
+            accumulator.setSystemIngestionTimeCount(accumulator.getSystemIngestionTimeCount() + 1);
+        }
         return accumulator;
     }
 

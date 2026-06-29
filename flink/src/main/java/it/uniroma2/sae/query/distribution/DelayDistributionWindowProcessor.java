@@ -73,7 +73,8 @@ public class DelayDistributionWindowProcessor
                 Iterator<DelayDistributionAccumulator> iterator = accumulators.iterator();
                 if (iterator.hasNext()) {
                     DelayDistributionAccumulator acc = iterator.next();
-                    latencyTracker.updateE2E(acc.maxSystemIngestionTime);
+                    long avgIngest = acc.systemIngestionTimeCount > 0 ? (acc.sumSystemIngestionTime / acc.systemIngestionTimeCount) : 0L;
+                    latencyTracker.updateE2E(acc.maxSystemIngestionTime, acc.minSystemIngestionTime, avgIngest);
                 }
             }
         }

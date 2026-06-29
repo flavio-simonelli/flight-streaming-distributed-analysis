@@ -50,9 +50,18 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<RankAirportsResult> out) throws Exception {
         long start = System.currentTimeMillis();
         long maxIngestion = 0L;
+        long minIngestion = Long.MAX_VALUE;
+        long sumIngestion = 0L;
+        long countIngestion = 0L;
         for (RankAirportsResult res : windowState.values()) {
             maxIngestion = Math.max(maxIngestion, res.getMaxSystemIngestionTime());
+            if (res.getMinSystemIngestionTime() != Long.MAX_VALUE) {
+                minIngestion = Math.min(minIngestion, res.getMinSystemIngestionTime());
+            }
+            sumIngestion += res.getSumSystemIngestionTime();
+            countIngestion += res.getSystemIngestionTimeCount();
         }
+        long avgIngest = countIngestion > 0 ? (sumIngestion / countIngestion) : 0L;
 
         try {
             onTimerInternal(timestamp, ctx, out);
@@ -60,9 +69,7 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
             long duration = System.currentTimeMillis() - start;
             if (latencyTracker != null) {
                 latencyTracker.updateOperator(duration);
-                if (maxIngestion > 0) {
-                    latencyTracker.updateE2E(maxIngestion);
-                }
+                latencyTracker.updateE2E(maxIngestion, minIngestion, avgIngest);
             }
         }
     }

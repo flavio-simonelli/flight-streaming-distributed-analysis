@@ -51,7 +51,8 @@ public class RankAirportsGlobalWindowProcessor
                 Iterator<RankAirportsAccumulator> iterator = elements.iterator();
                 if (iterator.hasNext()) {
                     RankAirportsAccumulator acc = iterator.next();
-                    latencyTracker.updateE2E(acc.getMaxSystemIngestionTime());
+                    long avgIngest = acc.getSystemIngestionTimeCount() > 0 ? (acc.getSumSystemIngestionTime() / acc.getSystemIngestionTimeCount()) : 0L;
+                    latencyTracker.updateE2E(acc.getMaxSystemIngestionTime(), acc.getMinSystemIngestionTime(), avgIngest);
                 }
             }
         }
@@ -92,6 +93,9 @@ public class RankAirportsGlobalWindowProcessor
                 acc.getDelayedFlights()
         );
         result.setMaxSystemIngestionTime(acc.getMaxSystemIngestionTime());
+        result.setMinSystemIngestionTime(acc.getMinSystemIngestionTime());
+        result.setSumSystemIngestionTime(acc.getSumSystemIngestionTime());
+        result.setSystemIngestionTimeCount(acc.getSystemIngestionTimeCount());
         out.collect(result);
     }
 }

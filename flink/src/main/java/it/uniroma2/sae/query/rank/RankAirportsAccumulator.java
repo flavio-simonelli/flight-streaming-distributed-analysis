@@ -19,6 +19,9 @@ public class RankAirportsAccumulator implements Serializable {
     private double sumDepDelay = 0.0;
     private double maxDepDelay = -Double.MAX_VALUE;
     private long maxSystemIngestionTime = 0L;
+    private long minSystemIngestionTime = Long.MAX_VALUE;
+    private long sumSystemIngestionTime = 0L;
+    private long systemIngestionTimeCount = 0L;
 
     private List<RankAirportsDelayedFlight> delayedFlights = new ArrayList<>();
 
@@ -41,6 +44,15 @@ public class RankAirportsAccumulator implements Serializable {
 
     public long getMaxSystemIngestionTime() { return maxSystemIngestionTime; }
     public void setMaxSystemIngestionTime(long maxSystemIngestionTime) { this.maxSystemIngestionTime = maxSystemIngestionTime; }
+
+    public long getMinSystemIngestionTime() { return minSystemIngestionTime; }
+    public void setMinSystemIngestionTime(long minSystemIngestionTime) { this.minSystemIngestionTime = minSystemIngestionTime; }
+
+    public long getSumSystemIngestionTime() { return sumSystemIngestionTime; }
+    public void setSumSystemIngestionTime(long sumSystemIngestionTime) { this.sumSystemIngestionTime = sumSystemIngestionTime; }
+
+    public long getSystemIngestionTimeCount() { return systemIngestionTimeCount; }
+    public void setSystemIngestionTimeCount(long systemIngestionTimeCount) { this.systemIngestionTimeCount = systemIngestionTimeCount; }
 
     public void add(String carrier, String dest, double depDelay) {
         this.numFlights++;
@@ -78,6 +90,11 @@ public class RankAirportsAccumulator implements Serializable {
         merged.sumDepDelay = this.sumDepDelay + other.sumDepDelay;
         merged.maxDepDelay = Math.max(this.maxDepDelay, other.maxDepDelay);
         merged.maxSystemIngestionTime = Math.max(this.maxSystemIngestionTime, other.maxSystemIngestionTime);
+        if (this.minSystemIngestionTime != Long.MAX_VALUE || other.minSystemIngestionTime != Long.MAX_VALUE) {
+            merged.minSystemIngestionTime = Math.min(this.minSystemIngestionTime, other.minSystemIngestionTime);
+        }
+        merged.sumSystemIngestionTime = this.sumSystemIngestionTime + other.sumSystemIngestionTime;
+        merged.systemIngestionTimeCount = this.systemIngestionTimeCount + other.systemIngestionTimeCount;
 
 
         List<RankAirportsDelayedFlight> listA = this.delayedFlights;

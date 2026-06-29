@@ -39,7 +39,13 @@ public class AirlinePerformanceAggregator implements AggregateFunction<AirlinePe
             );
         }
 
-        acc.maxSystemIngestionTime = Math.max(acc.maxSystemIngestionTime, event.getSystemIngestionTime());
+        long t = event.getSystemIngestionTime();
+        if (t > 0) {
+            acc.maxSystemIngestionTime = Math.max(acc.maxSystemIngestionTime, t);
+            acc.minSystemIngestionTime = Math.min(acc.minSystemIngestionTime, t);
+            acc.sumSystemIngestionTime += t;
+            acc.systemIngestionTimeCount++;
+        }
         return acc;
     }
 

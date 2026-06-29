@@ -37,6 +37,9 @@ public class AirlinePerformanceAccumulator implements Serializable {
     public long   countDelay   = 0;
 
     public long maxSystemIngestionTime = 0L;
+    public long minSystemIngestionTime = Long.MAX_VALUE;
+    public long sumSystemIngestionTime = 0L;
+    public long systemIngestionTimeCount = 0L;
 
     /**
      * Adds a canceled flight.
@@ -93,6 +96,11 @@ public class AirlinePerformanceAccumulator implements Serializable {
         this.sumDepDelay    += other.sumDepDelay;
         this.countDelay     += other.countDelay;
         this.maxSystemIngestionTime = Math.max(this.maxSystemIngestionTime, other.maxSystemIngestionTime);
+        if (other.minSystemIngestionTime != Long.MAX_VALUE) {
+            this.minSystemIngestionTime = Math.min(this.minSystemIngestionTime, other.minSystemIngestionTime);
+        }
+        this.sumSystemIngestionTime += other.sumSystemIngestionTime;
+        this.systemIngestionTimeCount += other.systemIngestionTimeCount;
     }
 
     /**

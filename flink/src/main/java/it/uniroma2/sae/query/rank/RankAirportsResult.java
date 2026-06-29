@@ -48,6 +48,15 @@ public class RankAirportsResult implements Serializable {
     private long maxSystemIngestionTime;
 
     @JsonIgnore
+    private long minSystemIngestionTime = Long.MAX_VALUE;
+
+    @JsonIgnore
+    private long sumSystemIngestionTime = 0L;
+
+    @JsonIgnore
+    private long systemIngestionTimeCount = 0L;
+
+    @JsonIgnore
     public long getMaxSystemIngestionTime() {
         return maxSystemIngestionTime;
     }
@@ -55,6 +64,36 @@ public class RankAirportsResult implements Serializable {
     @JsonIgnore
     public void setMaxSystemIngestionTime(long maxSystemIngestionTime) {
         this.maxSystemIngestionTime = maxSystemIngestionTime;
+    }
+
+    @JsonIgnore
+    public long getMinSystemIngestionTime() {
+        return minSystemIngestionTime;
+    }
+
+    @JsonIgnore
+    public void setMinSystemIngestionTime(long minSystemIngestionTime) {
+        this.minSystemIngestionTime = minSystemIngestionTime;
+    }
+
+    @JsonIgnore
+    public long getSumSystemIngestionTime() {
+        return sumSystemIngestionTime;
+    }
+
+    @JsonIgnore
+    public void setSumSystemIngestionTime(long sumSystemIngestionTime) {
+        this.sumSystemIngestionTime = sumSystemIngestionTime;
+    }
+
+    @JsonIgnore
+    public long getSystemIngestionTimeCount() {
+        return systemIngestionTimeCount;
+    }
+
+    @JsonIgnore
+    public void setSystemIngestionTimeCount(long systemIngestionTimeCount) {
+        this.systemIngestionTimeCount = systemIngestionTimeCount;
     }
 
     public RankAirportsResult() {}

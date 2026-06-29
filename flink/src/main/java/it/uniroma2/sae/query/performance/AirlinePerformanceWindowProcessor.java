@@ -54,7 +54,8 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
                 Iterator<AirlinePerformanceAccumulator> iterator = accumulators.iterator();
                 if (iterator.hasNext()) {
                     AirlinePerformanceAccumulator acc = iterator.next();
-                    latencyTracker.updateE2E(acc.maxSystemIngestionTime);
+                    long avgIngest = acc.systemIngestionTimeCount > 0 ? (acc.sumSystemIngestionTime / acc.systemIngestionTimeCount) : 0L;
+                    latencyTracker.updateE2E(acc.maxSystemIngestionTime, acc.minSystemIngestionTime, avgIngest);
                 }
             }
         }
