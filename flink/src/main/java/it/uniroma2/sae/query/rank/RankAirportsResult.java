@@ -1,5 +1,6 @@
 package it.uniroma2.sae.query.rank;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serial;
 import java.io.Serializable;
@@ -42,6 +43,19 @@ public class RankAirportsResult implements Serializable {
 
     @JsonProperty("delayed_flights")
     private List<RankAirportsDelayedFlight> delayedFlights;
+
+    @JsonIgnore
+    private long maxSystemIngestionTime;
+
+    @JsonIgnore
+    public long getMaxSystemIngestionTime() {
+        return maxSystemIngestionTime;
+    }
+
+    @JsonIgnore
+    public void setMaxSystemIngestionTime(long maxSystemIngestionTime) {
+        this.maxSystemIngestionTime = maxSystemIngestionTime;
+    }
 
     public RankAirportsResult() {}
 

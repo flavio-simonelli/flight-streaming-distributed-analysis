@@ -31,15 +31,15 @@ public class AirlinePerformanceAggregator implements AggregateFunction<AirlinePe
         // If the flight was canceled, handle it separately without tracking delay telemetry
         if (event.isCancelled()) {
             acc.addCancelledFlight();
-            return acc;
+        } else {
+            // For operated flights, process delays, late thresholds, and diversion/completion state
+            acc.addOperatedFlight(
+                event.getDepDelay(),
+                event.isDiverted()
+            );
         }
 
-        // For operated flights, process delays, late thresholds, and diversion/completion state
-        acc.addOperatedFlight(
-            event.getDepDelay(),
-            event.isDiverted()
-        );
-
+        acc.maxSystemIngestionTime = Math.max(acc.maxSystemIngestionTime, event.getSystemIngestionTime());
         return acc;
     }
 

@@ -1,5 +1,7 @@
 package it.uniroma2.sae.query.distribution;
 
+import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -28,6 +30,14 @@ public class DelayDistributionWindowProcessor
 
     /** Logical output label associated with the window scope, for example {@code "1d"} or {@code "7d"}. */
     private final String windowType;
+    private transient ProcessingLatencyTracker latencyTracker;
+
+    @Override
+    public void open(OpenContext context) throws Exception {
+        super.open(context);
+        this.latencyTracker = new ProcessingLatencyTracker("q3_window_" + windowType);
+        this.latencyTracker.register(getRuntimeContext().getMetricGroup());
+    }
 
     /**
      * Creates a processor for a specific finite window scope.
@@ -48,6 +58,28 @@ public class DelayDistributionWindowProcessor
      */
     @Override
     public void process(
+            Tuple2<String, Integer> key,
+            Context ctx,
+            Iterable<DelayDistributionAccumulator> accumulators,
+            Collector<DelayDistributionResult> out) throws Exception {
+
+        long start = System.currentTimeMillis();
+        try {
+            processInternal(key, ctx, accumulators, out);
+        } finally {
+            long duration = System.currentTimeMillis() - start;
+            if (latencyTracker != null) {
+                latencyTracker.updateOperator(duration);
+                Iterator<DelayDistributionAccumulator> iterator = accumulators.iterator();
+                if (iterator.hasNext()) {
+                    DelayDistributionAccumulator acc = iterator.next();
+                    latencyTracker.updateE2E(acc.maxSystemIngestionTime);
+                }
+            }
+        }
+    }
+
+    private void processInternal(
             Tuple2<String, Integer> key,
             Context ctx,
             Iterable<DelayDistributionAccumulator> accumulators,

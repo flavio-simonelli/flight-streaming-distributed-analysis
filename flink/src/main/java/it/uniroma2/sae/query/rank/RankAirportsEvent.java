@@ -16,6 +16,7 @@ public class RankAirportsEvent implements Serializable {
     private String airline;
     private int destinationAirportId;
     private double depDelay;
+    private long systemIngestionTime;
 
     public RankAirportsEvent() {}
 
@@ -24,6 +25,7 @@ public class RankAirportsEvent implements Serializable {
         this.airline = event.getAirline();
         this.destinationAirportId = event.getDestinationAirportId();
         this.depDelay = event.getDepDelay();
+        this.systemIngestionTime = event.getSystemIngestionTime();
     }
 
     public RankAirportsEvent(int originAirportId, String airline, int destinationAirportId, double depDelay) {
@@ -63,6 +65,14 @@ public class RankAirportsEvent implements Serializable {
 
     public void setDepDelay(double depDelay) {
         this.depDelay = depDelay;
+    }
+
+    public long getSystemIngestionTime() {
+        return systemIngestionTime;
+    }
+
+    public void setSystemIngestionTime(long systemIngestionTime) {
+        this.systemIngestionTime = systemIngestionTime;
     }
 
     @Override

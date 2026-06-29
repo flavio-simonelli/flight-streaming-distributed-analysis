@@ -1,5 +1,7 @@
 package it.uniroma2.sae.query.distribution;
 
+import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -28,6 +30,14 @@ public class DelayDistributionGlobalWindowProcessor
 
     /** Fixed lower bound used to label the global window range for the current simulation dataset. */
     private static final long DATASET_START_MS = 1735689600000L; // 2025-01-01 00:00:00 UTC
+    private transient ProcessingLatencyTracker latencyTracker;
+
+    @Override
+    public void open(OpenContext context) throws Exception {
+        super.open(context);
+        this.latencyTracker = new ProcessingLatencyTracker("q3_window_global");
+        this.latencyTracker.register(getRuntimeContext().getMetricGroup());
+    }
 
     /**
      * Emits the current global distribution snapshot for one airline/hour key.
@@ -43,6 +53,28 @@ public class DelayDistributionGlobalWindowProcessor
      */
     @Override
     public void process(
+            Tuple2<String, Integer> key,
+            Context context,
+            Iterable<DelayDistributionAccumulator> elements,
+            Collector<DelayDistributionResult> out) throws Exception {
+
+        long start = System.currentTimeMillis();
+        try {
+            processInternal(key, context, elements, out);
+        } finally {
+            long duration = System.currentTimeMillis() - start;
+            if (latencyTracker != null) {
+                latencyTracker.updateOperator(duration);
+                Iterator<DelayDistributionAccumulator> iterator = elements.iterator();
+                if (iterator.hasNext()) {
+                    DelayDistributionAccumulator acc = iterator.next();
+                    latencyTracker.updateE2E(acc.maxSystemIngestionTime);
+                }
+            }
+        }
+    }
+
+    private void processInternal(
             Tuple2<String, Integer> key,
             Context context,
             Iterable<DelayDistributionAccumulator> elements,

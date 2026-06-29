@@ -62,6 +62,7 @@ public class DelayDistributionAccumulator implements Serializable {
     private long count;
     private double exactMin = Double.POSITIVE_INFINITY;
     private double exactMax = Double.NEGATIVE_INFINITY;
+    public long maxSystemIngestionTime = 0L;
 
     /**
      * Constructs a new empty {@code DelayDistributionAccumulator} initializing an isolated sketch instance.
@@ -170,6 +171,7 @@ public class DelayDistributionAccumulator implements Serializable {
         this.count += other.count;
         this.exactMin = Math.min(this.exactMin, other.exactMin);
         this.exactMax = Math.max(this.exactMax, other.exactMax);
+        this.maxSystemIngestionTime = Math.max(this.maxSystemIngestionTime, other.maxSystemIngestionTime);
     }
 
     /* --- SERIALIZATION --- */

@@ -1,6 +1,8 @@
 package it.uniroma2.sae.query.performance;
 
 import it.uniroma2.sae.utils.MathUtils;
+import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
@@ -15,6 +17,14 @@ import java.util.Iterator;
  */
 public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<AirlinePerformanceAccumulator, AirlinePerformanceResult, String, TimeWindow> {
     private static final Logger LOG = LoggerFactory.getLogger(AirlinePerformanceWindowProcessor.class);
+    private transient ProcessingLatencyTracker latencyTracker;
+
+    @Override
+    public void open(OpenContext context) throws Exception {
+        super.open(context);
+        this.latencyTracker = new ProcessingLatencyTracker("q1_window");
+        this.latencyTracker.register(getRuntimeContext().getMetricGroup());
+    }
 
     /**
      * Processes the accumulated window data to finalize operational metrics for a specific airline.
@@ -28,6 +38,29 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
      */
     @Override
     public void process(
+            String airline,
+            Context ctx,
+            Iterable<AirlinePerformanceAccumulator> accumulators,
+            Collector<AirlinePerformanceResult> out) throws Exception {
+
+        long start = System.currentTimeMillis();
+        try {
+            processInternal(airline, ctx, accumulators, out);
+        } finally {
+            long duration = System.currentTimeMillis() - start;
+            if (latencyTracker != null) {
+                latencyTracker.updateOperator(duration);
+                // Extract accumulator to get maxSystemIngestionTime
+                Iterator<AirlinePerformanceAccumulator> iterator = accumulators.iterator();
+                if (iterator.hasNext()) {
+                    AirlinePerformanceAccumulator acc = iterator.next();
+                    latencyTracker.updateE2E(acc.maxSystemIngestionTime);
+                }
+            }
+        }
+    }
+
+    private void processInternal(
             String airline,
             Context ctx,
             Iterable<AirlinePerformanceAccumulator> accumulators,

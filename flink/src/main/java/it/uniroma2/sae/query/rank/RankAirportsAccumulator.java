@@ -18,6 +18,7 @@ public class RankAirportsAccumulator implements Serializable {
     private int severeDelays = 0;
     private double sumDepDelay = 0.0;
     private double maxDepDelay = -Double.MAX_VALUE;
+    private long maxSystemIngestionTime = 0L;
 
     private List<RankAirportsDelayedFlight> delayedFlights = new ArrayList<>();
 
@@ -37,6 +38,9 @@ public class RankAirportsAccumulator implements Serializable {
 
     public List<RankAirportsDelayedFlight> getDelayedFlights() { return delayedFlights; }
     public void setDelayedFlights(List<RankAirportsDelayedFlight> delayedFlights) { this.delayedFlights = delayedFlights; }
+
+    public long getMaxSystemIngestionTime() { return maxSystemIngestionTime; }
+    public void setMaxSystemIngestionTime(long maxSystemIngestionTime) { this.maxSystemIngestionTime = maxSystemIngestionTime; }
 
     public void add(String carrier, String dest, double depDelay) {
         this.numFlights++;
@@ -73,6 +77,7 @@ public class RankAirportsAccumulator implements Serializable {
         merged.severeDelays = this.severeDelays + other.severeDelays;
         merged.sumDepDelay = this.sumDepDelay + other.sumDepDelay;
         merged.maxDepDelay = Math.max(this.maxDepDelay, other.maxDepDelay);
+        merged.maxSystemIngestionTime = Math.max(this.maxSystemIngestionTime, other.maxSystemIngestionTime);
 
 
         List<RankAirportsDelayedFlight> listA = this.delayedFlights;

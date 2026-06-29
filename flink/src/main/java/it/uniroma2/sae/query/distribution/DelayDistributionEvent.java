@@ -15,6 +15,7 @@ public class DelayDistributionEvent implements Serializable {
     private String airline;
     private int scheduledDepartureHour;
     private double depDelay;
+    private long systemIngestionTime;
 
     public DelayDistributionEvent() {}
 
@@ -22,6 +23,7 @@ public class DelayDistributionEvent implements Serializable {
         this.airline = event.getAirline();
         this.scheduledDepartureHour = event.getScheduledDepartureHour();
         this.depDelay = event.getDepDelay();
+        this.systemIngestionTime = event.getSystemIngestionTime();
     }
 
     public DelayDistributionEvent(String airline, int scheduledDepartureHour, double depDelay) {
@@ -52,6 +54,14 @@ public class DelayDistributionEvent implements Serializable {
 
     public void setDepDelay(double depDelay) {
         this.depDelay = depDelay;
+    }
+
+    public long getSystemIngestionTime() {
+        return systemIngestionTime;
+    }
+
+    public void setSystemIngestionTime(long systemIngestionTime) {
+        this.systemIngestionTime = systemIngestionTime;
     }
 
     @Override

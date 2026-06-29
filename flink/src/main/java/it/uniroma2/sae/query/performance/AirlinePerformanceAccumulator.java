@@ -36,6 +36,8 @@ public class AirlinePerformanceAccumulator implements Serializable {
     /** The aggregate counter of flights that contributed to the delay metrics sum. */
     public long   countDelay   = 0;
 
+    public long maxSystemIngestionTime = 0L;
+
     /**
      * Adds a canceled flight.
      *
@@ -90,6 +92,7 @@ public class AirlinePerformanceAccumulator implements Serializable {
         this.lateDepartures += other.lateDepartures;
         this.sumDepDelay    += other.sumDepDelay;
         this.countDelay     += other.countDelay;
+        this.maxSystemIngestionTime = Math.max(this.maxSystemIngestionTime, other.maxSystemIngestionTime);
     }
 
     /**

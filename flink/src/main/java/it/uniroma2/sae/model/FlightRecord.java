@@ -60,6 +60,8 @@ public class FlightRecord implements Serializable {
     /** Optimized primitive field to cache the calculated event time . */
     private long eventTimeMillis = Long.MIN_VALUE;
 
+    private long systemIngestionTime = 0L;
+
     public FlightRecord() {}
 
     // --- Getters and Setters ---
@@ -96,6 +98,9 @@ public class FlightRecord implements Serializable {
 
     public long getEventTimeMillis() { return this.eventTimeMillis; }
     public void setEventTimeMillis(long eventTimeMillis) { this.eventTimeMillis = eventTimeMillis; }
+
+    public long getSystemIngestionTime() { return this.systemIngestionTime; }
+    public void setSystemIngestionTime(long systemIngestionTime) { this.systemIngestionTime = systemIngestionTime; }
 
     // --- Logic and Enrichment Helpers ---
 
@@ -234,6 +239,7 @@ public class FlightRecord implements Serializable {
 
                 long calculatedTime = flight.calculateEpochMillis();
                 flight.setEventTimeMillis(calculatedTime);
+                flight.setSystemIngestionTime(System.currentTimeMillis());
 
                 out.collect(flight);
             } catch (Exception e) {

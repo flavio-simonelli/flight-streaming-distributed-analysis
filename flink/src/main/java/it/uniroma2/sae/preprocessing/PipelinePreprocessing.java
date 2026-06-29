@@ -1,6 +1,7 @@
 package it.uniroma2.sae.preprocessing;
 
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.metrics.Counter;
@@ -47,6 +48,7 @@ public class PipelinePreprocessing implements Serializable {
          * Useful for monitoring the health of the input data stream.
          */
         private transient Counter corruptedRecordsCounter;
+        private transient ProcessingLatencyTracker latencyTracker;
 
         @Override
         public void open(OpenContext context) throws Exception {
@@ -54,6 +56,8 @@ public class PipelinePreprocessing implements Serializable {
             this.corruptedRecordsCounter = getRuntimeContext()
                     .getMetricGroup()
                     .counter("corrupted_records_total");
+            this.latencyTracker = new ProcessingLatencyTracker("preprocessing");
+            this.latencyTracker.register(getRuntimeContext().getMetricGroup());
         }
 
         /**
@@ -64,6 +68,19 @@ public class PipelinePreprocessing implements Serializable {
          */
         @Override
         public boolean filter(FlightRecord raw) {
+            long start = System.currentTimeMillis();
+            boolean res = filterInternal(raw);
+            long duration = System.currentTimeMillis() - start;
+            if (latencyTracker != null) {
+                latencyTracker.updateOperator(duration);
+                if (raw != null) {
+                    latencyTracker.updateE2E(raw.getSystemIngestionTime());
+                }
+            }
+            return res;
+        }
+
+        private boolean filterInternal(FlightRecord raw) {
             // Drop null references safely to protect the downstream pipeline from NullPointerExceptions
             if (raw == null) {
                 if (corruptedRecordsCounter != null) {

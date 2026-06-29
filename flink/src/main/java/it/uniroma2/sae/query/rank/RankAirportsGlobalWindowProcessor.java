@@ -1,11 +1,14 @@
 package it.uniroma2.sae.query.rank;
 
+import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
+import org.apache.flink.api.common.functions.OpenContext;
 import it.uniroma2.sae.utils.MathUtils;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.util.Collector;
 import java.io.Serial;
 import java.time.Duration;
+import java.util.Iterator;
 
 /**
  * Handles partial emissions for Q2 global airport ranking.
@@ -18,6 +21,14 @@ public class RankAirportsGlobalWindowProcessor
 
     private static final long DATASET_START_MS = 1735689600000L; // 2025-01-01 00:00:00 UTC
     private final Duration triggerInterval;
+    private transient ProcessingLatencyTracker latencyTracker;
+
+    @Override
+    public void open(OpenContext context) throws Exception {
+        super.open(context);
+        this.latencyTracker = new ProcessingLatencyTracker("q2_window_global");
+        this.latencyTracker.register(getRuntimeContext().getMetricGroup());
+    }
 
     public RankAirportsGlobalWindowProcessor(Duration triggerInterval) {
         this.triggerInterval = triggerInterval;
@@ -25,6 +36,28 @@ public class RankAirportsGlobalWindowProcessor
 
     @Override
     public void process(
+            Integer key,
+            Context context,
+            Iterable<RankAirportsAccumulator> elements,
+            Collector<RankAirportsResult> out) throws Exception {
+
+        long start = System.currentTimeMillis();
+        try {
+            processInternal(key, context, elements, out);
+        } finally {
+            long duration = System.currentTimeMillis() - start;
+            if (latencyTracker != null) {
+                latencyTracker.updateOperator(duration);
+                Iterator<RankAirportsAccumulator> iterator = elements.iterator();
+                if (iterator.hasNext()) {
+                    RankAirportsAccumulator acc = iterator.next();
+                    latencyTracker.updateE2E(acc.getMaxSystemIngestionTime());
+                }
+            }
+        }
+    }
+
+    private void processInternal(
             Integer key,
             Context context,
             Iterable<RankAirportsAccumulator> elements,
@@ -47,7 +80,7 @@ public class RankAirportsGlobalWindowProcessor
 
         double mean = MathUtils.safeDivideRounded(acc.getSumDepDelay(), acc.getNumFlights());
 
-        out.collect(new RankAirportsResult(
+        RankAirportsResult result = new RankAirportsResult(
                 DATASET_START_MS, // window_start dataset start
                 currentWindowEnd, // window_end avanza di ora in ora
                 "global",
@@ -57,6 +90,8 @@ public class RankAirportsGlobalWindowProcessor
                 mean,
                 acc.getMaxDepDelay(),
                 acc.getDelayedFlights()
-        ));
+        );
+        result.setMaxSystemIngestionTime(acc.getMaxSystemIngestionTime());
+        out.collect(result);
     }
 }

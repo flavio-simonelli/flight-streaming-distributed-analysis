@@ -16,6 +16,7 @@ public class AirlinePerformanceEvent implements Serializable {
     private boolean cancelled;
     private double depDelay;
     private boolean diverted;
+    private long systemIngestionTime;
 
     public AirlinePerformanceEvent() {}
 
@@ -24,6 +25,7 @@ public class AirlinePerformanceEvent implements Serializable {
         this.cancelled = event.isCancelled();
         this.depDelay = event.getDepDelay();
         this.diverted = event.isDiverted();
+        this.systemIngestionTime = event.getSystemIngestionTime();
     }
 
     public AirlinePerformanceEvent(String airline, boolean cancelled, double depDelay, boolean diverted) {
@@ -63,6 +65,14 @@ public class AirlinePerformanceEvent implements Serializable {
 
     public void setDiverted(boolean diverted) {
         this.diverted = diverted;
+    }
+
+    public long getSystemIngestionTime() {
+        return systemIngestionTime;
+    }
+
+    public void setSystemIngestionTime(long systemIngestionTime) {
+        this.systemIngestionTime = systemIngestionTime;
     }
 
     @Override

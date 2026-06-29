@@ -1,5 +1,6 @@
 package it.uniroma2.sae.query.rank;
 
+import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -26,6 +27,8 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
         this.rankDelayMillis = rankDelay.toMillis();
     }
 
+    private transient ProcessingLatencyTracker latencyTracker;
+
     @Override
     public void open(OpenContext context) {
         windowState = getRuntimeContext().getMapState(new MapStateDescriptor<>(
@@ -33,6 +36,8 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
                 Integer.class,
                 RankAirportsResult.class
         ));
+        this.latencyTracker = new ProcessingLatencyTracker("q2_rank");
+        this.latencyTracker.register(getRuntimeContext().getMetricGroup());
     }
 
     @Override
@@ -43,6 +48,26 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
 
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<RankAirportsResult> out) throws Exception {
+        long start = System.currentTimeMillis();
+        long maxIngestion = 0L;
+        for (RankAirportsResult res : windowState.values()) {
+            maxIngestion = Math.max(maxIngestion, res.getMaxSystemIngestionTime());
+        }
+
+        try {
+            onTimerInternal(timestamp, ctx, out);
+        } finally {
+            long duration = System.currentTimeMillis() - start;
+            if (latencyTracker != null) {
+                latencyTracker.updateOperator(duration);
+                if (maxIngestion > 0) {
+                    latencyTracker.updateE2E(maxIngestion);
+                }
+            }
+        }
+    }
+
+    private void onTimerInternal(long timestamp, OnTimerContext ctx, Collector<RankAirportsResult> out) throws Exception {
         // Use a min-heap with deterministic tie-breakers (1st: severeDelays, 2nd: depDelayMean, 3rd: originAirportId)
         PriorityQueue<RankAirportsResult> pq = new PriorityQueue<>(11, (a, b) -> {
             int cmp = Integer.compare(a.getSevereDelays(), b.getSevereDelays());
