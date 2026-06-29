@@ -5,8 +5,8 @@
     "name": "restored-perf-metrics",
     "namespace": "default",
     "uid": "e2cddc2b-a355-440b-9545-d8f88b5eccd5",
-    "resourceVersion": "1782679138533014",
-    "generation": 3,
+    "resourceVersion": "1782730902536009",
+    "generation": 4,
     "creationTimestamp": "2026-06-28T20:35:04Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "4179342017593344"
@@ -16,7 +16,7 @@
       "grafana.app/folder": "",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
       "grafana.app/updatedBy": "user:ffqiz1usdd0cga",
-      "grafana.app/updatedTimestamp": "2026-06-28T20:38:58Z"
+      "grafana.app/updatedTimestamp": "2026-06-29T11:01:42Z"
     }
   },
   "spec": {
@@ -719,7 +719,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /.*Source/)\r\n  |> toFloat()\r\n  |> group(columns: [\"_measurement\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"Throughput_E2E\")"
+                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /.*Source/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> group(columns: [\"_measurement\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\r\n  |> yield(name: \"Throughput_E2E\")"
                       }
                     },
                     "refId": "A",
@@ -997,7 +997,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /.*Writer/)\r\n  |> toFloat()\r\n  |> group(columns: [\"_measurement\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"Throughput_E2E\")"
+                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /.*Writer/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> group(columns: [\"_measurement\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"Throughput_E2E\")"
                       }
                     },
                     "refId": "A",
@@ -1267,7 +1267,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]: Filter.*/)\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      query: if strings.hasPrefix(v: r.operator_name, prefix: \"Q1\") then \"Query 1\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q2\") then \"Query 2\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q3\") then \"Query 3\"\r\n             else \"Other\"\r\n     }))\r\n  |> group(columns: [\"query\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"Throughput_Per_Query\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]: Filter.*/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      query: if strings.hasPrefix(v: r.operator_name, prefix: \"Q1\") then \"Query 1\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q2\") then \"Query 2\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q3\") then \"Query 3\"\r\n             else \"Other\"\r\n     }))\r\n  |> group(columns: [\"query\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"Throughput_Per_Query\")"
                       }
                     },
                     "refId": "A",
@@ -1429,7 +1429,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]:.*Sink: Writer.*/)\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      query: if strings.hasPrefix(v: r.operator_name, prefix: \"Q1\") then \"Query 1\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q2\") then \"Query 2\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q3\") then \"Query 3\"\r\n             else \"Other\"\r\n     }))\r\n  |> group(columns: [\"query\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"Throughput_Per_Query\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]:.*Sink: Writer.*/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      query: if strings.hasPrefix(v: r.operator_name, prefix: \"Q1\") then \"Query 1\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q2\") then \"Query 2\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q3\") then \"Query 3\"\r\n             else \"Other\"\r\n     }))\r\n  |> group(columns: [\"query\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"Throughput_Per_Query\")"
                       }
                     },
                     "refId": "A",
@@ -2058,7 +2058,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_total_late_records_count\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"count\")\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"custom_late_tracks_rate\")"
+                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_total_late_records_count\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"count\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> group(columns: [\"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"custom_late_tracks_rate\")"
                       }
                     },
                     "refId": "A",
@@ -2173,7 +2173,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_max_lateness_minutes_absolute\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> group(columns: [\"_field\", \"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"lateness_percentiles\")"
+                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_max_lateness_minutes_absolute\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> group(columns: [\"_field\", \"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"lateness_percentiles\")"
                       }
                     },
                     "refId": "A",
