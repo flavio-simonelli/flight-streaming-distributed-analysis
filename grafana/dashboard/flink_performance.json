@@ -4,25 +4,19 @@
   "metadata": {
     "name": "flink-perf-metrics",
     "namespace": "default",
-    "uid": "2b9ffd01-bb42-42b5-9c02-c6b9b49532e6",
-    "resourceVersion": "1782614012721987",
-    "generation": 12,
-    "creationTimestamp": "2026-06-26T02:45:09Z",
+    "uid": "9e8800b2-17f1-4757-9c6b-c72b53cc1d19",
+    "resourceVersion": "1782764445311987",
+    "generation": 9,
+    "creationTimestamp": "2026-06-29T01:13:13Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "3185311150092288"
+      "grafana.app/deprecatedInternalID": "4249338445316096"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/folder": "",
-      "grafana.app/managedBy": "classic-file-provisioning",
-      "grafana.app/managerAllowsEdits": "true",
-      "grafana.app/managerId": "Flink Metrics",
-      "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/sourceChecksum": "8584be50679d42852a776ff7a8a42d49",
-      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/flink_performance.json",
-      "grafana.app/sourceTimestamp": "1782440745000",
-      "grafana.app/updatedBy": "user:ffq9deg1ve134a",
-      "grafana.app/updatedTimestamp": "2026-06-28T02:33:32Z"
+      "grafana.app/saved-from-ui": "Grafana v13.1.0 (b309c9bb3b)",
+      "grafana.app/updatedBy": "user:bfqjukgo2y51cd",
+      "grafana.app/updatedTimestamp": "2026-06-29T20:20:45Z"
     }
   },
   "spec": {
@@ -87,7 +81,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -97,6 +91,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -207,7 +203,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -217,6 +213,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -327,7 +325,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -453,7 +451,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -591,7 +589,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -601,6 +599,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "bottom",
                   "showLegend": true
                 },
@@ -740,7 +740,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -750,6 +750,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "bottom",
                   "showLegend": false
                 },
@@ -902,7 +904,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -912,6 +914,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -1018,7 +1022,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -1028,6 +1032,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "bottom",
                   "showLegend": false
                 },
@@ -1180,7 +1186,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -1288,7 +1294,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -1298,6 +1304,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "bottom",
                   "showLegend": true
                 },
@@ -1450,7 +1458,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -1460,6 +1468,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "bottom",
                   "showLegend": true
                 },
@@ -1612,7 +1622,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -1622,6 +1632,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -1729,7 +1741,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -1739,6 +1751,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -1847,7 +1861,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -1857,6 +1871,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -1963,7 +1979,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -1973,6 +1989,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -2079,7 +2097,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -2089,6 +2107,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -2194,7 +2214,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -2204,6 +2224,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -2321,7 +2343,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -2331,6 +2353,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -2450,7 +2474,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -2460,6 +2484,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -2568,7 +2594,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -2603,6 +2629,125 @@
                     "mode": "palette-classic"
                   },
                   "fieldMinMax": false
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-29": {
+        "kind": "Panel",
+        "spec": {
+          "id": 29,
+          "title": "End-to-End Latency Oldest",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-metrics"
+                      },
+                      "spec": {
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_oldest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Writer.*/)\r\n\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(\r\n        r: /Q[0-9]+/,\r\n        v: r.task_name\r\n      )\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"Late Records\") then \"Late Records\"\r\n        else \"Unknown\"\r\n\r\n      return {\r\n        _time: r._time,\r\n        _value: r._value,\r\n        _field: \"P95 \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  |> group(columns: [\"_field\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"E2E_Latency_Final\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.1.0",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
+                  "placement": "right",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__field.name}",
+                  "unit": "ms",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
                 },
                 "overrides": []
               }
@@ -2647,7 +2792,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -2657,6 +2802,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -2685,6 +2832,244 @@
                   },
                   "color": {
                     "mode": "palette-classic-by-name"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-30": {
+        "kind": "Panel",
+        "spec": {
+          "id": 30,
+          "title": "End-to-End Latency Avg",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-metrics"
+                      },
+                      "spec": {
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_avg_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Writer.*/)\r\n\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(\r\n        r: /Q[0-9]+/,\r\n        v: r.task_name\r\n      )\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"Late Records\") then \"Late Records\"\r\n        else \"Unknown\"\r\n\r\n      return {\r\n        _time: r._time,\r\n        _value: r._value,\r\n        _field: \"P95 \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  |> group(columns: [\"_field\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"E2E_Latency_Final\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.1.0",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
+                  "placement": "right",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__field.name}",
+                  "unit": "ms",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-31": {
+        "kind": "Panel",
+        "spec": {
+          "id": 31,
+          "title": "End-to-End Latency Newest",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "influxdb",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "influxdb-metrics"
+                      },
+                      "spec": {
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_newest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Writer.*/)\r\n\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(\r\n        r: /Q[0-9]+/,\r\n        v: r.task_name\r\n      )\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"Late Records\") then \"Late Records\"\r\n        else \"Unknown\"\r\n\r\n      return {\r\n        _time: r._time,\r\n        _value: r._value,\r\n        _field: \"P95 \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  |> group(columns: [\"_field\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"E2E_Latency_Final\")"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.1.0",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
+                  "placement": "right",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "displayName": "${__field.name}",
+                  "unit": "ms",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
                   },
                   "custom": {
                     "axisBorderShow": false,
@@ -2764,7 +3149,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -2897,7 +3282,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -3044,7 +3429,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -3054,6 +3439,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -3161,7 +3548,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.2",
+            "version": "13.1.0",
             "spec": {
               "options": {
                 "annotations": {
@@ -3171,6 +3558,8 @@
                 "legend": {
                   "calcs": [],
                   "displayMode": "table",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
                   "placement": "right",
                   "showLegend": true
                 },
@@ -3465,10 +3854,49 @@
                                   "x": 0,
                                   "y": 0,
                                   "width": 24,
-                                  "height": 10,
+                                  "height": 11,
                                   "element": {
                                     "kind": "ElementReference",
                                     "name": "panel-15"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "GridLayoutItem",
+                                "spec": {
+                                  "x": 0,
+                                  "y": 11,
+                                  "width": 24,
+                                  "height": 8,
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-29"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "GridLayoutItem",
+                                "spec": {
+                                  "x": 0,
+                                  "y": 19,
+                                  "width": 24,
+                                  "height": 8,
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-30"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "GridLayoutItem",
+                                "spec": {
+                                  "x": 0,
+                                  "y": 27,
+                                  "width": 24,
+                                  "height": 8,
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-31"
                                   }
                                 }
                               }
@@ -3753,9 +4181,7 @@
           "name": "operator",
           "current": {
             "text": "All",
-            "value": [
-              "$__all"
-            ]
+            "value": "$__all"
           },
           "label": "Operatore Flink",
           "hide": "dontHide",
