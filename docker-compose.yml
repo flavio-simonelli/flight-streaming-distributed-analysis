@@ -262,11 +262,26 @@ services:
       environment:
         - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
         - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
+        - GF_RENDERING_SERVER_URL=http://grafana-renderer:8081/render
+        - GF_RENDERING_CALLBACK_URL=http://grafana:3000/
+        - GF_RENDERING_RENDERER_TOKEN=ilhbuhg234uygs87fjkhbnlbujyhgbjhsfliuh9834787t234hja
+        - GF_USERS_DEFAULT_THEME=light
       volumes:
         - grafana-data:/var/lib/grafana
         - ./data/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
         - ./data/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
         - ./data/grafana/dashboards:/var/lib/grafana/dashboards
+      networks:
+        - sae-net
+
+    grafana-renderer:
+      image: grafana/grafana-image-renderer:latest
+      container_name: grafana-renderer
+      environment:
+        - HTTP_HOST=0.0.0.0
+        - HTTP_PORT=8081
+        - BROWSER_TZ=Europe/Rome
+        - AUTH_TOKEN=ilhbuhg234uygs87fjkhbnlbujyhgbjhsfliuh9834787t234hja
       networks:
         - sae-net
 
