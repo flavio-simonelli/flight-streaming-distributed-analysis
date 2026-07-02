@@ -100,14 +100,14 @@
 % ------------------------------
 
 \begin{abstract}
-Questo lavoro presenta \textit{Sky Analytics Stream}, una pipeline distribuita ed elastica per l'analisi e il monitoraggio in tempo reale del traffico aereo negli Stati Uniti. L'architettura elabora un flusso continuo di circa 2.2 milioni di eventi storici (da gennaio ad aprile 2025) attraverso una fase di replay accelerata in event-time. Il sistema integra un simulatore ad alte prestazioni sviluppato in Go per l'ingestione dei dati in Apache Kafka, e Apache Flink come motore di stream processing per l'elaborazione distribuita. Tramite un'unica topologia a grafo aciclico diretto (DAG), Flink esegue concorrentemente tre query analitiche: il calcolo orario delle metriche prestazionali delle compagnie aeree, il tracciamento in tempo reale delle classifiche (Top-10) degli aeroporti con ritardi severi, e la stima della distribuzione dei ritardi tramite l'algoritmo di sketch DDSketch. I risultati analitici e le metriche di telemetria sono storicizzati in InfluxDB tramite Telegraf e visualizzati su dashboard Grafana dedicate. La valutazione sperimentale, condotta su istanze Amazon EC2 con fattori di accelerazione fino a 43.200x ($\approx$ 9.150 eventi/secondo), dimostra la scalabilità e l'efficienza della pipeline, evidenziando latenze di processamento sub-secondarie e un'elevata tolleranza al disordine dei dati (\textit{out-of-order}) e ai guasti grazie al checkpointing incrementale basato su RocksDB.
+Questo lavoro presenta \textit{Sky Analytics Stream}, una pipeline distribuita ed elastica per l'analisi e il monitoraggio in tempo reale del traffico aereo negli Stati Uniti. L'architettura elabora un flusso continuo di circa 2.2 milioni di eventi storici (da gennaio ad aprile 2025) attraverso una fase di replay accelerata in event-time. Il sistema integra un simulatore ad alte prestazioni sviluppato in Go per l'ingestione dei dati in Apache Kafka, e Apache Flink come motore di stream processing per l'elaborazione distribuita. Tramite un'unica topologia (DAG), Flink esegue concorrentemente tre query analitiche: il calcolo orario delle metriche prestazionali delle compagnie aeree, il tracciamento in tempo reale delle classifiche (Top-10) degli aeroporti con ritardi severi, e la stima della distribuzione dei ritardi tramite l'algoritmo di sketch DDSketch. I risultati analitici e le metriche di telemetria sono storicizzati in InfluxDB tramite Telegraf e visualizzati su dashboard Grafana dedicate. L'architettura è eseguibile localmente con Docker Compose o su un cluster Amazon EC2 con fattori di accelerazione fino a 43.200x ($\approx$ 9.150 eventi/secondo), il checkpointing \emph{exactly-once}, con stato RocksDB incrementale su S3 o HDFS, supporta il recupero dai guasti. La campagna sperimentale confronta parallelismo, disordine temporale e frequenza dei checkpoint.
 \end{abstract}
 
 % ------------------------------
 
 % IEEE Configuration
 \begin{IEEEkeywords}
-Apache Flink, Stream Processing, Apache Kafka, Traffico Aereo, Percentili Approssimati, Tolleranza ai Guasti.
+Apache Flink, Stream Processing, Apache Kafka, Traffico Aereo, Percentili Approssimati, Tolleranza ai Guasti, DDSketch, checkpointing.
 \end{IEEEkeywords}
 
 % ACM Configuration
@@ -120,7 +120,17 @@ Apache Flink, Stream Processing, Apache Kafka, Traffico Aereo, Percentili Appros
 % \thispagestyle{headings}
 
 \section{Introduzione}\label{sec:introduction}
-% Inserire qui l'introduzione.
+
+L'analisi tempestiva del traffico aereo richiede di aggiornare indicatori e classifiche mentre gli eventi vengono prodotti.
+In questo contesto non è sufficiente calcolare correttamente un risultato: occorre anche stabilire quando esso possa essere considerato abbastanza completo da essere pubblicato.
+Ritardi di rete, partizioni inattive e arrivi fuori ordine rendono infatti non coincidenti il tempo associato a un volo e l'istante in cui il sistema lo riceve.
+
+Il progetto affronta questo problema a partire da circa 2,2 milioni di record del Bureau of Transportation Statistics, relativi al periodo 1 gennaio--30 aprile 2025.
+Il dataset storico viene utilizzato per generare un flusso riproducibile, nel quale la distanza temporale tra gli eventi può essere compressa e il grado di disordine controllato.
+In questo modo è possibile sottoporre il sistema a condizioni di carico differenti e valutare separatamente gli effetti di velocità di ingresso, parallelismo e ritardo degli eventi.
+
+L'obiettivo è progettare una pipeline distribuita capace di sostenere tre analisi con caratteristiche diverse: aggregazioni orarie sulle compagnie, classifiche degli aeroporti su più orizzonti temporali e stima della distribuzione dei ritardi.
+La soluzione deve limitare la quantità di stato mantenuto, gestire esplicitamente i record tardivi, rendere osservabili prestazioni e risultati e recuperare dal fallimento di un nodo senza compromettere la coerenza dell'elaborazione, naturalmente considerando sempre la metrica principale dello stream processing: la latenza.
 
 % ------------------------------
 
