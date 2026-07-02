@@ -100,7 +100,7 @@
 % ------------------------------
 
 \begin{abstract}
-Questo lavoro presenta \textit{Sky Analytics Stream}, una pipeline distribuita ed elastica per l'analisi e il monitoraggio in tempo reale del traffico aereo negli Stati Uniti. L'architettura elabora un flusso continuo di circa 2.2 milioni di eventi storici (da gennaio ad aprile 2025) attraverso una fase di replay accelerata in event-time. Il sistema integra un simulatore ad alte prestazioni sviluppato in Go per l'ingestione dei dati in Apache Kafka, e Apache Flink come motore di stream processing per l'elaborazione distribuita. Tramite un'unica topologia (DAG), Flink esegue concorrentemente tre query analitiche: il calcolo orario delle metriche prestazionali delle compagnie aeree, il tracciamento in tempo reale delle classifiche (Top-10) degli aeroporti con ritardi severi, e la stima della distribuzione dei ritardi tramite l'algoritmo di sketch DDSketch. I risultati analitici e le metriche di telemetria sono storicizzati in InfluxDB tramite Telegraf e visualizzati su dashboard Grafana dedicate. L'architettura è eseguibile localmente con Docker Compose o su un cluster Amazon EC2 con fattori di accelerazione fino a 43.200x ($\approx$ 9.150 eventi/secondo), il checkpointing \emph{exactly-once}, con stato RocksDB incrementale su S3 o HDFS, supporta il recupero dai guasti. La campagna sperimentale confronta parallelismo, disordine temporale e frequenza dei checkpoint.
+Questo lavoro presenta \textit{Sky Analytics Stream}, un'architettura distribuita ed elastica per l'analisi e il monitoraggio in tempo reale del traffico aereo statunitense basata su Apache Flink e Apache Kafka. Il sistema riceve i dati da un simulatore ad alte prestazioni sviluppato in Go, in grado di riprodurre flussi di eventi storici in event-time con disordine controllato e fattori di accelerazione variabili. Attraverso un'unica topologia a grafo diretto aciclico (DAG), la pipeline esegue in parallelo tre analisi: aggregazioni orarie delle performance delle compagnie aeree, classifiche in tempo reale (Top-10) degli aeroporti con ritardi severi e stima dei percentili dei ritardi tramite l'algoritmo DDSketch. Risultati e metriche di telemetria sono storicizzati in InfluxDB e visualizzati tramite Grafana. La tolleranza ai guasti è garantita da checkpointing \emph{exactly-once} con stato incrementale gestito da RocksDB. Il sistema, testato sia localmente che su cluster Amazon EC2, sostiene throughput superiori a $9.000$ eventi/secondo. La valutazione sperimentale analizza le prestazioni del sistema al variare del parallelismo, del disordine degli eventi e della frequenza dei checkpoint.
 \end{abstract}
 
 % ------------------------------
@@ -121,17 +121,16 @@ Apache Flink, Stream Processing, Apache Kafka, Traffico Aereo, Percentili Appros
 
 \section{Introduzione}\label{sec:introduction}
 
-L'analisi tempestiva del traffico aereo richiede di aggiornare indicatori e classifiche mentre gli eventi vengono prodotti.
-In questo contesto non è sufficiente calcolare correttamente un risultato: occorre anche stabilire quando esso possa essere considerato abbastanza completo da essere pubblicato.
-Ritardi di rete, partizioni inattive e arrivi fuori ordine rendono infatti non coincidenti il tempo associato a un volo e l'istante in cui il sistema lo riceve.
+L'analisi tempestiva del traffico aereo richiede di elaborare flussi continui di dati per aggiornare metriche prestazionali e classifiche di ritardo in tempo reale. In questo contesto, l'accuratezza e la freschezza dei risultati dipendono dalla capacità di gestire le sfide intrinseche dello stream processing. In particolare, ritardi di rete, colli di bottiglia nell'ingestione e arrivi fuori ordine fanno sì che il tempo logico in cui un volo si verifica (\emph{event-time}) non venga rispettato nell'ordine di come gli eventi arrivano ai processori di elaborazione. Per fornire risultati coerenti e completi, è dunque cruciale definire politiche di watermarking e di gestione dei dati tardivi che bilancino correttamente la latenza e l'accuratezza delle aggregazioni.
 
-Il progetto affronta questo problema a partire da circa 2,2 milioni di record del Bureau of Transportation Statistics, relativi al periodo 1 gennaio--30 aprile 2025.
-Il dataset storico viene utilizzato per generare un flusso riproducibile, nel quale la distanza temporale tra gli eventi può essere compressa e il grado di disordine controllato.
-In questo modo è possibile sottoporre il sistema a condizioni di carico differenti e valutare separatamente gli effetti di velocità di ingresso, parallelismo e ritardo degli eventi.
+Per affrontare tali sfide, questo lavoro presenta il progetto e la valutazione sperimentale di \textit{Sky Analytics Stream}, un'architettura distribuita progettata per elaborare un dataset storico di circa $2,2$ milioni di voli negli Stati Uniti (relativi al periodo gennaio--aprile 2025). Il dataset viene riprodotto in modo controllato tramite un simulatore ad alte prestazioni sviluppato in Go, in grado di iniettare dati in Apache Kafka applicando fattori di compressione temporale e introducendo disordine artificiale. La pipeline di elaborazione principale è realizzata in Apache Flink e implementa un singolo grafo aciclico (DAG) ottimizzato per eseguire in parallelo tre analisi distinte:
+\begin{enumerate}
+    \item Il calcolo orario delle statistiche di volo per ciascuna compagnia aerea;
+    \item Il tracciamento dinamico delle classifiche (Top-10) degli aeroporti con i maggiori ritardi accumulati;
+    \item La stima continua della distribuzione dei ritardi complessivi.
+\end{enumerate}
 
-L'obiettivo è progettare una pipeline distribuita capace di sostenere tre analisi con caratteristiche diverse: aggregazioni orarie sulle compagnie, classifiche degli aeroporti su più orizzonti temporali e stima della distribuzione dei ritardi.
-La soluzione deve limitare la quantità di stato mantenuto, gestire esplicitamente i record tardivi, rendere osservabili prestazioni e risultati e recuperare dal fallimento di un nodo senza compromettere la coerenza dell'elaborazione, naturalmente considerando sempre la metrica principale dello stream processing: la latenza.
-
+Il resto della relazione è organizzato come segue: la Sezione~\ref{sec:system_architecture} descrive l'architettura generale del sistema e il flusso dei dati; la Sezione~\ref{sec:implementation_details} approfondisce i dettagli implementativi delle singole componenti; la Sezione~\ref{sec:deployment_infrastructure} illustra l'infrastruttura di deployment; la Sezione~\ref{sec:experimental_evaluation} presenta la valutazione sperimentale e i risultati dei test prestazionali; infine, la Sezione~\ref{sec:conclusions_future_work} conclude il report delineando possibili sviluppi futuri.
 % ------------------------------
 
 \section{Architettura del Sistema}\label{sec:system_architecture}
