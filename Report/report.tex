@@ -11,6 +11,7 @@
 \usepackage{hyperref}
 \usepackage{cite} % IEEE specific package for bibliography management
 \usepackage{tabularx}
+\usepackage{float}
 
 % Configurazione
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -137,23 +138,14 @@ Il resto della relazione è organizzato come segue: la Sezione~\ref{sec:system_a
 
 L'architettura di \textit{Sky Analytics Stream} è concepita come una pipeline multi-tier per lo stream processing distribuito, orientata ad alta scalabilità, robustezza e tolleranza ai guasti. Il sistema adotta un approccio a microservizi disaccoppiati in cui ciascun componente presiede a una specifica fase della pipeline: generazione, brokeraggio, elaborazione, persistenza e visualizzazione, come illustrato nello schema logico di Fig.~\ref{fig:architecture}.
 
-\begin{figure}[h]
+\subsection{Lo Stack Tecnologico (Big Data Stack)}\label{subsec:big_data_stack}
+
+\begin{figure}[H]
   \centering
-  \fbox{\parbox[c][3.2cm][c]{0.92\columnwidth}{\centering
-  \textbf{SCHEMA ARCHITETTURALE LOGICO}\\
-  \vspace{0.1cm}
-  [Go Simulator] $\rightarrow$ Kafka (\texttt{flights-stream}) $\rightarrow$ [Apache Flink]\\
-  \quad $\searrow$ Q1: Stats Compagnie \\
-  \quad $\searrow$ Q2: Classifiche Top-10 Aeroporti\\
-  \quad $\searrow$ Q3: Percentili DDSketch\\
-  Flink Output $\rightarrow$ Kafka (results) $\rightarrow$ Telegraf $\rightarrow$ InfluxDB $\rightarrow$ Grafana\\
-  \vspace{0.1cm}
-  RocksDB State Backend $\rightarrow$ Checkpoint $\rightarrow$ HDFS}}
+  \includegraphics[width=0.95\columnwidth]{graphs/BigDataStack.png}
   \caption{Flusso dei dati e integrazione dei framework in Sky Analytics Stream.}
   \label{fig:architecture}
 \end{figure}
-
-\subsection{Lo Stack Tecnologico (Big Data Stack)}\label{subsec:big_data_stack}
 
 La pipeline si articola in sei livelli architetturali principali:
 
@@ -228,7 +220,32 @@ Il simulatore implementa diverse funzionalità avanzate e ottimizzazioni ingegne
     \item \textbf{Gestione del Tempo Fisico e Replay ad Alta Precisione (Sleep-Spinlock)}: Per ciascun volo, l'event-time logico viene ricostruito combinando i campi \texttt{YEAR}, \texttt{MONTH}, \texttt{DAY\_OF\_MONTH} e l'orario programmato \texttt{CRS\_DEP\_TIME}. Il simulatore emula la distanza temporale reale tra i voli applicando un fattore di compressione del tempo (\textit{Speedup Factor}) ed attendendo la differenza relativa ($\Delta t$) riscalata rispetto all'evento precedente. Con alti fattori di accelerazione (dove le finestre temporali logiche di un'ora si contraggono in pochi millisecondi reali), le funzioni di \textit{sleep} del sistema operativo risulterebbero inadeguate a causa dell'overhead dello scheduler del kernel e dei \textit{context switch}. Per ovviare a ciò, è stata implementata una strategia di attesa ibrida (\textit{Sleep-Spinlock}): se l'attesa supera la soglia critica (\textit{spin threshold} nel file di configurazione), il thread esegue una sleep cooperativa rilasciando la CPU, mentre al di sotto di tale valore effettua un \textbf{spinlock} (attesa attiva). Questo impedisce la sospensione del processo da parte del kernel nel momento critico, garantendo precisioni nell'ordine dei microsecondi ed assicurando l'uniformità del throughput programmato.
     
     \item \textbf{Generazione di Disordine (Out-of-Order Injection)}: Al fine di stressare e validare le strategie di Watermarking e la gestione dei dati tardivi (\textit{allowed lateness}) di Apache Flink e analizzare il sistema in scenari realistici dove le sorgenti sono diversificate e poco affidabili, il simulatore implementa un decoratore basato su un algoritmo probabilistico. Con una probabilità definita $P \in [0, 1]$, un record viene selezionato e il suo istante di pubblicazione viene dislocato in avanti nel tempo di un offset casuale limitato da un valore massimo configurabile ($\delta_{max}$ in minuti logici). La sequenza di eventi risultante viene infine ri-ordinata sul tempo di pubblicazione reale prima dell'invio, riproducendo accuratamente i tipici disallineamenti di rete di uno stream distribuito.
+    
+    \item \textbf{Pubblicazione asincrona su Kafka}: i record sono serializzati in JSON mantenendo i nomi delle colonne BTS e inviati al topic \texttt{flights-stream} mediante \texttt{kafka-go}. Il writer usa bilanciamento round-robin, batch fino a 100 messaggi o 100 kB, timeout di 2 ms e modalità asincrona, evitando che la conferma di ogni singolo messaggio alteri la temporizzazione del replay. In alternativa, un sink testuale consente test locali senza Kafka per sviluppo e debugging.
 \end{itemize}
+
+\subsection{Infrastruttura di Disaccoppiamento ed Event Bus: Apache Kafka}\label{subsec:kafka_integration}
+
+Per disaccoppiare la sorgente dei dati (il simulatore Go) dal motore di stream processing (Apache Flink), è stato integrato \textbf{Apache Kafka} come message broker distribuito ad alto throughput. Kafka funge da polmone architetturale, assorbendo le fluttuazioni di carico del flusso in ingresso ed esponendo i dati in modo ordinato e persistente.
+
+\subsubsection{Organizzazione dei Topic e Partizionamento}\label{subsubsec:kafka_topics}
+Il flusso di dati in ingresso è gestito tramite il topic principale \texttt{flights-stream}, configurato con $6$ partizioni parallele. Il partizionamento consente di parallelizzare l'elaborazione su più slot di esecuzione di Flink, garantendo la scalabilità orizzontale del sistema.
+Per la storicizzazione dei risultati analitici prodotti dalle tre query concorrenti, sono stati definiti diversi topic di output dedicati per ciascuna finestra e granularità temporale (es. \texttt{flights-q1-results}, \texttt{flights-q2-1h-results}, \texttt{flights-q3-1d-results}, ecc.). Questo disaccoppia ulteriormente Flink dai database di storage a valle, permettendo a componenti ausiliari come Telegraf di consumare i risultati in modalità asincrona.
+
+\subsubsection{Fase di Ingestione in Flink (Kafka Source)}\label{subsubsec:kafka_source}
+L'integrazione di Kafka come sorgente dati in Flink avviene tramite la classe nativa \texttt{KafkaSource}, istanziata mediante un builder personalizzato (\texttt{SourceBuilder}). Il consumo dello stream parte dall'offset meno recente (\texttt{OffsetsInitializer.earliest()}). 
+
+Per mappare i byte grezzi transitati su Kafka in oggetti Java tipizzati, è stato implementato uno schema di deserializzazione custom, \texttt{FlightRecordDeserializationSchema} (che implementa l'interfaccia \texttt{KafkaRecordDeserializationSchema<FlightRecord>}). Tale classe esegue le seguenti operazioni per ogni record consumato:
+\begin{itemize}
+    \item \textbf{Deserializzazione JSON}: Utilizza una libreria Jackson \texttt{ObjectMapper} (dichiarata \texttt{transient} e istanziata lazy per evitare errori di serializzazione nei TaskManager) per decodificare il payload del messaggio in un oggetto \texttt{FlightRecord}, scartando in modo tollerante eventuali record corrotti o messaggi vuoti (tombstone);
+    \item \textbf{Estrazione dell'Event-Time}: Calcola l'epoch millisecondi logico associato al volo (\texttt{eventTimeMillis}) combinando i campi data e ora del record;
+    \item \textbf{Iniezione del Tempo di Ingestione}: Inietta nel record il timestamp fisico corrente del sistema (\texttt{systemIngestionTime}) tramite \texttt{System.currentTimeMillis()}. Questo passaggio è cruciale per misurare accuratamente la latenza end-to-end della pipeline a valle.
+\end{itemize}
+
+\subsubsection{Fase di Scrittura dei Risultati (Kafka Sink)}\label{subsubsec:kafka_sink}
+Le tre query analitiche concorrenti producono flussi di risultati che vengono re-iniettati in Kafka tramite istanze di \texttt{KafkaSink}, configurate con la garanzia di consegna \texttt{DeliveryGuarantee.AT\_LEAST\_ONCE} per garantire la tolleranza ai guasti senza l'overhead delle transazioni a due fasi.
+
+La serializzazione da oggetti Java a payload JSON pronti per essere trasmessi in rete è delegata a schemi di serializzazione personalizzati (come \texttt{AirlinePerformanceRecordSerializer} per la Query 1 e \texttt{DelayDistributionRecordSerializer} per la Query 3). Ognuno di essi serializza lo stato dell'oggetto in array di byte JSON. Nel caso della Query 1, il codice della compagnia aerea (\texttt{OP\_UNIQUE\_CARRIER}) viene utilizzato esplicitamente come chiave di partizionamento del record Kafka. Questo assicura che gli eventi relativi allo stesso vettore vengano inoltrati alla medesima partizione di Kafka, agevolando eventuali letture downstream ordinate o partizionate per chiave.
 
 % ------------------------------
 
