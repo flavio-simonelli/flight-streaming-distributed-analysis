@@ -2,6 +2,7 @@ package it.uniroma2.sae.source;
 
 import it.uniroma2.sae.config.KafkaConfig;
 import it.uniroma2.sae.model.FlightRecord;
+import it.uniroma2.sae.model.FlightRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -26,7 +27,7 @@ public class SourceBuilder {
             .setTopics(config.getInputTopic())
             .setGroupId(config.getGroupId())
             .setStartingOffsets(OffsetsInitializer.earliest())
-            .setDeserializer(new FlightRecord.FlightRecordDeserializationSchema());
+            .setDeserializer(new FlightRecordDeserializationSchema());
     }
 
     /**
