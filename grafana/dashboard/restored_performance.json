@@ -5,8 +5,8 @@
     "name": "restore-perf-metrics",
     "namespace": "default",
     "uid": "f96ae3f1-095e-4c81-819c-c9a086ae0c4e",
-    "resourceVersion": "1782772911554016",
-    "generation": 8,
+    "resourceVersion": "1783040071362984",
+    "generation": 14,
     "creationTimestamp": "2026-06-29T20:39:53Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "39341723779072"
@@ -16,7 +16,7 @@
       "grafana.app/folder": "",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
       "grafana.app/updatedBy": "user:ffqlmnhchz0u8f",
-      "grafana.app/updatedTimestamp": "2026-06-29T22:41:51Z"
+      "grafana.app/updatedTimestamp": "2026-07-03T00:54:31Z"
     }
   },
   "spec": {
@@ -574,7 +574,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*Status_JVM_GarbageCollector_G1_Young_Generation_Time/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      component: if r.host =~ /.*jobmanager.*/ then \"JobManager\" else \"TaskManagers Mean\"\r\n     }))\r\n  |> group(columns: [\"component\", \"host\"])\r\n  |> derivative(unit: 1s, nonNegative: true)\r\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)\r\n  |> group(columns: [\"component\"])\r\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\", \"component\"])\r\n  |> yield(name: \"gc_time_stable\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /.*Status_JVM_GarbageCollector_G1_Young_Generation_Time/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      component: if r.host =~ /.*jobmanager.*/ then \"JobManager\" else \"TaskManagers Mean\"\r\n  }))\r\n  |> group(columns: [\"component\", \"host\"])\r\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)\r\n  |> sort(columns: [\"_time\"])\r\n  |> derivative(unit: 1s, nonNegative: true)\r\n  |> group(columns: [\"component\"])\r\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\", \"component\"])\r\n  |> yield(name: \"gc_time_stable\")"
                       }
                     },
                     "refId": "A",
@@ -873,7 +873,7 @@
         "kind": "Panel",
         "spec": {
           "id": 15,
-          "title": "End-to-End Latency",
+          "title": "End-to-End Latency Mark",
           "description": "",
           "links": [],
           "data": {
@@ -901,7 +901,7 @@
               ],
               "transformations": [],
               "queryOptions": {
-                "interval": "5s"
+                "interval": "15s"
               }
             }
           },
@@ -1928,7 +1928,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_total_late_records_count\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"count\")\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"custom_late_tracks_rate\")"
+                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_total_late_records_count\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"count\")\r\n  |> toFloat()\r\n  |> group(columns: [\"operator_name\", \"host\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\r\n  |> yield(name: \"late_records_cumulative\")"
                       }
                     },
                     "refId": "A",
@@ -1937,7 +1937,9 @@
                 }
               ],
               "transformations": [],
-              "queryOptions": {}
+              "queryOptions": {
+                "interval": "15s"
+              }
             }
           },
           "vizConfig": {
@@ -2045,7 +2047,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_max_lateness_minutes_absolute\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> group(columns: [\"_field\", \"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"lateness_percentiles\")"
+                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_max_lateness_minutes_absolute\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> group(columns: [\"operator_name\", \"host\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> sort(columns: [\"_time\"])\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"max_lateness_absolute\")"
                       }
                     },
                     "refId": "A",
@@ -2054,7 +2056,9 @@
                 }
               ],
               "transformations": [],
-              "queryOptions": {}
+              "queryOptions": {
+                "interval": "15s"
+              }
             }
           },
           "vizConfig": {
@@ -2083,6 +2087,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.operator_name}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -2514,7 +2519,7 @@
               ],
               "transformations": [],
               "queryOptions": {
-                "interval": "5s"
+                "interval": "15s"
               }
             }
           },
@@ -2754,7 +2759,7 @@
               ],
               "transformations": [],
               "queryOptions": {
-                "interval": "5s"
+                "interval": "15s"
               }
             }
           },
@@ -2875,7 +2880,7 @@
               ],
               "transformations": [],
               "queryOptions": {
-                "interval": "5s"
+                "interval": "15s"
               }
             }
           },
@@ -3281,7 +3286,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.1.0",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -3400,7 +3405,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.1.0",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -3959,8 +3964,8 @@
     ],
     "timeSettings": {
       "timezone": "utc",
-      "from": "now-30d",
-      "to": "now",
+      "from": "2026-07-03T00:17:47.559Z",
+      "to": "2026-07-03T00:31:35.674Z",
       "autoRefresh": "auto",
       "autoRefreshIntervals": [
         "5s",

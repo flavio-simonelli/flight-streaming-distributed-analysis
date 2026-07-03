@@ -5,10 +5,10 @@
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
         <mxCell id="-UOZgOfDo-1ZsZUxf6Tz-19" parent="1" style="html=1;shadow=1;dashed=0;align=center;verticalAlign=top;shape=mxgraph.arrows2.arrow;dy=0;dx=29.04;notch=0;textShadow=0;fontStyle=1;gradientColor=#CCE5FF;gradientDirection=west;strokeColor=#000033;strokeWidth=1;perimeterSpacing=0;fontColor=#000000;labelBackgroundColor=none;labelBorderColor=none;fontFamily=Helvetica;" value="Ingestion&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));&quot;&gt;Layer&amp;nbsp; &amp;nbsp; &amp;nbsp;&amp;nbsp;&lt;/span&gt;" vertex="1">
-          <mxGeometry height="160" width="246" x="174" y="440" as="geometry" />
+          <mxGeometry height="160" width="256" x="174" y="440" as="geometry" />
         </mxCell>
         <mxCell id="-UOZgOfDo-1ZsZUxf6Tz-21" parent="1" style="html=1;shadow=1;dashed=0;align=center;verticalAlign=top;shape=mxgraph.arrows2.arrow;dy=0;dx=0;notch=26.17;fontStyle=1;labelBackgroundColor=none;textShadow=0;gradientColor=#CCE5FF;gradientDirection=east;strokeColor=#000033;strokeWidth=1;fontColor=#000000;labelBorderColor=none;fontFamily=Helvetica;" value="Processing&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));&quot;&gt;Layer&lt;/span&gt;" vertex="1">
-          <mxGeometry height="160" width="259" x="390" y="440" as="geometry" />
+          <mxGeometry height="160" width="254" x="400" y="440" as="geometry" />
         </mxCell>
         <mxCell id="-UOZgOfDo-1ZsZUxf6Tz-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=top;fontStyle=1;textShadow=0;gradientColor=#CCE5FF;gradientDirection=west;strokeColor=#000033;strokeWidth=1;shadow=1;fontColor=#000000;labelBackgroundColor=none;labelBorderColor=none;fontFamily=Helvetica;" value="Storage Layer" vertex="1">
           <mxGeometry height="80" width="240" x="174" y="610" as="geometry" />
