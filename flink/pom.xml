@@ -123,6 +123,16 @@
     </dependencies>
 
     <profiles>
+        <!--
+            Profile: run-pipeline
+            Purpose: Facilitates local execution and debugging of the Flink stream processing job.
+            Usage: Run via CLI using 'mvn compile exec:java -Prun-pipeline'
+            Description: Binds the 'exec-maven-plugin' to launch 'it.uniroma2.sae.FlightAnalysisJob'
+                         within the Maven execution context. This allows developers to run the Flink
+                         pipeline locally in a standalone mode, facilitating rapid testing, hot reloading,
+                         and IDE debugger attachment without the overhead of packaging a fat JAR and
+                         submitting it to a running Flink cluster manager.
+        -->
         <profile>
             <id>run-pipeline</id>
             <build>
