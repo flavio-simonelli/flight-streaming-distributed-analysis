@@ -11,7 +11,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -24,7 +23,6 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.List;
 
 /**
  * Query 2 logic: Classifies top 10 origin airports with severe delays.
@@ -37,7 +35,7 @@ public class RankAirportsQuery implements Serializable {
     /**
      * Builds and attaches the RankAirportsQuery pipeline to the main preprocessed stream.
      */
-    public static List<DataStreamSink<RankAirportsResult>> buildAndAttach(DataStream<FlightRecord> mainStream, ApplicationConfig config) {
+    public static void buildAndAttach(DataStream<FlightRecord> mainStream, ApplicationConfig config) {
         // Filter out cancelled and diverted flights at the entry of the pipeline to reduce network shuffle overhead
         DataStream<FlightRecord> activeFlightsStream = mainStream
                 .filter(new ActiveFlightFilter())
@@ -76,11 +74,9 @@ public class RankAirportsQuery implements Serializable {
                 .name("Q2: Global Rank")
                 .uid("q2-global-rank");
 
-        return List.of(
-                attachKafkaSink(w1, kafkaConfig, "q2_1h", "Q2: 1h", "q2-sink-1h"),
-                attachKafkaSink(w6, kafkaConfig, "q2_6h", "Q2: 6h", "q2-sink-6h"),
-                attachKafkaSink(wGlobal, kafkaConfig, "q2_global", "Q2: Global", "q2-global-sink")
-        );
+        attachKafkaSink(w1, kafkaConfig, "q2_1h", "Q2: 1h", "q2-sink-1h");
+        attachKafkaSink(w6, kafkaConfig, "q2_6h", "Q2: 6h", "q2-sink-6h");
+        attachKafkaSink(wGlobal, kafkaConfig, "q2_global", "Q2: Global", "q2-global-sink");
     }
 
     private static DataStream<RankAirportsResult> createTumblingWindowPipeline(
@@ -116,7 +112,7 @@ public class RankAirportsQuery implements Serializable {
                 .uid("q2-rank-" + label);
     }
 
-    private static DataStreamSink<RankAirportsResult> attachKafkaSink(
+    private static void attachKafkaSink(
             DataStream<RankAirportsResult> stream,
             KafkaConfig kafkaConfig,
             String queryKey,
@@ -127,7 +123,7 @@ public class RankAirportsQuery implements Serializable {
                 .withRecordSerializer(new RankAirportsRecordSerializer(kafkaConfig, queryKey))
                 .build();
 
-        return stream.sinkTo(sink)
+        stream.sinkTo(sink)
                 .name(pipelineName + " Sink")
                 .uid(uid);
     }

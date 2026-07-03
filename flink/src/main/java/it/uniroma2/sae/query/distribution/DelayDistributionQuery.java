@@ -13,7 +13,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -24,7 +23,6 @@ import org.apache.flink.util.OutputTag;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Duration;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -52,9 +50,8 @@ public class DelayDistributionQuery implements Serializable {
      *
      * @param inputStream the clean, preprocessed incoming stream of FlightRecords
      * @param config the central application configuration container
-     * @return a list containing the data stream sinks attached to this query endpoint
      */
-    public static List<DataStreamSink<DelayDistributionResult>> buildAndAttach(DataStream<FlightRecord> inputStream, ApplicationConfig config) {
+    public static void buildAndAttach(DataStream<FlightRecord> inputStream, ApplicationConfig config) {
         KafkaConfig kafkaConfig = config.getKafka();
         FlinkConfig flinkConfig = config.getFlink();
 
@@ -107,11 +104,9 @@ public class DelayDistributionQuery implements Serializable {
                 .uid("q3-global-window");
 
         // Finalize graph routes linking each specialized stream scope directly to its dedicated Kafka endpoint
-        return List.of(
-                attachKafkaSink(w1d, kafkaConfig, "q3_1d", "Q3: 1d", "q3-sink-1d"),
-                attachKafkaSink(w7d, kafkaConfig, "q3_7d", "Q3: 7d", "q3-sink-7d"),
-                attachKafkaSink(wGlobal, kafkaConfig, "q3_global", "Q3: Global", "q3-sink-global")
-        );
+        attachKafkaSink(w1d, kafkaConfig, "q3_1d", "Q3: 1d", "q3-sink-1d");
+        attachKafkaSink(w7d, kafkaConfig, "q3_7d", "Q3: 7d", "q3-sink-7d");
+        attachKafkaSink(wGlobal, kafkaConfig, "q3_global", "Q3: Global", "q3-sink-global");
     }
 
     /**
@@ -143,7 +138,7 @@ public class DelayDistributionQuery implements Serializable {
                 allowedLateness,
                 "Q3: Late Records Metric Analyzer (" + label + ")",
                 analyzerUid
-        );
+                );
 
         return windowedOperator
                 .name("Q3: Window (" + label + ")")
@@ -153,7 +148,7 @@ public class DelayDistributionQuery implements Serializable {
     /**
      * Direct factory initializer linking processing stream output definitions directly to functional physical Kafka Sinks.
      */
-    private static DataStreamSink<DelayDistributionResult> attachKafkaSink(
+    private static void attachKafkaSink(
             DataStream<DelayDistributionResult> stream,
             KafkaConfig kafkaConfig,
             String queryKey,
@@ -164,7 +159,7 @@ public class DelayDistributionQuery implements Serializable {
                 .withRecordSerializer(new DelayDistributionResult.DelayDistributionRecordSerializer(kafkaConfig, queryKey))
                 .build();
 
-        return stream.sinkTo(sink)
+        stream.sinkTo(sink)
                 .name(pipelineName + " Sink")
                 .uid(uid);
     }

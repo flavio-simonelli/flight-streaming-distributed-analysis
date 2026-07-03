@@ -10,7 +10,6 @@ import it.uniroma2.sae.sink.SinkBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.util.OutputTag;
@@ -18,7 +17,6 @@ import org.apache.flink.util.OutputTag;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Duration;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -45,9 +43,8 @@ public class AirlinePerformanceQuery implements Serializable {
      *
      * @param inputStream the clean, preprocessed incoming stream of FlightRecords
      * @param config the central application configuration container
-     * @return a list containing the data stream sinks attached to this query endpoint
      */
-    public static List<DataStreamSink<AirlinePerformanceResult>> buildAndAttach(DataStream<FlightRecord> inputStream, ApplicationConfig config) {
+    public static void buildAndAttach(DataStream<FlightRecord> inputStream, ApplicationConfig config) {
         KafkaConfig kafkaConfig = config.getKafka();
         FlinkConfig  flinkConfig = config.getFlink();
 
@@ -90,10 +87,8 @@ public class AirlinePerformanceQuery implements Serializable {
                 .build();
 
         // Finalize the graph execution route by linking the processed stream directly to the Kafka sink
-        return List.of(
-                stream.sinkTo(sink)
-                        .name("Q1: Sink")
-                        .uid("q1-sink")
-        );
+        stream.sinkTo(sink)
+                .name("Q1: Sink")
+                .uid("q1-sink");
     }
 }
