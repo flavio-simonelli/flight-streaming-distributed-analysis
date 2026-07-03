@@ -490,9 +490,9 @@ state.backend.incremental: true
 
 ## Secondo confronto basato sull'outofordering:
 
-1. outofordering aggiuntivo 30min, watermark delay 30min, allowed lateness 0 min, moltiplicatore a 14400x
-2. outofordering aggiuntivo 30min, watermark delay 5min, allowed lateness 25 min, moltiplicatore a 14400x
-3. outofordering aggiuntivo 30min, watermark delay 10min, allowed lateness 0 min, moltiplicatore a 14400x
+1. outofordering aggiuntivo 30min 5%, watermark delay 30min, allowed lateness 0 min, moltiplicatore a 14400x
+2. outofordering aggiuntivo 30min 5%, watermark delay 5min, allowed lateness 25 min, moltiplicatore a 14400x
+3. outofordering aggiuntivo 30min 5%, watermark delay 10min, allowed lateness 0 min, moltiplicatore a 14400x
 
 mettiamo il miglior parallelismo visto nel primo confronto nel caso 14400x
 
