@@ -1,7 +1,9 @@
 package it.uniroma2.sae.utils;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -12,6 +14,9 @@ public class DateUtils {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter
             .ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(ZoneId.of("UTC"));
+
+    private static final DateTimeFormatter PARSER_FORMATTER = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * Formats a Unix timestamp in milliseconds into a readable string.
@@ -44,10 +49,10 @@ public class DateUtils {
         if (timestampStr == null) {
             return 0L;
         }
-        java.time.LocalDateTime ldt = java.time.LocalDateTime.parse(
+        LocalDateTime ldt = LocalDateTime.parse(
                 timestampStr,
-                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                PARSER_FORMATTER
         );
-        return ldt.toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+        return ldt.toInstant(ZoneOffset.UTC).toEpochMilli();
     }
 }
