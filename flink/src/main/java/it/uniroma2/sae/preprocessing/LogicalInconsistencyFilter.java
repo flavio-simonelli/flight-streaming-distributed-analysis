@@ -52,17 +52,27 @@ public class LogicalInconsistencyFilter extends RichFilterFunction<FlightRecord>
     }
 
     /**
-     * Internal filtering logic evaluating schema completeness and logical rules.
+     * Evaluates the schema integrity and aviation business logic of a record.
+     * Evaluates four levels of consistency checks sequentially. If any check fails, the record
+     * is dropped from the stream and the corrupted records counter metric is incremented.
+     *
+     * @param raw the raw FlightRecord to evaluate
+     * @return true if the record passes all validation layers, false if it should be discarded
      */
     private boolean filterInternal(FlightRecord raw) {
-        // Drop null references safely to protect downstream operators from NullPointerExceptions
+        // --- RULE 1: Object Null Safety Check ---
+        // Safeguards the downstream pipeline against NullPointerExceptions by discarding null references.
         if (raw == null) {
             incrementCorruptedCounter();
             return false;
         }
 
-        // Mandatory key fields check: YEAR, MONTH, DAY_OF_MONTH, OP_UNIQUE_CARRIER, CRS_DEP_TIME, and IDs.
-        // Verifies that all vital fields required for partitioning and windowing are present.
+        // --- RULE 2: Schema Completeness Check ---
+        // Verifies that all fields required for stream routing (keyBy) and windowing are present.
+        // Missing fields in:
+        // - Year, Month, Day, or Departure Time: Breaks Event-Time calculation (Watermarking).
+        // - Airline: Breaks Query 1 and Query 3 keyBy partitioning.
+        // - Airport IDs: Breaks Query 2 keyBy partitioning.
         if (raw.getYear() == null || raw.getMonth() == null || raw.getDayOfMonth() == null
                 || raw.getAirline() == null || raw.getAirline().trim().isEmpty()
                 || raw.getCrsDepTime() == null
@@ -72,15 +82,19 @@ public class LogicalInconsistencyFilter extends RichFilterFunction<FlightRecord>
             return false;
         }
 
-        // Validate that the timestamp parsing was successful during Kafka ingestion.
-        // If calculateEpochMillis failed, eventTimeMillis will be Long.MIN_VALUE, breaking the watermark.
+        // --- RULE 3: Temporal Parse Validity Check ---
+        // Ensures that the event time was successfully calculated during Kafka deserialization.
+        // If 'calculateEpochMillis' failed, 'eventTimeMillis' is set to Long.MIN_VALUE.
+        // An event time of Long.MIN_VALUE or a negative departure hour would stall Flink's
+        // event-time watermark progression, causing state memory leaks and halting window firings.
         if (raw.getEventTimeMillis() == Long.MIN_VALUE || raw.getScheduledDepartureHour() < 0) {
             incrementCorruptedCounter();
             return false;
         }
 
-        // State logic inconsistencies check:
-        // A flight cannot be both canceled and diverted simultaneously under real-world aviation rules.
+        // --- RULE 4: Logical Business Consistency Check ---
+        // In aviation, a flight cannot be both cancelled (never took off) and diverted (took off but rerouted).
+        // Having both flags set to true (value of 1.0) represents corrupted record states.
         if (raw.isCancelled() && raw.isDiverted()) {
             incrementCorruptedCounter();
             return false;
