@@ -218,6 +218,26 @@ La scelta di questa specifica configurazione architetturale risponde a precisi r
 \subsection{Simulatore di Ingestione in Go}\label{subsec:go_simulator}
 L'ingestione e il replay degli eventi storici in tempo reale sono gestiti da un componente custom sviluppato in linguaggio Go. La scelta tecnologica è motivata dalla necessità di disporre di un agente di ingestione ad altissime prestazioni, caratterizzato da un consumo minimo di risorse e in grado di garantire throughput elevati senza introdurre colli di bottiglia o latenze spurie dovute alla Garbage Collection (frequenti in ecosistemi basati su JVM).
 
+Per simulare scenari di esecuzione realistici e testare i limiti prestazionali del sistema, sono stati definiti tre scenari di carico basati su diversi fattori di accelerazione temporale (Speedup Factor), descritti nella Tabella~\ref{tab:go_acceleration_scenarios}. 
+
+Si evidenzia che l'uso dell'accelerazione temporale per aumentare il throughput rappresenta una forzatura metodologica: comprimere il tempo logico riduce drasticamente la durata reale delle finestre temporali di Flink (fino a soli $83$ millisecondi nello Scenario C), imponendo una frequenza di trigger e di calcolo dello stato estremamente elevata e artificiale. In uno scenario industriale, qualora si volesse studiare il comportamento del sistema sotto carichi massivi senza tale distorsione, la soluzione ottimale consisterebbe nel sintetizzare dati aggiuntivi (generando nuovi record fittizi all'interno dello stesso intervallo temporale) in modo da incrementare il throughput mantenendo la durata reale delle finestre vicina a quella reale.
+
+\begin{table*}[t]
+\centering
+\caption{Scenari di carico e accelerazione temporale del simulatore Go}
+\label{tab:go_acceleration_scenarios}
+\begin{tabular}{llll}
+\toprule
+\textbf{Parametro / Metrica} & \textbf{Scenario A: Carico Basso} & \textbf{Scenario B: Carico Medio} & \textbf{Scenario C: Alto Carico} \\
+\midrule
+\textbf{Moltiplicatore Scelto} & 1.440x (1 giorno logico in 1 min reale) & 14.400x (10 giorni logici in 1 min reale) & 43.200x (30 giorni logici in 1 min reale) \\
+\textbf{Durata Totale del Replay} & $\approx$ 120 minuti (2 ore) reali & $\approx$ 12 minuti reali & $\approx$ 4 minuti reali \\
+\textbf{Throughput Medio Generato} & $\approx$ 305 eventi / secondo & $\approx$ 3.050 eventi / secondo & $\approx$ 9.150 eventi / secondo \\
+\textbf{Durata della Finestra oraria} & Si riduce a 2,5 secondi reali & Si riduce a 0,25 secondi reali & Si riduce a 0,083 secondi reali \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
 Il simulatore implementa diverse funzionalità avanzate e ottimizzazioni ingegneristiche:
 
 \begin{itemize}
