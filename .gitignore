@@ -28,3 +28,4 @@ flink/target
 *.out
 *.toc
 *.synctex.gz
+/.vscode/settings.json
