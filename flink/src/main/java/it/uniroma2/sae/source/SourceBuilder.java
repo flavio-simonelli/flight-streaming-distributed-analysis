@@ -14,7 +14,11 @@ public class SourceBuilder {
     private final KafkaSourceBuilder<FlightRecord> builder;
 
     /**
-     * Main constructor requiring an explicit deserialization schema.
+     * Main constructor initializing the KafkaSource builder with configuration properties.
+     * Configures the bootstrap servers, target input topic, consumer group ID,
+     * earliest starting offset strategy, and assigns the custom FlightRecord deserializer.
+     *
+     * @param config the central Kafka configuration container
      */
     public SourceBuilder(KafkaConfig config) {
         this.builder = KafkaSource.<FlightRecord>builder()
