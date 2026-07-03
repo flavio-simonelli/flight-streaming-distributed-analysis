@@ -27,7 +27,7 @@ Parameters:
     Type: String
   InitScripts:
     Type: String
-    Default: docker-install.sh
+    Default: check-time-sync.sh docker-install.sh
   DeployScripts:
     Type: String
   EnvironmentFile:
