@@ -1,7 +1,6 @@
 package it.uniroma2.sae;
 
 import it.uniroma2.sae.config.ApplicationConfig;
-import it.uniroma2.sae.config.CheckpointConfig;
 import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.preprocessing.PipelinePreprocessing;
 import it.uniroma2.sae.query.distribution.DelayDistributionQuery;
@@ -12,6 +11,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,14 +93,14 @@ public class FlightAnalysisJob {
     /**
      * Sets up Flink's checkpointing system using the official StreamExecutionEnvironment APIs.
      */
-    private static void initCheckpointing(StreamExecutionEnvironment env, CheckpointConfig checkpointCfg) {
+    private static void initCheckpointing(StreamExecutionEnvironment env, it.uniroma2.sae.config.CheckpointConfig checkpointCfg) {
         if (checkpointCfg == null || !checkpointCfg.isEnabled()) {
             LOG.info("Flink checkpointing is disabled.");
             return;
         }
 
         LOG.info("Configuring Flink checkpointing (Fault Tolerance enabled)...");
-        org.apache.flink.streaming.api.environment.CheckpointConfig envCp = env.getCheckpointConfig();
+        CheckpointConfig envCp = env.getCheckpointConfig();
 
         envCp.setCheckpointInterval(checkpointCfg.getIntervalMillis());
         envCp.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
@@ -132,8 +132,8 @@ public class FlightAnalysisJob {
      * Configures the target filesystem storage for Checkpoints.
      */
     private static void configureCheckpointStorage(
-            org.apache.flink.streaming.api.environment.CheckpointConfig envCp,
-            CheckpointConfig cpCfg) {
+            CheckpointConfig envCp,
+            it.uniroma2.sae.config.CheckpointConfig cpCfg) {
 
         if (cpCfg == null || cpCfg.getStorageType() == null || cpCfg.getStorageType().isBlank()) {
             LOG.info("No checkpoint storage type configured — using Flink default (local JobManager FS).");
@@ -145,7 +145,7 @@ public class FlightAnalysisJob {
 
         switch (storageType) {
             case "hdfs": {
-                CheckpointConfig.HdfsConfig hdfs = cpCfg.getHdfs();
+                it.uniroma2.sae.config.CheckpointConfig.HdfsConfig hdfs = cpCfg.getHdfs();
                 if (hdfs == null || hdfs.getNamenode() == null || hdfs.getNamenode().isBlank()) {
                     throw new IllegalArgumentException(
                             "flink.checkpoint.hdfs.namenode must be specified when storageType=hdfs");
@@ -159,7 +159,7 @@ public class FlightAnalysisJob {
             }
 
             case "s3": {
-                CheckpointConfig.S3Config s3 = cpCfg.getS3();
+                it.uniroma2.sae.config.CheckpointConfig.S3Config s3 = cpCfg.getS3();
                 if (s3 == null || s3.getBucket() == null || s3.getBucket().isBlank()) {
                     throw new IllegalArgumentException(
                             "flink.checkpoint.s3.bucket must be specified when storageType=s3");
