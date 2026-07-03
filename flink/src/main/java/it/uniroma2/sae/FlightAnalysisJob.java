@@ -40,7 +40,7 @@ public class FlightAnalysisJob {
         // Build primary source and clean stream
         KafkaSource<FlightRecord> source = new SourceBuilder(config.getKafka()).build();
         DataStream<FlightRecord> rawStream = env
-                .fromSource(source, watermarkStrategy, "flights-stream")
+                .fromSource(source, watermarkStrategy, config.getKafka().getInputTopic() + "-source")
                 .name("Kafka Source")
                 .uid("kafka-source");
 
