@@ -8,6 +8,12 @@ import java.io.Serializable;
 /**
  * Registry helper that binds custom latency metrics (E2E latency and operator time)
  * to Flink's internal MetricGroup system using DDSketch accumulators.
+ * <p>
+ * Architectural Note: End-to-End latency measurements rely on sub-millisecond clock
+ * synchronization across cluster nodes. This setup assumes EC2 instances run the
+ * Amazon Time Sync Service (Chrony NTP) active by default on AWS, keeping clock skew
+ * negligible. A local Math.max(0, latencyMs) check protects against minor clock anomalies.
+ * </p>
  */
 public class ProcessingLatencyTracker implements Serializable {
 
@@ -68,7 +74,7 @@ public class ProcessingLatencyTracker implements Serializable {
 
     /**
      * Records a new End-to-End latency sample.
-     * Safeguards against clock skew by enforcing a non-negative boundary.
+     * Assumes EC2 cluster clocks are synchronized via AWS Amazon Time Sync Service.
      *
      * @param systemIngestionTime the wall-clock time when the record entered Flink (ms)
      */
@@ -78,7 +84,7 @@ public class ProcessingLatencyTracker implements Serializable {
 
     /**
      * Records a new End-to-End latency sample with three bounds.
-     * Safeguards against clock skew by enforcing a non-negative boundary.
+     * Assumes EC2 cluster clocks are synchronized via AWS Amazon Time Sync Service.
      *
      * @param maxIngestion the maximum ingestion time (newest tuple)
      * @param minIngestion the minimum ingestion time (oldest tuple)
