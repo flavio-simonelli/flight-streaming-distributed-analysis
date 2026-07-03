@@ -1,61 +1,145 @@
+# ==============================================================================
+# Flight Streaming Distributed Analysis - Flink Application Configuration
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Apache Kafka Configuration
+# ------------------------------------------------------------------------------
 kafka:
+  # Connection details for the Kafka bootstrap server.
+  # Handled by SourceBuilder.java and SinkBuilder.java to initialize KafkaSource/KafkaSink.
   host: "kafka.flight-analysis.local"
   internalPort: 9092
   externalPort: 9094
+
+  # Primary ingestion topic containing the stream of raw flight records.
+  # Read by FlightAnalysisJob.java to define the env.fromSource(...) entry stream.
   inputTopic: "flights-stream"
+  
+  # Default fallback topic for writing generic results (if any).
   sinkTopic: "flights-results"
+  
+  # Consumer Group ID used by Flink Kafka Source subtasks to commit offsets and track progress.
   groupId: "flink-analysis-group"
+
+  # Target Kafka topics mapped to specific query evaluation pipelines and window intervals.
+  # Serializers in AirlinePerformanceResult, RankAirportsQuery.RankAirportsRecordSerializer, 
+  # and DelayDistributionResult resolve these values to target individual Kafka topics.
   outputTopics:
+    # Query 1: Airline operational metrics (1-hour tumbling window results)
     q1: "flights-q1-results"
+    
+    # Query 2: Airport delay ranking (Top 10)
     q2_1h: "flights-q2-1h-results"
     q2_6h: "flights-q2-6h-results"
     q2_global: "flights-q2-global-results"
+    
+    # Query 3: Departure delay distribution (percentiles)
     q3_1d: "flights-q3-1d-results"
     q3_7d: "flights-q3-7d-results"
     q3_global: "flights-q3-global-results"
 
+# ------------------------------------------------------------------------------
+# Apache Flink Cluster & Execution Topology Configuration
+# ------------------------------------------------------------------------------
 flink:
+  # Connection endpoint for remote JobManager interactions and remote job submissions.
+  # Checked in FlightAnalysisJob.java: if FLINK_CONF_DIR is missing, Flink connects
+  # remotely to this host/port to submit the packaged target JAR.
   host: "flink.flight-analysis.local"
   port: 8081
+
+  # Maximum scalability upper-bound for keygroups.
+  # Applied in FlightAnalysisJob.java using env.setMaxParallelism() if greater than 0.
   maxParallelism: 0
+
+  # --- Event Time & Watermarking Properties ---
+  
+  # Bounded out-of-orderness tolerance (in minutes) to handle simulated late-arriving events.
+  # Loaded in FlightAnalysisJob.java to configure WatermarkStrategy.forBoundedOutOfOrderness.
   watermarkDelayMinutes: 0
+  
+  # Idle partition timeout (in minutes). If a parallel partition receives no data for this duration,
+  # it is marked as idle, preventing it from stalling the global watermark progression.
+  # Loaded in FlightAnalysisJob.java to configure watermarkStrategy.withIdleness().
+  watermarkIdlenessMinutes: 2
+
+  # --- State Retention & Late-Data Tolerances ---
+  # Extends the window lifetime (in minutes) after the watermark passes the window end.
+  # Late events arriving within this window are processed to update the window state.
+  # Events arriving after this period are routed to the side-outputs (discarded from main aggregations).
+  
+  # Generic placeholder for fallback (not directly used by queries if specified the following values).
   allowedLatenessMinutes: 0
+  
+  # Loaded in AirlinePerformanceQuery.java to configure .allowedLateness() on Query 1's 1-hour tumbling window.
   allowedLatenessQ1Minutes: 0
+  
+  # Loaded in RankAirportsQuery.java to configure .allowedLateness() on Query 2's 1-hour tumbling window, 
+  # 6-hour tumbling window, and global window respectively.
   allowedLatenessQ2_1hMinutes: 0
   allowedLatenessQ2_6hMinutes: 0
   allowedLatenessQ2_globalMinutes: 0
+  
+  # Loaded in DelayDistributionQuery.java to configure .allowedLateness() on Query 3's 1-day tumbling window
+  # and 7-day tumbling window respectively.
   allowedLatenessQ3_1dMinutes: 0
   allowedLatenessQ3_7dMinutes: 0
-  watermarkIdlenessMinutes: 2
+
+  # Frequency (in hours) at which global unbounded window aggregates emit results.
+  # Loaded in RankAirportsQuery.java to set the ContinuousEventTimeTrigger.of(interval) on the global window.
   globalWindowTriggerHours: 1
 
-  # Checkpoint storage backend.
-  # storageType: "hdfs"  → HDFS
-  # storageType: "s3"    → Amazon S3
-  # storageType: "local" → local filesystem
-  # omit / leave empty   → Flink default (in-memory/local JobManager FS, NOT fault-tolerant)
+  # --- Checkpointing & Fault Tolerance ---
+  # Configures Flink's state snapshotting engine.
+  # Checked and applied in FlightAnalysisJob.java (lines 63-76).
+  # Note: The state consistency mode is hardcoded to EXACTLY_ONCE in Java code.
   checkpoint:
-    # Behavior properties
+    # Set to true to activate fault tolerance. (Must be ENABLED in production on EC2).
+    # Enables the checkpointing block in FlightAnalysisJob.java.
     enabled: false
+    
+    # Time interval (in milliseconds) between successive checkpoint operations.
+    # Sets CheckpointingOptions.CHECKPOINTING_INTERVAL.
     intervalMillis: 60000
+    
+    # Minimum duration (in milliseconds) of guaranteed idle time between checkpoints.
+    # Prevents checkpoint backpressure. Sets CheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS.
     minPauseMillis: 30000
+    
+    # Maximum time (in milliseconds) allowed for a checkpoint to complete before being aborted.
+    # Sets CheckpointingOptions.CHECKPOINTING_TIMEOUT.
     timeoutMillis: 120000
+    
+    # Maximum consecutive checkpoint failures permitted before the job is forced to fail.
+    # Sets CheckpointingOptions.TOLERABLE_FAILURE_NUMBER.
     tolerableFailedCheckpoints: 3
+    
+    # Enables unaligned checkpoints to bypass the buffer-alignment phase.
+    # Sets CheckpointingOptions.ENABLE_UNALIGNED.
     unalignedCheckpoints: true
+    
+    # Maximum number of concurrent checkpoint operations allowed in-flight.
+    # Sets CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.
     maxConcurrentCheckpoints: 1
 
-    # HDFS example :
-    # storageType: "hdfs"
-    # path: "/flink/checkpoints"
-    # hdfs:
-    #   namenode: "hdfs://hdfs.flight-analysis.local:54310"
-
-    # S3 example :
+    # --- Storage Backends (Select ONE when enabling checkpointing) ---
+    # Supported values: "hdfs", "s3", "local" (leaves empty/omits to default to local JobManager FS).
+    # Resolved in FlightAnalysisJob.java via configureCheckpointStorage() to configure
+    # CheckpointingOptions.CHECKPOINT_STORAGE and CheckpointingOptions.CHECKPOINTS_DIRECTORY.
     storageType: "s3"
     path: "flink/checkpoints"
+
+    # AWS S3 Storage Properties (Used if storageType = "s3")
+    # Injected into AWS SDK system properties (aws.accessKeyId, aws.secretKey, aws.region) in FlightAnalysisJob.java.
     s3:
       bucket: "flink-flight-analysis"
       region: "us-east-1"
-      # Leave accessKey/secretKey empty to use the EC2 IAM Instance Profile
+      # Leave empty to fall back to the AWS EC2 IAM Instance Profile role.
       accessKey: ""
       secretKey: ""
+
+    # HDFS Storage Properties (Used if storageType = "hdfs")
+    # Resolved to hdfs://<namenode><path> inside FlightAnalysisJob.java.
+    # hdfs:
+    #   namenode: "hdfs://hdfs.flight-analysis.local:54310"
