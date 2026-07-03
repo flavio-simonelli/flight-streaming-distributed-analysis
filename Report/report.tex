@@ -332,6 +332,18 @@ A differenza dei risultati di business delle query (che transitano su Kafka per 
 
 Per ovviare a ciò, il JobManager e i TaskManager di Flink sono configurati nei file di deploy per caricare la classe nativa \texttt{InfluxdbReporterFactory}. Flink stabilisce connessioni HTTP dirette verso la porta 8086 di InfluxDB, inviando periodicamente in modo asincrono le telemetrie di sistema e le metriche custom. Questa soluzione bypassa interamente Kafka per i dati di monitoraggio, preservando la larghezza di banda del broker per il flusso di ingestion primario e riducendo al minimo la latenza di aggiornamento sulle dashboard di Grafana.
 
+\subsubsection{Purezza del Modello Dati e Ottimizzazione della Serializzazione POJO}\label{subsubsec:flink_pojo_serialization}
+Per ottimizzare lo scambio di dati sulla rete e le performance di scrittura sul backend di stato (RocksDB), è stata condotta una ristrutturazione architetturale del modello dati principale:
+\begin{itemize}
+    \item \textbf{Disaccoppiamento del Modello}: La classe \texttt{FlightRecord} è stata spogliata da qualsiasi dipendenza dalle librerie esterne di Kafka e Apache Flink, isolando lo schema di deserializzazione in un file autonomo (\texttt{FlightRecordDeserializationSchema}). Questo ha reso \texttt{FlightRecord} un \textbf{POJO (Plain Old Java Object)} puro secondo le convenzioni di Java.
+    \item \textbf{Vantaggi prestazionali di Flink}: Flink utilizza un analizzatore di tipi a runtime. Se una classe rispetta le regole formali dei POJO (costruttore vuoto pubblico, attributi non-final e metodi getter/setter per ciascun campo), Flink evita di utilizzare la serializzazione generica Kryo, la quale memorizza l'intero grafo di classe producendo payload voluminosi e costosi in termini di CPU.
+    \item \textbf{Generazione di PojoSerializer}: Flink genera per i POJO dei serializzatori nativi speciali (\texttt{PojoSerializer}), che serializzano solo i byte grezzi dei dati in modo posizionale fisso. Questo produce due grandi benefici:
+    \begin{enumerate}
+        \item \textbf{Riduzione delle dimensioni dello stato}: Lo stato archiviato in RocksDB è notevolmente più compatto, riducendo i tempi di I/O per i checkpoint asincroni.
+        \item \textbf{Ottimizzazione dei Shuffle di Rete}: Durante le fasi di \texttt{keyBy}, lo shuffle dei record tra i TaskManager su EC2 avviene al massimo throughput consentito dalla rete, riducendo l'utilizzo di CPU per la codifica/decodifica.
+    \end{enumerate}
+\end{itemize}
+
 \subsubsection{Dettagli delle Query Analitiche ed Ingegnerizzazione del DAG}\label{subsubsec:flink_queries}
 \begin{itemize}
     \item \textbf{Query 1 (Performance Compagnie Aeree)}: Filtra i record sui quattro vettori primari tramite \texttt{TargetAirlineFilter} ed effettua una proiezione a basso footprint per ridurre la dimensione dei record prima dello shuffle. Utilizza un aggregatore incrementale (\texttt{AirlinePerformanceAggregator}) per aggiornare lo stato in tempo costante $O(1)$ all'interno di una finestra tumbling di 1 ora in Event-Time.
