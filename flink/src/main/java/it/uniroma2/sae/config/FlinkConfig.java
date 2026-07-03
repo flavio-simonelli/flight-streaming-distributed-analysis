@@ -11,11 +11,11 @@ public class FlinkConfig {
     private Integer allowedLatenessQ1Minutes;
     private Integer allowedLatenessQ2_1hMinutes;
     private Integer allowedLatenessQ2_6hMinutes;
-    private Integer allowedLatenessQ2_globalMinutes;
     private Integer allowedLatenessQ3_1dMinutes;
     private Integer allowedLatenessQ3_7dMinutes;
     private int watermarkIdlenessMinutes = 2;
     private int globalWindowTriggerHours = 1;
+    private int parallelism = 1;
     private int maxParallelism = 6;
 
     /** Checkpoint storage backend and behavior configuration. */
@@ -57,13 +57,6 @@ public class FlinkConfig {
         this.allowedLatenessQ2_6hMinutes = allowedLatenessQ2_6hMinutes;
     }
 
-    public Integer getAllowedLatenessQ2_globalMinutes() {
-        return allowedLatenessQ2_globalMinutes != null ? allowedLatenessQ2_globalMinutes : allowedLatenessMinutes;
-    }
-    public void setAllowedLatenessQ2_globalMinutes(Integer allowedLatenessQ2_globalMinutes) {
-        this.allowedLatenessQ2_globalMinutes = allowedLatenessQ2_globalMinutes;
-    }
-
     public Integer getAllowedLatenessQ3_1dMinutes() {
         return allowedLatenessQ3_1dMinutes != null ? allowedLatenessQ3_1dMinutes : allowedLatenessMinutes;
     }
@@ -83,6 +76,9 @@ public class FlinkConfig {
 
     public CheckpointConfig getCheckpoint() { return checkpoint; }
     public void setCheckpoint(CheckpointConfig checkpoint) { this.checkpoint = checkpoint; }
+
+    public int getParallelism() { return parallelism; }
+    public void setParallelism(int parallelism) { this.parallelism = parallelism; }
 
     public int getMaxParallelism() { return maxParallelism; }
     public void setMaxParallelism(int maxParallelism) { this.maxParallelism = maxParallelism; }

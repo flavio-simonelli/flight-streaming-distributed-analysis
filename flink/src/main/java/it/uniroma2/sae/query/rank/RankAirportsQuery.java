@@ -47,7 +47,6 @@ public class RankAirportsQuery implements Serializable {
         KafkaConfig kafkaConfig = config.getKafka();
         Duration allowedLateness1h = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_1hMinutes());
         Duration allowedLateness6h = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_6hMinutes());
-        Duration allowedLatenessGlobal = Duration.ofMinutes(config.getFlink().getAllowedLatenessQ2_globalMinutes());
 
         // Project the streams to a lightweight model containing only the fields of interest
         DataStream<RankAirportsEvent> projectedStream = activeFlightsStream
@@ -65,7 +64,6 @@ public class RankAirportsQuery implements Serializable {
         DataStream<RankAirportsResult> wGlobal = keyedStream
                 .window(GlobalWindows.create())
                 .trigger(ContinuousEventTimeTrigger.of(globalTriggerInterval))
-                .allowedLateness(allowedLatenessGlobal)
                 .aggregate(new RankAirportsAggregator(), new RankAirportsGlobalWindowProcessor(globalTriggerInterval))
                 .name("Q2: Global Window")
                 .uid("q2-global-window")
@@ -74,7 +72,7 @@ public class RankAirportsQuery implements Serializable {
                 // is preferred to avoid central bottlenecks. Since the dataset has a very small number of active airports 
                 // (~333), a single-stage ranking is much faster as it avoids additional serialization and network overhead.
                 .keyBy(RankAirportsResult::getWindowEnd)
-                .process(new RankAirportsRankProcessor(allowedLatenessGlobal.plusSeconds(1)))
+                .process(new RankAirportsRankProcessor())
                 .name("Q2: Global Rank")
                 .uid("q2-global-rank");
 
@@ -113,7 +111,7 @@ public class RankAirportsQuery implements Serializable {
                 .name("Q2: Window (" + label + ")")
                 .uid("q2-window-" + label)
                 .keyBy(RankAirportsResult::getWindowEnd)
-                .process(new RankAirportsRankProcessor(allowedLateness.plusSeconds(1)))
+                .process(new RankAirportsRankProcessor())
                 .name("Q2: Rank (" + label + ")")
                 .uid("q2-rank-" + label);
     }

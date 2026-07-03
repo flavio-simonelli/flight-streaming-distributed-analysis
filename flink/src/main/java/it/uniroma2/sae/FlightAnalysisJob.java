@@ -8,10 +8,11 @@ import it.uniroma2.sae.query.performance.AirlinePerformanceQuery;
 import it.uniroma2.sae.query.rank.RankAirportsQuery;
 import it.uniroma2.sae.source.SourceBuilder;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +84,10 @@ public class FlightAnalysisJob {
             );
         }
 
+        if (config.getFlink().getParallelism() > 0) {
+            env.setParallelism(config.getFlink().getParallelism());
+        }
+
         if (config.getFlink().getMaxParallelism() > 0) {
             env.setMaxParallelism(config.getFlink().getMaxParallelism());
         }
@@ -93,24 +98,29 @@ public class FlightAnalysisJob {
     /**
      * Sets up Flink's checkpointing system using the official StreamExecutionEnvironment APIs.
      */
-    private static void initCheckpointing(StreamExecutionEnvironment env, it.uniroma2.sae.config.CheckpointConfig checkpointCfg) {
+    private static void initCheckpointing(
+            StreamExecutionEnvironment env,
+            it.uniroma2.sae.config.CheckpointConfig checkpointCfg) {
+
         if (checkpointCfg == null || !checkpointCfg.isEnabled()) {
             LOG.info("Flink checkpointing is disabled.");
             return;
         }
 
-        LOG.info("Configuring Flink checkpointing (Fault Tolerance enabled)...");
-        CheckpointConfig envCp = env.getCheckpointConfig();
+        LOG.info("Configuring Flink checkpointing...");
 
-        envCp.setCheckpointInterval(checkpointCfg.getIntervalMillis());
-        envCp.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-        envCp.setMinPauseBetweenCheckpoints(checkpointCfg.getMinPauseMillis());
-        envCp.setCheckpointTimeout(checkpointCfg.getTimeoutMillis());
-        envCp.setTolerableCheckpointFailureNumber(checkpointCfg.getTolerableFailedCheckpoints());
-        envCp.enableUnalignedCheckpoints(checkpointCfg.isUnalignedCheckpoints());
-        envCp.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
+        Configuration flinkConfig = new Configuration();
 
-        configureCheckpointStorage(envCp, checkpointCfg);
+        flinkConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(checkpointCfg.getIntervalMillis()));
+        flinkConfig.set(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.EXACTLY_ONCE);
+        flinkConfig.set(CheckpointingOptions.MIN_PAUSE_BETWEEN_CHECKPOINTS, Duration.ofMillis(checkpointCfg.getMinPauseMillis()));
+        flinkConfig.set(CheckpointingOptions.CHECKPOINTING_TIMEOUT, Duration.ofMillis(checkpointCfg.getTimeoutMillis()));
+        flinkConfig.set(CheckpointingOptions.TOLERABLE_FAILURE_NUMBER, checkpointCfg.getTolerableFailedCheckpoints());
+        flinkConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, checkpointCfg.isUnalignedCheckpoints());
+        flinkConfig.set(CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, checkpointCfg.getMaxConcurrentCheckpoints());
+        configureCheckpointStorage(flinkConfig, checkpointCfg);
+
+        env.configure(flinkConfig);
     }
 
     /**
@@ -132,11 +142,11 @@ public class FlightAnalysisJob {
      * Configures the target filesystem storage for Checkpoints.
      */
     private static void configureCheckpointStorage(
-            CheckpointConfig envCp,
+            Configuration flinkConfig,
             it.uniroma2.sae.config.CheckpointConfig cpCfg) {
 
         if (cpCfg == null || cpCfg.getStorageType() == null || cpCfg.getStorageType().isBlank()) {
-            LOG.info("No checkpoint storage type configured — using Flink default (local JobManager FS).");
+            LOG.info("No checkpoint storage type configured — using Flink default.");
             return;
         }
 
@@ -150,9 +160,11 @@ public class FlightAnalysisJob {
                     throw new IllegalArgumentException(
                             "flink.checkpoint.hdfs.namenode must be specified when storageType=hdfs");
                 }
+
                 String namenode = hdfs.getNamenode().replaceAll("/+$", "");
                 String path = cpCfg.getPath() != null ? cpCfg.getPath() : "/flink/checkpoints";
                 if (!path.startsWith("/")) path = "/" + path;
+
                 checkpointUri = namenode + path;
                 LOG.info("Checkpoint storage: HDFS — {}", checkpointUri);
                 break;
@@ -164,10 +176,12 @@ public class FlightAnalysisJob {
                     throw new IllegalArgumentException(
                             "flink.checkpoint.s3.bucket must be specified when storageType=s3");
                 }
+
                 String bucket = s3.getBucket().trim();
                 String path = cpCfg.getPath() != null
                         ? cpCfg.getPath().replaceAll("^/+", "")
                         : "flink/checkpoints";
+
                 checkpointUri = "s3a://" + bucket + "/" + path;
 
                 if (s3.getAccessKey() != null && !s3.getAccessKey().isBlank()) {
@@ -177,9 +191,11 @@ public class FlightAnalysisJob {
                 } else {
                     LOG.info("S3 checkpoint storage: no explicit credentials — using IAM Instance Profile.");
                 }
+
                 if (s3.getRegion() != null && !s3.getRegion().isBlank()) {
                     System.setProperty("aws.region", s3.getRegion());
                 }
+
                 LOG.info("Checkpoint storage: S3 — {}", checkpointUri);
                 break;
             }
@@ -190,6 +206,7 @@ public class FlightAnalysisJob {
                     throw new IllegalArgumentException(
                             "flink.checkpoint.path must be specified when storageType=local");
                 }
+
                 checkpointUri = path.startsWith("file://") ? path : "file://" + path;
                 LOG.info("Checkpoint storage: local FS — {}", checkpointUri);
                 break;
@@ -201,6 +218,7 @@ public class FlightAnalysisJob {
                                 + "'. Supported values: hdfs, s3, local");
         }
 
-        envCp.setCheckpointStorage(checkpointUri);
+        flinkConfig.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+        flinkConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointUri);
     }
 }

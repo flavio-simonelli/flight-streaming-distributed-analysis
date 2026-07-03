@@ -1,7 +1,7 @@
 package it.uniroma2.sae.preprocessing;
 
-import it.uniroma2.sae.model.FlightRecord;
 import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
+import it.uniroma2.sae.model.FlightRecord;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.metrics.Counter;

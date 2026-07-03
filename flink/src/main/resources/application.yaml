@@ -49,6 +49,10 @@ flink:
   host: "flink.flight-analysis.local"
   port: 8081
 
+  # Default parallelism for all Flink operators (unless overridden by specific operator settings).
+  # Applied in FlightAnalysisJob.java using env.setParallelism() if greater than 0.
+  parallelism: 0
+
   # Maximum scalability upper-bound for keygroups.
   # Applied in FlightAnalysisJob.java using env.setMaxParallelism() if greater than 0.
   maxParallelism: 0
@@ -79,8 +83,7 @@ flink:
   # 6-hour tumbling window, and global window respectively.
   allowedLatenessQ2_1hMinutes: 0
   allowedLatenessQ2_6hMinutes: 0
-  allowedLatenessQ2_globalMinutes: 0
-  
+
   # Loaded in DelayDistributionQuery.java to configure .allowedLateness() on Query 3's 1-day tumbling window
   # and 7-day tumbling window respectively.
   allowedLatenessQ3_1dMinutes: 0
@@ -141,5 +144,5 @@ flink:
 
     # HDFS Storage Properties (Used if storageType = "hdfs")
     # Resolved to hdfs://<namenode><path> inside FlightAnalysisJob.java.
-    # hdfs:
-    #   namenode: "hdfs://hdfs.flight-analysis.local:54310"
+    hdfs:
+      namenode: "hdfs://hdfs.flight-analysis.local:54310"

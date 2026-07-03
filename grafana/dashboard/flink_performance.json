@@ -2,11 +2,11 @@
   "apiVersion": "dashboard.grafana.app/v2",
   "kind": "Dashboard",
   "metadata": {
-    "name": "restore-perf-metrics",
+    "name": "flink-perf-metrics",
     "namespace": "default",
     "uid": "f96ae3f1-095e-4c81-819c-c9a086ae0c4e",
-    "resourceVersion": "1783025176265019",
-    "generation": 10,
+    "resourceVersion": "1783040071362984",
+    "generation": 14,
     "creationTimestamp": "2026-06-29T20:39:53Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "39341723779072"
@@ -16,7 +16,7 @@
       "grafana.app/folder": "",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
       "grafana.app/updatedBy": "user:ffqlmnhchz0u8f",
-      "grafana.app/updatedTimestamp": "2026-07-02T20:46:16Z"
+      "grafana.app/updatedTimestamp": "2026-07-03T00:54:31Z"
     }
   },
   "spec": {
@@ -66,7 +66,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\")\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/ and r[\"operator_name\"] =~ /^${operator:regex}$/ and r[\"operator_name\"] != \"Watermarks\")\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\n  |> group(columns: [\"operator_name\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Throughput\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\")\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/ and r[\"operator_name\"] =~ /^${operator:regex}$/ and r[\"operator_name\"] != \"Watermarks\")\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\n  |> group(columns: [\"operator_name\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Throughput\")"
                       }
                     },
                     "refId": "A",
@@ -188,7 +188,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\")\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/ and r[\"operator_name\"] =~ /^${operator:regex}$/ and r[\"operator_name\"] != \"Watermarks\")\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\n  |> group(columns: [\"operator_name\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Throughput\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\")\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/ and r[\"operator_name\"] =~ /^${operator:regex}$/ and r[\"operator_name\"] != \"Watermarks\")\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\n  |> group(columns: [\"operator_name\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Throughput\")"
                       }
                     },
                     "refId": "A",
@@ -310,7 +310,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_taskSlotsTotal\" or \n                       r[\"_measurement\"] == \"jobmanager_taskSlotsAvailable\" or \n                       r[\"_measurement\"] == \"jobmanager_numRegisteredTaskManagers\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> keep(columns: [\"_value\", \"_measurement\"])\n  |> yield(name: \"Status\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_taskSlotsTotal\" or \n                       r[\"_measurement\"] == \"jobmanager_taskSlotsAvailable\" or \n                       r[\"_measurement\"] == \"jobmanager_numRegisteredTaskManagers\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> keep(columns: [\"_value\", \"_measurement\"])\n  |> yield(name: \"Status\")"
                       }
                     },
                     "refId": "A",
@@ -436,7 +436,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*Status_JVM_GarbageCollector_G1_Young_Generation_Count/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      component: if r.host =~ /.*jobmanager.*/ then \"JobManager\" else \"TaskManagers Mean\"\r\n     }))\r\n  |> group(columns: [\"component\"])\r\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\", \"component\"])\r\n  |> yield(name: \"gc_stable\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*Status_JVM_GarbageCollector_G1_Young_Generation_Count/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      component: if r.host =~ /.*jobmanager.*/ then \"JobManager\" else \"TaskManagers Mean\"\r\n     }))\r\n  |> group(columns: [\"component\"])\r\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\", \"component\"])\r\n  |> yield(name: \"gc_stable\")"
                       }
                     },
                     "refId": "A",
@@ -574,7 +574,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /.*Status_JVM_GarbageCollector_G1_Young_Generation_Time/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      component: if r.host =~ /.*jobmanager.*/ then \"JobManager\" else \"TaskManagers Mean\"\r\n     }))\r\n  |> group(columns: [\"component\", \"host\"])\r\n  |> derivative(unit: 1s, nonNegative: true)\r\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)\r\n  |> group(columns: [\"component\"])\r\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\", \"component\"])\r\n  |> yield(name: \"gc_time_stable\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /.*Status_JVM_GarbageCollector_G1_Young_Generation_Time/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      component: if r.host =~ /.*jobmanager.*/ then \"JobManager\" else \"TaskManagers Mean\"\r\n  }))\r\n  |> group(columns: [\"component\", \"host\"])\r\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)\r\n  |> sort(columns: [\"_time\"])\r\n  |> derivative(unit: 1s, nonNegative: true)\r\n  |> group(columns: [\"component\"])\r\n  |> aggregateWindow(every: 30s, fn: mean, createEmpty: false)\r\n  |> keep(columns: [\"_time\", \"_value\", \"component\"])\r\n  |> yield(name: \"gc_time_stable\")"
                       }
                     },
                     "refId": "A",
@@ -725,7 +725,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /.*Source.*/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] >= 0.0)\r\n\r\n  |> group(columns: [\"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: true)\r\n  |> fill(column: \"_value\", usePrevious: true)\r\n\r\n  |> group(columns: [\"_time\"])\r\n  |> sum(column: \"_value\")\r\n\r\n  |> group()\r\n  |> yield(name: \"Throughput_E2E_IN_Total\")"
+                        "query": "from(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsInPerSecond\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /.*Source.*/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] >= 0.0)\r\n\r\n  |> group(columns: [\"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: true)\r\n  |> fill(column: \"_value\", usePrevious: true)\r\n\r\n  |> group(columns: [\"_time\"])\r\n  |> sum(column: \"_value\")\r\n\r\n  |> group()\r\n  |> yield(name: \"Throughput_E2E_IN_Total\")"
                       }
                     },
                     "refId": "A",
@@ -891,7 +891,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_latency.*latency$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"mean\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Writer.*/)\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> map(fn: (r) => {\r\n      writer = regexp.replaceAllString(\r\n        r: /^.*->\\s*/,\r\n        v: r.task_name,\r\n        t: \"\"\r\n      )\r\n\r\n      q = regexp.findString(r: /Q[0-9]+/, v: writer)\r\n\r\n      w =\r\n        if strings.containsStr(v: writer, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: writer, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: writer, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: writer, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: writer, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"Mean \" + q + \": \" + w\r\n      }\r\n  })\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"Latency_Mean_Final_Writers\")"
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_latency.*latency$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"mean\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Writer.*/)\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> map(fn: (r) => {\r\n      writer = regexp.replaceAllString(\r\n        r: /^.*->\\s*/,\r\n        v: r.task_name,\r\n        t: \"\"\r\n      )\r\n\r\n      q = regexp.findString(r: /Q[0-9]+/, v: writer)\r\n\r\n      w =\r\n        if strings.containsStr(v: writer, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: writer, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: writer, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: writer, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: writer, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"Mean \" + q + \": \" + w\r\n      }\r\n  })\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"Latency_Mean_Final_Writers\")"
                       }
                     },
                     "refId": "A",
@@ -1012,7 +1012,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]:.*Sink: Writer$/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] >= 0.0)\r\n\r\n  |> group(columns: [\"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: true)\r\n  |> fill(column: \"_value\", usePrevious: true)\r\n\r\n  |> group(columns: [\"_time\"])\r\n  |> sum(column: \"_value\")\r\n\r\n  |> group()\r\n  |> yield(name: \"Throughput_E2E_OUT_Total\")"
+                        "query": "from(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]:.*Sink: Writer$/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] >= 0.0)\r\n\r\n  |> group(columns: [\"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: true)\r\n  |> fill(column: \"_value\", usePrevious: true)\r\n\r\n  |> group(columns: [\"_time\"])\r\n  |> sum(column: \"_value\")\r\n\r\n  |> group()\r\n  |> yield(name: \"Throughput_E2E_OUT_Total\")"
                       }
                     },
                     "refId": "A",
@@ -1179,7 +1179,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_lastCheckpointSize\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])\n  |> yield(name: \"Checkpoints\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_lastCheckpointSize\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])\n  |> yield(name: \"Checkpoints\")"
                       }
                     },
                     "refId": "A",
@@ -1287,7 +1287,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]:.*Sink: Writer$/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] >= 0.0)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      query: if strings.hasPrefix(v: r.operator_name, prefix: \"Q1\") then \"Query 1\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q2\") then \"Query 2\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q3\") then \"Query 3\"\r\n             else \"Other\"\r\n  }))\r\n\r\n  // 1. Mantieni separati i vari writer della stessa query\r\n  |> group(columns: [\"query\", \"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: true)\r\n  |> fill(column: \"_value\", usePrevious: true)\r\n\r\n  // 2. Somma tutti i writer/subtask della stessa query\r\n  |> group(columns: [\"query\", \"_time\"])\r\n  |> sum(column: \"_value\")\r\n\r\n  // 3. Una curva per query\r\n  |> group(columns: [\"query\"])\r\n  |> yield(name: \"Throughput_OUT_Per_Query\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_numRecordsOutPerSecond\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rate\")\r\n  |> filter(fn: (r) => r[\"operator_name\"] =~ /^Q[1-3]:.*Sink: Writer$/)\r\n  |> toFloat()\r\n  |> filter(fn: (r) => r[\"_value\"] >= 0.0)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      query: if strings.hasPrefix(v: r.operator_name, prefix: \"Q1\") then \"Query 1\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q2\") then \"Query 2\"\r\n             else if strings.hasPrefix(v: r.operator_name, prefix: \"Q3\") then \"Query 3\"\r\n             else \"Other\"\r\n  }))\r\n\r\n  // 1. Mantieni separati i vari writer della stessa query\r\n  |> group(columns: [\"query\", \"operator_name\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: true)\r\n  |> fill(column: \"_value\", usePrevious: true)\r\n\r\n  // 2. Somma tutti i writer/subtask della stessa query\r\n  |> group(columns: [\"query\", \"_time\"])\r\n  |> sum(column: \"_value\")\r\n\r\n  // 3. Una curva per query\r\n  |> group(columns: [\"query\"])\r\n  |> yield(name: \"Throughput_OUT_Per_Query\")"
                       }
                     },
                     "refId": "A",
@@ -1453,7 +1453,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\n\nfrom(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_isBackPressured\")\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> map(fn: (r) => ({ \n      r with \n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0] \n  }))\n  |> group(columns: [\"cleaned_task\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: if string(v: r._value) == \"true\" or string(v: r._value) == \"1\" then 1 else 0 }))\n  |> yield(name: \"Backpressure\")"
+                        "query": "import \"strings\"\n\nfrom(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_isBackPressured\")\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> map(fn: (r) => ({ \n      r with \n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0] \n  }))\n  |> group(columns: [\"cleaned_task\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: if string(v: r._value) == \"true\" or string(v: r._value) == \"1\" then 1 else 0 }))\n  |> yield(name: \"Backpressure\")"
                       }
                     },
                     "refId": "A",
@@ -1572,7 +1572,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_busyTimeMsPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0],\r\n      _value: float(v: r._value) / 10.0\r\n     }))\r\n  \r\n  |> group(columns: [\"cleaned_task\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"busy_time_per_task\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_busyTimeMsPerSecond\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0],\r\n      _value: float(v: r._value) / 10.0\r\n     }))\r\n  \r\n  |> group(columns: [\"cleaned_task\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"busy_time_per_task\")"
                       }
                     },
                     "refId": "A",
@@ -1692,7 +1692,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_Shuffle_Netty_Input_Buffers_inPoolUsage\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0]\r\n     }))\r\n  |> group(columns: [\"cleaned_task\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"netty_input_usage\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_Shuffle_Netty_Input_Buffers_inPoolUsage\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0]\r\n     }))\r\n  |> group(columns: [\"cleaned_task\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"netty_input_usage\")"
                       }
                     },
                     "refId": "A",
@@ -1810,7 +1810,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_Shuffle_Netty_Output_Buffers_outPoolUsage\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0]\r\n     }))\r\n  |> group(columns: [\"cleaned_task\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"netty_output_usage\")"
+                        "query": "import \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_Shuffle_Netty_Output_Buffers_outPoolUsage\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\r\n  |> map(fn: (r) => ({\r\n      r with\r\n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0]\r\n     }))\r\n  |> group(columns: [\"cleaned_task\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"netty_output_usage\")"
                       }
                     },
                     "refId": "A",
@@ -1928,7 +1928,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_total_late_records_count\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"count\")\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"custom_late_tracks_rate\")"
+                        "query": "from(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_total_late_records_count\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"count\")\r\n  |> toFloat()\r\n  |> group(columns: [\"operator_name\", \"host\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\r\n  |> yield(name: \"late_records_cumulative\")"
                       }
                     },
                     "refId": "A",
@@ -1937,7 +1937,9 @@
                 }
               ],
               "transformations": [],
-              "queryOptions": {}
+              "queryOptions": {
+                "interval": "15s"
+              }
             }
           },
           "vizConfig": {
@@ -2045,7 +2047,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_max_lateness_minutes_absolute\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> group(columns: [\"_field\", \"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"lateness_percentiles\")"
+                        "query": "from(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_max_lateness_minutes_absolute\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> group(columns: [\"operator_name\", \"host\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> sort(columns: [\"_time\"])\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"max_lateness_absolute\")"
                       }
                     },
                     "refId": "A",
@@ -2054,7 +2056,9 @@
                 }
               ],
               "transformations": [],
-              "queryOptions": {}
+              "queryOptions": {
+                "interval": "15s"
+              }
             }
           },
           "vizConfig": {
@@ -2083,6 +2087,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.operator_name}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -2163,7 +2168,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_currentInputWatermark\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0)\r\n  |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> yield(name: \"operators_event_time\")"
+                        "query": "from(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_currentInputWatermark\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0)\r\n  |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> yield(name: \"operators_event_time\")"
                       }
                     },
                     "refId": "A",
@@ -2294,7 +2299,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_currentInputWatermark\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Kafka Source.*/)\r\n  |> filter(fn: (r) => r[\"_value\"] > 0)\r\n  |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n  |> group(columns: [\"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> yield(name: \"partition_watermarks\")"
+                        "query": "from(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_job_task_operator_currentInputWatermark\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Kafka Source.*/)\r\n  |> filter(fn: (r) => r[\"_value\"] > 0)\r\n  |> map(fn: (r) => ({ r with _value: float(v: r._value) }))\r\n  |> group(columns: [\"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> yield(name: \"partition_watermarks\")"
                       }
                     },
                     "refId": "A",
@@ -2425,7 +2430,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_lastCheckpointRestoreTimestamp\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> filter(fn: (r) => r[\"_value\"] > 0)\n  |> keep(columns: [\"_value\"])"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_lastCheckpointRestoreTimestamp\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> filter(fn: (r) => r[\"_value\"] > 0)\n  |> keep(columns: [\"_value\"])"
                       }
                     },
                     "refId": "A",
@@ -2504,7 +2509,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_oldest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Oldest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Oldest_P95\")"
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_oldest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Oldest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Oldest_P95\")"
                       }
                     },
                     "refId": "A",
@@ -2625,7 +2630,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\n\nfrom(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /^taskmanager_job_task_latency.*latency$/)\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"mean\") \n  |> map(fn: (r) => ({ \n      r with \n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0] \n  }))\n  |> group(columns: [\"cleaned_task\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Mean Latency\")"
+                        "query": "import \"strings\"\n\nfrom(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] =~ /^taskmanager_job_task_latency.*latency$/)\n  |> filter(fn: (r) => r[\"task_name\"] =~ /^${task:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"mean\") \n  |> map(fn: (r) => ({ \n      r with \n      cleaned_task: strings.split(v: r.task_name, t: \" -> \")[0] \n  }))\n  |> group(columns: [\"cleaned_task\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Mean Latency\")"
                       }
                     },
                     "refId": "A",
@@ -2744,7 +2749,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_avg_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Avg \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Avg_P95\")"
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_avg_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Avg \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Avg_P95\")"
                       }
                     },
                     "refId": "A",
@@ -2865,7 +2870,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_newest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Newest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Newest_P95\")"
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"flink-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_newest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Newest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Newest_P95\")"
                       }
                     },
                     "refId": "A",
@@ -2986,7 +2991,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_lastCheckpointDuration\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\", \"job_name\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])\n  |> yield(name: \"Checkpoints\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_lastCheckpointDuration\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\", \"job_name\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_measurement\"])\n  |> yield(name: \"Checkpoints\")"
                       }
                     },
                     "refId": "A",
@@ -3119,7 +3124,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_numberOfCompletedCheckpoints\" or \n                       r[\"_measurement\"] == \"jobmanager_job_numberOfInProgressCheckpoints\" or\n                       r[\"_measurement\"] == \"jobmanager_job_numberOfFailedCheckpoints\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\"])\n  // Prendiamo il valore più recente (last) visto che sono contatori incrementali\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> keep(columns: [\"_value\", \"_measurement\"])\n  |> yield(name: \"CheckpointCounts\")"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"jobmanager_job_numberOfCompletedCheckpoints\" or \n                       r[\"_measurement\"] == \"jobmanager_job_numberOfInProgressCheckpoints\" or\n                       r[\"_measurement\"] == \"jobmanager_job_numberOfFailedCheckpoints\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> group(columns: [\"_measurement\"])\n  // Prendiamo il valore più recente (last) visto che sono contatori incrementali\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> keep(columns: [\"_value\", \"_measurement\"])\n  |> yield(name: \"CheckpointCounts\")"
                       }
                     },
                     "refId": "A",
@@ -3266,7 +3271,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_Status_JVM_CPU_Load\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
+                        "query": "from(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_Status_JVM_CPU_Load\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 100.0 }))"
                       }
                     },
                     "refId": "A",
@@ -3385,7 +3390,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"strings\"\n\nfrom(bucket: \"restored-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_Status_JVM_Memory_Heap_Used\" or r[\"_measurement\"] == \"taskmanager_Status_JVM_Memory_Heap_Max\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> map(fn: (r) => ({ \n      r with \n      type: if r._measurement == \"taskmanager_Status_JVM_Memory_Heap_Used\" then \"Used Heap\" else \"Max Heap\",\n  }))\n  |> group(columns: [\"host\", \"type\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+                        "query": "import \"strings\"\n\nfrom(bucket: \"flink-metrics\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"taskmanager_Status_JVM_Memory_Heap_Used\" or r[\"_measurement\"] == \"taskmanager_Status_JVM_Memory_Heap_Max\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> map(fn: (r) => ({ \n      r with \n      type: if r._measurement == \"taskmanager_Status_JVM_Memory_Heap_Used\" then \"Used Heap\" else \"Max Heap\",\n  }))\n  |> group(columns: [\"host\", \"type\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
                       }
                     },
                     "refId": "A",
@@ -3959,8 +3964,8 @@
     ],
     "timeSettings": {
       "timezone": "utc",
-      "from": "now-5m",
-      "to": "now",
+      "from": "2026-07-03T00:17:47.559Z",
+      "to": "2026-07-03T00:31:35.674Z",
       "autoRefresh": "auto",
       "autoRefreshIntervals": [
         "5s",
@@ -3977,7 +3982,7 @@
       "hideTimepicker": false,
       "fiscalYearStartMonth": 0
     },
-    "title": "Restored Performance Metrics",
+    "title": "Flink Performance Metrics",
     "variables": [
       {
         "kind": "QueryVariable",
@@ -4001,13 +4006,13 @@
               "name": "influxdb-metrics"
             },
             "spec": {
-              "query": "import \"influxdata/influxdb/schema\"\nschema.measurementTagValues(bucket: \"restored-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"task_name\")"
+              "query": "import \"influxdata/influxdb/schema\"\nschema.measurementTagValues(bucket: \"flink-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"task_name\")"
             }
           },
           "regex": "",
           "regexApplyTo": "value",
           "sort": "alphabeticalAsc",
-          "definition": "import \"influxdata/influxdb/schema\"\nschema.measurementTagValues(bucket: \"restored-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"task_name\")",
+          "definition": "import \"influxdata/influxdb/schema\"\nschema.measurementTagValues(bucket: \"flink-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"task_name\")",
           "options": [],
           "multi": true,
           "includeAll": true,
@@ -4034,13 +4039,13 @@
               "name": "influxdb-metrics"
             },
             "spec": {
-              "query": "import \"influxdata/influxdb/schema\"\r\nschema.measurementTagValues(bucket: \"restored-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"operator_name\")"
+              "query": "import \"influxdata/influxdb/schema\"\r\nschema.measurementTagValues(bucket: \"flink-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"operator_name\")"
             }
           },
           "regex": "",
           "regexApplyTo": "value",
           "sort": "alphabeticalAsc",
-          "definition": "import \"influxdata/influxdb/schema\"\r\nschema.measurementTagValues(bucket: \"restored-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"operator_name\")",
+          "definition": "import \"influxdata/influxdb/schema\"\r\nschema.measurementTagValues(bucket: \"flink-metrics\", measurement: \"taskmanager_job_task_operator_numRecordsOutPerSecond\", tag: \"operator_name\")",
           "options": [],
           "multi": true,
           "includeAll": true,

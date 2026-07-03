@@ -6,8 +6,8 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
+
 import java.io.Serial;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.PriorityQueue;
@@ -20,12 +20,7 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
     @Serial
     private static final long serialVersionUID = 1L;
 
-    private final long rankDelayMillis;
     private transient MapState<Integer, RankAirportsResult> windowState;
-
-    public RankAirportsRankProcessor(Duration rankDelay) {
-        this.rankDelayMillis = rankDelay.toMillis();
-    }
 
     private transient ProcessingLatencyTracker latencyTracker;
 
@@ -43,7 +38,7 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
     @Override
     public void processElement(RankAirportsResult value, Context ctx, Collector<RankAirportsResult> out) throws Exception {
         windowState.put(value.getOriginAirportId(), value);
-        ctx.timerService().registerEventTimeTimer(ctx.getCurrentKey() + rankDelayMillis);
+        ctx.timerService().registerEventTimeTimer(ctx.getCurrentKey());
     }
 
     @Override

@@ -1,11 +1,12 @@
 package it.uniroma2.sae.query.rank;
 
 import it.uniroma2.sae.metrics.ProcessingLatencyTracker;
-import org.apache.flink.api.common.functions.OpenContext;
 import it.uniroma2.sae.utils.MathUtils;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.util.Collector;
+
 import java.io.Serial;
 import java.time.Duration;
 import java.util.Iterator;
