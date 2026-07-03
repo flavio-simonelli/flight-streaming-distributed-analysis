@@ -48,7 +48,7 @@ public class DelayDistributionAccumulator implements Serializable {
      *     <li>{@code 4096}: useful only when the value range is very large or collapsing must be minimized.</li>
      * </ul>
      */
-    private static final int MAX_STORE_BINS = 4096;
+    private static final int MAX_STORE_BINS = 2048;
 
     /**
      * Active quantile sketch structure.

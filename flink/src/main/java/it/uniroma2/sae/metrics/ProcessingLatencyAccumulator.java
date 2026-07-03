@@ -17,7 +17,7 @@ public class ProcessingLatencyAccumulator implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private static final double RELATIVE_ACCURACY = 0.01;
-    private static final int MAX_STORE_BINS = 1024;
+    private static final int MAX_STORE_BINS = 2048;
 
     private transient DDSketch sketch;
     private double max = 0.0;
