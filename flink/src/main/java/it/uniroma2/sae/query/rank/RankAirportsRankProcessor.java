@@ -43,7 +43,7 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
 
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<RankAirportsResult> out) throws Exception {
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         long maxIngestion = 0L;
         long minIngestion = Long.MAX_VALUE;
         long sumIngestion = 0L;
@@ -61,7 +61,7 @@ public class RankAirportsRankProcessor extends KeyedProcessFunction<Long, RankAi
         try {
             onTimerInternal(timestamp, ctx, out);
         } finally {
-            long duration = System.currentTimeMillis() - start;
+            double duration = (System.nanoTime() - start) / 1_000_000.0;
             if (latencyTracker != null) {
                 latencyTracker.updateOperator(duration);
                 latencyTracker.updateE2E(maxIngestion, minIngestion, avgIngest);

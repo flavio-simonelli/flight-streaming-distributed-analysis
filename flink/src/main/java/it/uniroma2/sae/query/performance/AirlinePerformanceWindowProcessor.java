@@ -43,11 +43,11 @@ public class AirlinePerformanceWindowProcessor extends ProcessWindowFunction<Air
             Iterable<AirlinePerformanceAccumulator> accumulators,
             Collector<AirlinePerformanceResult> out) throws Exception {
 
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         try {
             processInternal(airline, ctx, accumulators, out);
         } finally {
-            long duration = System.currentTimeMillis() - start;
+            double duration = (System.nanoTime() - start) / 1_000_000.0;
             if (latencyTracker != null) {
                 latencyTracker.updateOperator(duration);
                 // Extract accumulator to get maxSystemIngestionTime

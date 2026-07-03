@@ -38,9 +38,9 @@ public class LogicalInconsistencyFilter extends RichFilterFunction<FlightRecord>
      */
     @Override
     public boolean filter(FlightRecord raw) {
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         boolean res = filterInternal(raw);
-        long duration = System.currentTimeMillis() - start;
+        double duration = (System.nanoTime() - start) / 1_000_000.0;
 
         if (latencyTracker != null) {
             latencyTracker.updateOperator(duration);

@@ -42,11 +42,11 @@ public class RankAirportsGlobalWindowProcessor
             Iterable<RankAirportsAccumulator> elements,
             Collector<RankAirportsResult> out) throws Exception {
 
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         try {
             processInternal(key, context, elements, out);
         } finally {
-            long duration = System.currentTimeMillis() - start;
+            double duration = (System.nanoTime() - start) / 1_000_000.0;
             if (latencyTracker != null) {
                 latencyTracker.updateOperator(duration);
                 Iterator<RankAirportsAccumulator> iterator = elements.iterator();

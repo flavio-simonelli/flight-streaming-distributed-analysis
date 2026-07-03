@@ -108,13 +108,17 @@ public class ProcessingLatencyTracker implements Serializable {
 
     /**
      * Records a new operator execution time sample.
-     * Safeguards against clock skew by enforcing a non-negative boundary.
+     * <p>
+     * Note: This measurement is computed entirely locally within the same thread on a single node.
+     * Therefore, it is completely immune to cross-node clock skew. The Math.max(0.0, durationMs) check
+     * is purely a safeguard against rare CPU/JVM timer anomalies or JIT execution jitter.
+     * </p>
      *
-     * @param durationMs the elapsed operator duration directly in milliseconds
+     * @param durationMs the elapsed operator duration directly in milliseconds (double value)
      */
-    public void updateOperator(long durationMs) {
+    public void updateOperator(double durationMs) {
         if (operatorAccumulator != null) {
-            // Protect against clock skew / timer anomalies
+            // Protect against local timer anomalies/jitter
             operatorAccumulator.add(Math.max(0.0, durationMs));
         }
     }
