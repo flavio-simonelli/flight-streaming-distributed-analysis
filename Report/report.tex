@@ -11,6 +11,7 @@
 \usepackage{hyperref}
 \usepackage{cite} % IEEE specific package for bibliography management
 \usepackage{tabularx}
+\usepackage{float}
 
 % Configurazione
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -137,23 +138,14 @@ Il resto della relazione è organizzato come segue: la Sezione~\ref{sec:system_a
 
 L'architettura di \textit{Sky Analytics Stream} è concepita come una pipeline multi-tier per lo stream processing distribuito, orientata ad alta scalabilità, robustezza e tolleranza ai guasti. Il sistema adotta un approccio a microservizi disaccoppiati in cui ciascun componente presiede a una specifica fase della pipeline: generazione, brokeraggio, elaborazione, persistenza e visualizzazione, come illustrato nello schema logico di Fig.~\ref{fig:architecture}.
 
-\begin{figure}[h]
+\subsection{Lo Stack Tecnologico (Big Data Stack)}\label{subsec:big_data_stack}
+
+\begin{figure}[H]
   \centering
-  \fbox{\parbox[c][3.2cm][c]{0.92\columnwidth}{\centering
-  \textbf{SCHEMA ARCHITETTURALE LOGICO}\\
-  \vspace{0.1cm}
-  [Go Simulator] $\rightarrow$ Kafka (\texttt{flights-stream}) $\rightarrow$ [Apache Flink]\\
-  \quad $\searrow$ Q1: Stats Compagnie \\
-  \quad $\searrow$ Q2: Classifiche Top-10 Aeroporti\\
-  \quad $\searrow$ Q3: Percentili DDSketch\\
-  Flink Output $\rightarrow$ Kafka (results) $\rightarrow$ Telegraf $\rightarrow$ InfluxDB $\rightarrow$ Grafana\\
-  \vspace{0.1cm}
-  RocksDB State Backend $\rightarrow$ Checkpoint $\rightarrow$ HDFS}}
+  \includegraphics[width=0.95\columnwidth]{graphs/BigDataStack.png}
   \caption{Flusso dei dati e integrazione dei framework in Sky Analytics Stream.}
   \label{fig:architecture}
 \end{figure}
-
-\subsection{Lo Stack Tecnologico (Big Data Stack)}\label{subsec:big_data_stack}
 
 La pipeline si articola in sei livelli architetturali principali:
 
@@ -228,6 +220,96 @@ Il simulatore implementa diverse funzionalità avanzate e ottimizzazioni ingegne
     \item \textbf{Gestione del Tempo Fisico e Replay ad Alta Precisione (Sleep-Spinlock)}: Per ciascun volo, l'event-time logico viene ricostruito combinando i campi \texttt{YEAR}, \texttt{MONTH}, \texttt{DAY\_OF\_MONTH} e l'orario programmato \texttt{CRS\_DEP\_TIME}. Il simulatore emula la distanza temporale reale tra i voli applicando un fattore di compressione del tempo (\textit{Speedup Factor}) ed attendendo la differenza relativa ($\Delta t$) riscalata rispetto all'evento precedente. Con alti fattori di accelerazione (dove le finestre temporali logiche di un'ora si contraggono in pochi millisecondi reali), le funzioni di \textit{sleep} del sistema operativo risulterebbero inadeguate a causa dell'overhead dello scheduler del kernel e dei \textit{context switch}. Per ovviare a ciò, è stata implementata una strategia di attesa ibrida (\textit{Sleep-Spinlock}): se l'attesa supera la soglia critica (\textit{spin threshold} nel file di configurazione), il thread esegue una sleep cooperativa rilasciando la CPU, mentre al di sotto di tale valore effettua un \textbf{spinlock} (attesa attiva). Questo impedisce la sospensione del processo da parte del kernel nel momento critico, garantendo precisioni nell'ordine dei microsecondi ed assicurando l'uniformità del throughput programmato.
     
     \item \textbf{Generazione di Disordine (Out-of-Order Injection)}: Al fine di stressare e validare le strategie di Watermarking e la gestione dei dati tardivi (\textit{allowed lateness}) di Apache Flink e analizzare il sistema in scenari realistici dove le sorgenti sono diversificate e poco affidabili, il simulatore implementa un decoratore basato su un algoritmo probabilistico. Con una probabilità definita $P \in [0, 1]$, un record viene selezionato e il suo istante di pubblicazione viene dislocato in avanti nel tempo di un offset casuale limitato da un valore massimo configurabile ($\delta_{max}$ in minuti logici). La sequenza di eventi risultante viene infine ri-ordinata sul tempo di pubblicazione reale prima dell'invio, riproducendo accuratamente i tipici disallineamenti di rete di uno stream distribuito.
+    
+    \item \textbf{Pubblicazione asincrona su Kafka}: i record sono serializzati in JSON mantenendo i nomi delle colonne BTS e inviati al topic \texttt{flights-stream} mediante \texttt{kafka-go}. Il writer usa bilanciamento round-robin, batch fino a 100 messaggi o 100 kB, timeout di 2 ms e modalità asincrona, evitando che la conferma di ogni singolo messaggio alteri la temporizzazione del replay. In alternativa, un sink testuale consente test locali senza Kafka per sviluppo e debugging.
+\end{itemize}
+
+\subsection{Infrastruttura di Disaccoppiamento ed Event Bus: Apache Kafka}\label{subsec:kafka_integration}
+
+Per disaccoppiare la sorgente dei dati (il simulatore Go) dal motore di stream processing (Apache Flink), è stato integrato \textbf{Apache Kafka} come message broker distribuito ad alto throughput. Kafka funge da polmone architetturale, assorbendo le fluttuazioni di carico del flusso in ingresso ed esponendo i dati in modo ordinato e persistente.
+
+\subsubsection{Organizzazione dei Topic e Partizionamento}\label{subsubsec:kafka_topics}
+Il flusso di dati in ingresso è gestito tramite il topic principale \texttt{flights-stream}, configurato con $6$ partizioni parallele. Il partizionamento consente di parallelizzare l'elaborazione su più slot di esecuzione di Flink, garantendo la scalabilità orizzontale del sistema.
+Per la storicizzazione dei risultati analitici prodotti dalle tre query concorrenti, sono stati definiti diversi topic di output dedicati per ciascuna finestra e granularità temporale (es. \texttt{flights-q1-results}, \texttt{flights-q2-1h-results}, \texttt{flights-q3-1d-results}, ecc.). Questo disaccoppia ulteriormente Flink dai database di storage a valle, permettendo a componenti ausiliari come Telegraf di consumare i risultati in modalità asincrona.
+
+\subsubsection{Fase di Ingestione in Flink (Kafka Source)}\label{subsubsec:kafka_source}
+L'integrazione di Kafka come sorgente dati in Flink avviene tramite la classe nativa \texttt{KafkaSource}, istanziata mediante un builder personalizzato (\texttt{SourceBuilder}). Il consumo dello stream parte dall'offset meno recente (\texttt{OffsetsInitializer.earliest()}). 
+
+Per mappare i byte grezzi transitati su Kafka in oggetti Java tipizzati, è stato implementato uno schema di deserializzazione custom, \texttt{FlightRecordDeserializationSchema} (che implementa l'interfaccia \texttt{KafkaRecordDeserializationSchema<FlightRecord>}). Tale classe esegue le seguenti operazioni per ogni record consumato:
+\begin{itemize}
+    \item \textbf{Deserializzazione JSON}: Utilizza una libreria Jackson \texttt{ObjectMapper} (dichiarata \texttt{transient} e istanziata lazy per evitare errori di serializzazione nei TaskManager) per decodificare il payload del messaggio in un oggetto \texttt{FlightRecord}, scartando in modo tollerante eventuali record corrotti o messaggi vuoti (tombstone);
+    \item \textbf{Estrazione dell'Event-Time}: Calcola l'epoch millisecondi logico associato al volo (\texttt{eventTimeMillis}) combinando i campi data e ora del record;
+    \item \textbf{Iniezione del Tempo di Ingestione}: Inietta nel record il timestamp fisico corrente del sistema (\texttt{systemIngestionTime}) tramite \texttt{System.currentTimeMillis()}. Questo passaggio è cruciale per misurare accuratamente la latenza end-to-end della pipeline a valle.
+\end{itemize}
+
+\subsubsection{Fase di Scrittura dei Risultati (Kafka Sink)}\label{subsubsec:kafka_sink}
+Le tre query analitiche concorrenti producono flussi di risultati che vengono re-iniettati in Kafka tramite istanze di \texttt{KafkaSink}, configurate con la garanzia di consegna \texttt{DeliveryGuarantee.AT\_LEAST\_ONCE} per garantire la tolleranza ai guasti senza l'overhead delle transazioni a due fasi.
+
+La serializzazione da oggetti Java a payload JSON pronti per essere trasmessi in rete è delegata a schemi di serializzazione personalizzati (come \texttt{AirlinePerformanceRecordSerializer} per la Query 1 e \texttt{DelayDistributionRecordSerializer} per la Query 3). Ognuno di essi serializza lo stato dell'oggetto in array di byte JSON. Nel caso della Query 1, il codice della compagnia aerea (\texttt{OP\_UNIQUE\_CARRIER}) viene utilizzato esplicitamente come chiave di partizionamento del record Kafka. Questo assicura che gli eventi relativi allo stesso vettore vengano inoltrati alla medesima partizione di Kafka, agevolando eventuali letture downstream ordinate o partizionate per chiave.
+\subsection{Motore di Stream Processing: Apache Flink}\label{subsec:flink_component}
+
+Il core computazionale dell'applicazione è implementato in **Apache Flink** e strutturato in un unico job distribuito. La topologia a grafo aciclico (DAG) è definita all'interno della classe principale \texttt{FlightAnalysisJob} ed è ottimizzata per eseguire in parallelo le tre query analitiche condividendo la sorgente dei dati e la fase di preprocessing, riducendo al minimo l'overhead di I/O e di rete.
+
+\subsubsection{Configurazione dell'Environment e Watermarking}\label{subsubsec:flink_env}
+Il job rileva dinamicamente l'ambiente di esecuzione controllando la variabile d'ambiente \texttt{FLINK\_CONF\_DIR}: in caso di esecuzione su cluster distribuito, si collega all'environment corrente; in caso di debug locale, avvia un mini-cluster in-process o invia il pacchetto fat-jar a un JobManager remoto. 
+
+Per la gestione dell'avanzamento del tempo logico, viene configurata una strategia di watermarking basata su event-time (\texttt{WatermarkStrategy}) che estrae il timestamp in millisecondi generato dal simulatore. La tolleranza al disordine temporale dei record (introdotti probabilisticamente dal simulatore) è gestita tramite la politica \texttt{forBoundedOutOfOrderness}, configurabile in minuti logici. Per evitare blocchi di esecuzione nel caso in cui una delle 6 partizioni Kafka risulti temporaneamente inattiva, la strategia è irrobustita con un timeout di idleness (\texttt{withIdleness}), che esclude temporaneamente la partizione dal calcolo del watermark globale.
+
+\subsubsection{Meccanismo di Checkpointing e Fault Tolerance}\label{subsubsec:flink_checkpointing}
+La tolleranza ai guasti con semantica di elaborazione \emph{exactly-once} è interamente delegata al meccanismo di checkpointing distribuito di Flink. Le opzioni configurate a livello di engine includono:
+\begin{itemize}
+    \item \textbf{Minimo intervallo di pausa} (\texttt{MIN\_PAUSE\_BETWEEN\_CHECKPOINTS}): Previene la saturazione delle risorse di storage ed elaborazione impedendo a Flink di innescare un nuovo checkpoint se il precedente non è terminato da un intervallo minimo specificato (evitando il fenomeno della \emph{checkpoint backpressure});
+    \item \textbf{Unaligned Checkpoints}: Se abilitati da configurazione, consentono di eseguire checkpoint asincroni superando i messaggi bloccati nei buffer dei canali di rete, riducendo i tempi di salvataggio in presenza di forte contropressione;
+    \item \textbf{Storage Backend ibrido}: Lo stato locale delle finestre e degli accumulatori è ospitato in-memory o su disco locale tramite \textbf{RocksDB} (State Backend). RocksDB supporta salvataggi incrementali asincroni che vengono inviati e replicati su **HDFS** (o Amazon S3 in ambienti cloud) all'URI configurato.
+\end{itemize}
+
+\subsubsection{Data Quality e Preprocessing}\label{subsubsec:flink_preprocessing}
+Prima di biforcare il flusso di eventi verso le tre query, il flusso grezzo attraversa la classe \texttt{PipelinePreprocessing}. Questa esegue un filtro logico-strutturale (\texttt{LogicalInconsistencyFilter}) implementato come \texttt{RichFilterFunction}:
+\begin{itemize}
+    \item Scarta record corrotti, con riferimenti nulli o campi obbligatori mancanti (es. identificativi aeroporto, codice compagnia, orari programmati);
+    \item Rileva e scarta incoerenze semantiche nel dataset (ad esempio, voli contrassegnati contemporaneamente come cancellati e dirottati);
+    \item Raccoglie metriche di telemetria incrementando un contatore Flink personalizzato (\texttt{corrupted\_records\_total}) per il monitoraggio della qualità dei dati e aggiorna un tracciatore di latenza basato sulla differenza tra il tempo fisico di elaborazione e il \texttt{systemIngestionTime} registrato in fase di decodifica Kafka.
+\end{itemize}
+
+\subsubsection{Query 1: Statistiche delle Compagnie Aeree}\label{subsubsec:query1_implementation}
+La prima query calcola su base oraria le performance dei quattro vettori target (\texttt{AA}, \texttt{DL}, \texttt{UA}, \texttt{WN}). Il flusso viene filtrato tramite \texttt{TargetAirlineFilter}, proiettato su oggetti leggeri \texttt{AirlinePerformanceEvent} per minimizzare lo stato occupato, e quindi partizionato tramite \texttt{keyBy} sul codice della compagnia.
+
+La finestra temporale è di tipo tumbling basata su event-time con durata fissa di $1$ ora. Per gestire i record in ritardo senza perdere accuratezza, viene applicata una tolleranza di latenza (\texttt{allowedLateness}). I record che giungono oltre questa soglia vengono convogliati in un canale di side-output (\texttt{q1-late-flights}) e analizzati da un \texttt{LateRecordMetricAnalyzer} per fini statistici.
+L'aggregazione è implementata combinando:
+\begin{enumerate}
+    \item \textbf{AirlinePerformanceAggregator}: Una \texttt{AggregateFunction} che calcola in modo incrementale l'accumulatore dello stato (\texttt{AirlinePerformanceAccumulator}) mantenendo in memoria un footprint costante di complessità $O(1)$ per chiave (conteggio voli, cancellazioni, deviazioni, partenze ritardate oltre i 15 minuti e somma dei ritardi di partenza);
+    \item \textbf{AirlinePerformanceWindowProcessor}: Una \texttt{ProcessWindowFunction} che viene invocata solo alla chiusura della finestra logica. Riceve l'accumulatore pre-calcolato e vi associa i metadati della finestra (inizio e fine) per generare il record finale \texttt{AirlinePerformanceResult} da inviare a Kafka.
+\end{enumerate}
+
+\subsubsection{Query 2: Classifica Top-10 degli Aeroporti con Ritardi Severi}\label{subsubsec:query2_implementation}
+La seconda query individua i $10$ aeroporti di partenza con il maggior numero di ritardi severi (ritardo di partenza $> 15$ minuti). Il calcolo è effettuato concorrentemente su tre ambiti temporali: finestre tumbling di $1$ ora, finestre tumbling di $6$ ore e una finestra globale ad accumulo continuo (\texttt{GlobalWindows}) che emette risultati parziali a intervalli regolari (es. ogni 24 ore logiche) tramite un trigger temporale continuo (\texttt{ContinuousEventTimeTrigger}).
+
+La topologia adotta una strategia di **classificazione in due fasi logiche** per ottimizzare il throughput e gestire il disordine:
+\begin{itemize}
+    \item \textbf{Fase 1: Aggregazione Locale}: Lo stream è partizionato per \texttt{originAirportId}. Su ciascuna partizione viene aperta la finestra temporale e calcolato in modo incrementale il numero di partenze ritardate dell'aeroporto tramite \texttt{RankAirportsAggregator}. Alla chiusura della finestra, viene emesso un record parziale contenente il totale dei ritardi e la media dei ritardi per quell'aeroporto.
+    \item \textbf{Fase 2: Ranking Globale e Timer}: I risultati della prima fase sono ri-partizionati per tempo di fine della finestra (\texttt{windowEnd}), convergendo su istanze parallele della classe \texttt{RankAirportsRankProcessor} (una \texttt{KeyedProcessFunction}). Per evitare di calcolare e pubblicare classifiche parziali prima di aver ricevuto tutti i dati tardivi, il processore memorizza i record parziali in un \texttt{MapState} strutturato per aeroporto e **registra un timer di event-time** impostato a:
+    \begin{equation}
+        t_{\text{timer}} = \text{windowEnd} + \text{allowedLateness} + 1\,\text{secondo}
+    \end{equation}
+    \item \textbf{Invocazione del Timer e Heap Sort}: Al trigger del timer (quando Flink garantisce che nessun altro evento appartenente a quella finestra possa essere processato), viene invocato il metodo \texttt{onTimer}. Il processore estrae gli aeroporti dal \texttt{MapState}, filtra quelli che hanno registrato meno di 30 voli totali per garantire la rilevanza statistica del campione, e inserisce i restanti in una **coda con priorità** (Min-Heap) di dimensione fissa pari a $10$.
+\end{itemize}
+
+I criteri di ordinamento nel Min-Heap, comprensivi di tie-breaker deterministici, sono i seguenti:
+\begin{enumerate}
+    \item Numero di voli con ritardo severo (decrescente);
+    \item In caso di parità, ritardo medio di partenza (decrescente);
+    \item In caso di ulteriore parità, ID numerico dell'aeroporto (crescente).
+\end{enumerate}
+Al termine, la coda viene svuotata per popolare la lista ordinata finale, a ciascun aeroporto viene assegnato il rank da 1 a 10, lo stato locale viene ripulito per prevenire memory leak e i record ordinati vengono scritti sul topic Kafka di competenza.
+
+\subsubsection{Query 3: Stima della Distribuzione dei Ritardi (DDSketch)}\label{subsubsec:query3_implementation}
+La terza query stima la distribuzione dei ritardi (percentili p25, p50, p75, p90, p99) per ciascuna compagnia aerea in base alla fascia oraria di partenza programmata (suddivisa in 24 slot da 0 a 23). L'elaborazione avviene su finestre tumbling di $1$ giorno, $7$ giorni e su una finestra globale cumulativa. Lo stream è partizionato per una chiave composita \texttt{Tuple2<OP\_UNIQUE\_CARRIER, DepartureHour>}.
+
+A causa dell'alto volume di eventi e della cardinalità delle chiavi, mantenere in memoria l'elenco di tutti i ritardi per calcolare i percentili esatti sarebbe impraticabile. Per risolvere questo problema, è stata integrata la struttura dati probabilistica **DDSketch** tramite la classe \texttt{DelayDistributionAccumulator}:
+\begin{itemize}
+    \item \textbf{Accuratezza Relativa Bounded}: La mappatura adotta un'interpolazione cubica (\texttt{CubicallyInterpolatedMapping}) con accuratezza relativa impostata a $\alpha = 0.01$ (che garantisce un errore massimo stimato entro l'1\% del valore reale del percentile);
+    \item \textbf{Store memory-bounded}: Per prevenire una crescita incontrollata dello stato locale in RocksDB indotta da ritardi anomali (outlier estremi), lo sketch limita i bin di memorizzazione tramite la classe \texttt{CollapsingLowestDenseStore} impostata a un massimo di $2048$ bin. I bin con valori inferiori vengono collassati per primi, preservando l'accuratezza sui ritardi più elevati (code della distribuzione);
+    \item \textbf{Serialization personalizzata}: Poiché la classe \texttt{DDSketch} di Datadog non è nativamente ottimizzata per la serializzazione Java distribuita, l'accumulatore ne esclude i campi marcandoli come \texttt{transient} e implementa routine di serializzazione binaria custom mediante l'override dei metodi standard JVM \texttt{writeObject} e \texttt{readObject}. Questo riduce drasticamente lo spazio occupato dai checkpoint su HDFS e i tempi di trasferimento di rete.
 \end{itemize}
 
 % ------------------------------
