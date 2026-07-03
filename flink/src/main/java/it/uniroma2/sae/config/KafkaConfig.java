@@ -21,12 +21,13 @@ public class KafkaConfig {
     public int getPort() {
         if (port != null) return port;
         if (internalPort != null) return internalPort;
-        return externalPort;
+        if (externalPort != null) return externalPort;
+        return 9092; // Safe default Kafka broker port fallback
     }
     public void setPort(int port) { this.port = port; }
 
     public String getBootstrapServers() {
-        return getHost() + ":" + getInternalPort();
+        return getHost() + ":" + getPort();
     }
 
     public Integer getInternalPort() { return internalPort; }
