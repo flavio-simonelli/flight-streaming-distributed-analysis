@@ -222,21 +222,24 @@ Per simulare scenari di esecuzione realistici e testare i limiti prestazionali d
 
 Si evidenzia che l'uso dell'accelerazione temporale per aumentare il throughput rappresenta una forzatura metodologica: comprimere il tempo logico riduce drasticamente la durata reale delle finestre temporali di Flink (fino a soli $83$ millisecondi nello Scenario C), imponendo una frequenza di trigger e di calcolo dello stato estremamente elevata e artificiale. In uno scenario industriale, qualora si volesse studiare il comportamento del sistema sotto carichi massivi senza tale distorsione, la soluzione ottimale consisterebbe nel sintetizzare dati aggiuntivi (generando nuovi record fittizi all'interno dello stesso intervallo temporale) in modo da incrementare il throughput mantenendo la durata reale delle finestre vicina a quella reale.
 
-\begin{table*}[t]
+\begin{table}[htbp]
 \centering
-\caption{Scenari di carico e accelerazione temporale del simulatore Go}
+\caption{Scenari di carico e accelerazione del simulatore Go}
 \label{tab:go_acceleration_scenarios}
-\begin{tabular}{llll}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccc}
 \toprule
-\textbf{Parametro / Metrica} & \textbf{Scenario A: Carico Basso} & \textbf{Scenario B: Carico Medio} & \textbf{Scenario C: Alto Carico} \\
+\textbf{Parametro / Metrica} & \textbf{Sce. A (Basso)} & \textbf{Sce. B (Medio)} & \textbf{Sce. C (Alto)} \\
 \midrule
-\textbf{Moltiplicatore Scelto} & 1.440x (1 giorno logico in 1 min reale) & 14.400x (10 giorni logici in 1 min reale) & 43.200x (30 giorni logici in 1 min reale) \\
-\textbf{Durata Totale del Replay} & $\approx$ 120 minuti (2 ore) reali & $\approx$ 12 minuti reali & $\approx$ 4 minuti reali \\
-\textbf{Throughput Medio Generato} & $\approx$ 305 eventi / secondo & $\approx$ 3.050 eventi / secondo & $\approx$ 9.150 eventi / secondo \\
-\textbf{Durata della Finestra oraria} & Si riduce a 2,5 secondi reali & Si riduce a 0,25 secondi reali & Si riduce a 0,083 secondi reali \\
+\textbf{Moltiplicatore} & 1.440x & 14.400x & 43.200x \\
+\textbf{Fattore tempo log/real} & 1g / 1min & 10g / 1min & 30g / 1min \\
+\textbf{Durata del Replay} & $\approx$ 120 min & $\approx$ 12 min & $\approx$ 4 min \\
+\textbf{Throughput medio} & $\approx$ 305 ev/s & $\approx$ 3.050 ev/s & $\approx$ 9.150 ev/s \\
+\textbf{Finestra 1h reale} & 2,5 s & 0,25 s & 0,083 s \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
 Il simulatore implementa diverse funzionalità avanzate e ottimizzazioni ingegneristiche:
 
