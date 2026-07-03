@@ -4,19 +4,25 @@
   "metadata": {
     "name": "flight-analysis-results",
     "namespace": "default",
-    "uid": "70726e9a-de40-406a-ad1a-367c2da93b47",
-    "resourceVersion": "1782486777483008",
-    "generation": 11,
-    "creationTimestamp": "2026-06-20T16:23:03Z",
+    "uid": "80a4401a-c2d4-46bf-9fd1-9d78303912a8",
+    "resourceVersion": "1783089911087018",
+    "generation": 14,
+    "creationTimestamp": "2026-06-29T13:11:36Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "1216818279772160"
+      "grafana.app/deprecatedInternalID": "4430128047869952"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/folder": "",
+      "grafana.app/managedBy": "classic-file-provisioning",
+      "grafana.app/managerAllowsEdits": "true",
+      "grafana.app/managerId": "Flink Metrics",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/updatedBy": "user:afppzmnf41udce",
-      "grafana.app/updatedTimestamp": "2026-06-26T15:12:57Z"
+      "grafana.app/sourceChecksum": "1dec1addafb0866eb6db5e366d3d454c",
+      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/query_results.json",
+      "grafana.app/sourceTimestamp": "1782503421000",
+      "grafana.app/updatedBy": "user:ffqlmnhchz0u8f",
+      "grafana.app/updatedTimestamp": "2026-07-03T14:45:11Z"
     }
   },
   "spec": {
@@ -48,8 +54,8 @@
         "kind": "Panel",
         "spec": {
           "id": 1,
-          "title": "Q1: Airline Departure Delay Performance (Trend)",
-          "description": "",
+          "title": "Q1: Average Departure Delay Trend by Airline",
+          "description": "Shows the mean departure delay over time for each selected airline. Values are aggregated over Grafana time buckets from the Q1 airline performance results.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -102,7 +108,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.airline}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -165,8 +171,8 @@
         "kind": "Panel",
         "spec": {
           "id": 10,
-          "title": "Max Dealy - 6h",
-          "description": "",
+          "title": "Q2: Maximum Departure Delay by Airport - Latest 6h Window",
+          "description": "Shows the airports ranked in the latest available 6-hour Q2 window by their maximum observed departure delay.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -209,7 +215,7 @@
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
                 "orientation": "horizontal",
                 "showValue": "always",
@@ -224,6 +230,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "unit": "m",
                   "thresholds": {
                     "mode": "percentage",
                     "steps": [
@@ -276,8 +283,8 @@
         "kind": "Panel",
         "spec": {
           "id": 11,
-          "title": "Mean Dealy - 6h",
-          "description": "",
+          "title": "Q2: Mean Departure Delay by Airport - Latest 6h Window",
+          "description": "Shows the airports ranked in the latest available 6-hour Q2 window by their mean departure delay.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -320,7 +327,7 @@
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
                 "orientation": "horizontal",
                 "showValue": "always",
@@ -335,6 +342,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "unit": "m",
                   "thresholds": {
                     "mode": "percentage",
                     "steps": [
@@ -387,8 +395,8 @@
         "kind": "Panel",
         "spec": {
           "id": 12,
-          "title": "Mean Dealy - Global",
-          "description": "",
+          "title": "Q2: Mean Departure Delay by Airport - Global Latest Snapshot",
+          "description": "Shows the airports ranked in the latest available global Q2 snapshot by their cumulative mean departure delay.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -431,7 +439,7 @@
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
                 "orientation": "horizontal",
                 "showValue": "always",
@@ -446,6 +454,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "unit": "m",
                   "thresholds": {
                     "mode": "percentage",
                     "steps": [
@@ -498,8 +507,8 @@
         "kind": "Panel",
         "spec": {
           "id": 13,
-          "title": "Max Dealy - Global",
-          "description": "",
+          "title": "Q2: Maximum Departure Delay by Airport - Global Latest Snapshot",
+          "description": "Shows the airports ranked in the latest available global Q2 snapshot by their cumulative maximum observed departure delay.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -542,7 +551,7 @@
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
                 "orientation": "horizontal",
                 "showValue": "always",
@@ -557,6 +566,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "unit": "m",
                   "thresholds": {
                     "mode": "percentage",
                     "steps": [
@@ -609,8 +619,8 @@
         "kind": "Panel",
         "spec": {
           "id": 14,
-          "title": "Departure Delay Min/Max - 1d",
-          "description": "",
+          "title": "Q3: Departure Delay Min/Max by Airline - 1d",
+          "description": "Daily Flink windows. Hours are collapsed within each 1-day logical window: min is the lowest hourly minimum and max is the highest hourly maximum for each airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -627,7 +637,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                        "query": "import \"date\"\n\nminSeries =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"min\")\n    |> group(columns: [\"airline\", \"_time\", \"_field\"])\n    |> min(column: \"_value\")\n    |> map(fn: (r) => ({\n        r with\n        _time: date.add(d: 1d, to: r._time),\n        label: r.airline + \" - Min\"\n    }))\n    |> keep(columns: [\"_time\", \"_value\", \"airline\", \"label\"])\n\nmaxSeries =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"max\")\n    |> group(columns: [\"airline\", \"_time\", \"_field\"])\n    |> max(column: \"_value\")\n    |> map(fn: (r) => ({\n        r with\n        _time: date.add(d: 1d, to: r._time),\n        label: r.airline + \" - Max\"\n    }))\n    |> keep(columns: [\"_time\", \"_value\", \"airline\", \"label\"])\n\nunion(tables: [minSeries, maxSeries])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"_time\"])\n  |> yield(name: \"Q3_1d_Min_Max\")"
                       }
                     },
                     "refId": "A",
@@ -663,7 +673,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.label}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -722,8 +732,8 @@
         "kind": "Panel",
         "spec": {
           "id": 15,
-          "title": "Departure Delay Distribution Percentiles - 7d",
-          "description": "",
+          "title": "Q3: Average Departure Delay Percentiles by Airline - 7d",
+          "description": "Seven-day Flink windows. For each airline and percentile, the panel averages the hourly percentile values observed within each 7-day logical window and plots the point at the window end.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -740,7 +750,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                        "query": "import \"date\"\n\nfrom(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) =>\n    r[\"_field\"] == \"p25\" or\n    r[\"_field\"] == \"p50\" or\n    r[\"_field\"] == \"p75\" or\n    r[\"_field\"] == \"p90\"\n  )\n  |> group(columns: [\"airline\", \"_field\", \"_time\"])\n  |> mean(column: \"_value\")\n  |> map(fn: (r) => ({\n      r with\n      _time: date.add(d: 7d, to: r._time),\n      label: r.airline + \" - Avg \" + r._field\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"_time\"])\n  |> yield(name: \"Q3_7d_Avg_Percentiles_By_Hour\")"
                       }
                     },
                     "refId": "A",
@@ -776,7 +786,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.label}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -835,8 +845,8 @@
         "kind": "Panel",
         "spec": {
           "id": 16,
-          "title": "Departure Delay Min/Max - 7d",
-          "description": "",
+          "title": "Q3: Departure Delay Min/Max by Airline - 7d",
+          "description": "Seven-day Flink windows. Hours are collapsed within each 7-day logical window: min is the lowest hourly minimum and max is the highest hourly maximum for each airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -853,7 +863,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                        "query": "import \"date\"\n\nminSeries =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"min\")\n    |> group(columns: [\"airline\", \"_time\", \"_field\"])\n    |> min(column: \"_value\")\n    |> map(fn: (r) => ({\n        r with\n        _time: date.add(d: 7d, to: r._time),\n        label: r.airline + \" - Min\"\n    }))\n    |> keep(columns: [\"_time\", \"_value\", \"airline\", \"label\"])\n\nmaxSeries =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"max\")\n    |> group(columns: [\"airline\", \"_time\", \"_field\"])\n    |> max(column: \"_value\")\n    |> map(fn: (r) => ({\n        r with\n        _time: date.add(d: 7d, to: r._time),\n        label: r.airline + \" - Max\"\n    }))\n    |> keep(columns: [\"_time\", \"_value\", \"airline\", \"label\"])\n\nunion(tables: [minSeries, maxSeries])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"_time\"])\n  |> yield(name: \"Q3_7d_Min_Max\")"
                       }
                     },
                     "refId": "A",
@@ -889,7 +899,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.label}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -948,8 +958,8 @@
         "kind": "Panel",
         "spec": {
           "id": 17,
-          "title": "Departure Delay Distribution Percentiles - 7d",
-          "description": "",
+          "title": "Q3: Departure Delay Percentiles by Airline - Global Latest Snapshot",
+          "description": "Global window snapshot. The panel uses only the latest global state and averages the percentile values across observed scheduled departure hours for each airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -966,7 +976,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) =>\n      r[\"_field\"] == \"p25\" or\n      r[\"_field\"] == \"p50\" or\n      r[\"_field\"] == \"p75\" or\n      r[\"_field\"] == \"p90\"\n    )\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\ndata\n  |> filter(fn: (r) => r._time == latest._time)\n  |> group(columns: [\"airline\", \"_field\"])\n  |> mean(column: \"_value\")\n  |> map(fn: (r) => ({\n      r with\n      label: r.airline + \" - \" + r._field\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> yield(name: \"Q3_Global_Last_Percentiles\")"
                       }
                     },
                     "refId": "A",
@@ -1002,7 +1012,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.label}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -1027,8 +1037,8 @@
         "kind": "Panel",
         "spec": {
           "id": 18,
-          "title": "Departure Delay Min/Max - 7d",
-          "description": "",
+          "title": "Q3: Departure Delay Min/Max by Airline - Global Latest Snapshot",
+          "description": "Global window snapshot. The panel uses only the latest global state: min is the lowest hourly minimum and max is the highest hourly maximum for each airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1045,7 +1055,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\nminSeries =\n  data\n    |> filter(fn: (r) => r._time == latest._time)\n    |> filter(fn: (r) => r[\"_field\"] == \"min\")\n    |> group(columns: [\"airline\", \"_field\"])\n    |> min(column: \"_value\")\n    |> map(fn: (r) => ({\n        r with\n        label: r.airline + \" - Min\"\n    }))\n    |> keep(columns: [\"_time\", \"_value\", \"airline\", \"label\"])\n\nmaxSeries =\n  data\n    |> filter(fn: (r) => r._time == latest._time)\n    |> filter(fn: (r) => r[\"_field\"] == \"max\")\n    |> group(columns: [\"airline\", \"_field\"])\n    |> max(column: \"_value\")\n    |> map(fn: (r) => ({\n        r with\n        label: r.airline + \" - Max\"\n    }))\n    |> keep(columns: [\"_time\", \"_value\", \"airline\", \"label\"])\n\nunion(tables: [minSeries, maxSeries])\n  |> group(columns: [\"label\"])\n  |> yield(name: \"Q3_Global_Last_Min_Max\")"
                       }
                     },
                     "refId": "A",
@@ -1081,7 +1091,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.label}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -1106,8 +1116,8 @@
         "kind": "Panel",
         "spec": {
           "id": 19,
-          "title": "Departure Delay Last Window",
-          "description": "",
+          "title": "Q1: Latest Average Departure Delay by Airline",
+          "description": "Shows the most recent mean departure delay value for each selected airline after Grafana time-bucket aggregation.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1160,6 +1170,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.airline}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -1189,7 +1200,7 @@
         "spec": {
           "id": 2,
           "title": "Q1: Cancellation Rate Trend by Airline",
-          "description": "",
+          "description": "Shows the cancellation rate over time for each selected airline, aggregated over Grafana time buckets from the Q1 airline performance results.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1242,7 +1253,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.airline}",
                   "unit": "percent",
                   "thresholds": {
                     "mode": "absolute",
@@ -1305,8 +1316,8 @@
         "kind": "Panel",
         "spec": {
           "id": 20,
-          "title": "Cancellation Rate Last Window",
-          "description": "",
+          "title": "Q1: Latest Cancellation Rate by Airline",
+          "description": "Shows the most recent cancellation rate value for each selected airline after Grafana time-bucket aggregation.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1359,6 +1370,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.airline}",
                   "unit": "percent",
                   "min": 0,
                   "max": 100,
@@ -1389,8 +1401,8 @@
         "kind": "Panel",
         "spec": {
           "id": 21,
-          "title": "Departure Delay Distribution Percentiles Hourly - 1d",
-          "description": "",
+          "title": "Q3: Hourly Departure Delay Percentiles - Latest 1d Window",
+          "description": "Latest daily Flink window only. Shows p25, p50, p75 and p90 by scheduled departure hour for each selected airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1407,7 +1419,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\r\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\r\n  |> group(columns: [\"airline\", \"_field\", \"hour\"])\r\n  |> last()\r\n  |> group(columns: [\"airline\", \"_field\"])\r\n  |> map(fn: (r) => ({ r with hour: int(v: r.hour) }))\r\n  |> sort(columns: [\"hour\"])"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) =>\n      r[\"_field\"] == \"p25\" or\n      r[\"_field\"] == \"p50\" or\n      r[\"_field\"] == \"p75\" or\n      r[\"_field\"] == \"p90\"\n    )\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\ndata\n  |> filter(fn: (r) => r._time == latest._time)\n  |> map(fn: (r) => ({\n      r with\n      hour_int: int(v: r.hour),\n      label: r.airline + \" - \" + r._field\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"hour\", \"hour_int\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"hour_int\"])\n  |> yield(name: \"Q3_1d_Last_Window_Hourly_Percentiles\")"
                       }
                     },
                     "refId": "A",
@@ -1437,7 +1449,7 @@
                     "x": {
                       "matcher": {
                         "id": "byName",
-                        "options": "hour"
+                        "options": "hour_int"
                       }
                     },
                     "y": {
@@ -1456,6 +1468,8 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.label}",
+                  "unit": "none",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -1523,20 +1537,20 @@
                       {
                         "id": "displayName",
                         "value": "Hour"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "none"
                       }
                     ]
                   },
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": ".*_value.*_field=\"p.*"
+                      "options": "_value"
                     },
                     "properties": [
-                      {
-                        "id": "displayName",
-                        "value": "${__field.labels._field} - ${__field.labels.airline}"
-                      },
                       {
                         "id": "unit",
                         "value": "m"
@@ -1553,8 +1567,8 @@
         "kind": "Panel",
         "spec": {
           "id": 22,
-          "title": "Departure Delay Distribution Percentiles Hourly - 1d",
-          "description": "",
+          "title": "Q3: Hourly Departure Delay Min/Max - Latest 1d Window",
+          "description": "Latest daily Flink window only. Shows effective hourly minimum and maximum departure delay for each selected airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1571,7 +1585,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\r\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\r\n  |> group(columns: [\"airline\", \"_field\", \"hour\"])\r\n  |> last()\r\n  |> group(columns: [\"airline\", \"_field\"])\r\n  |> map(fn: (r) => ({ r with hour: int(v: r.hour) }))\r\n  |> sort(columns: [\"hour\"])"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\ndata\n  |> filter(fn: (r) => r._time == latest._time)\n  |> map(fn: (r) => ({\n      r with\n      hour_int: int(v: r.hour),\n      label: r.airline + \" - \" + (if r._field == \"max\" then \"Max Delay\" else \"Min Delay\")\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"hour\", \"hour_int\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"hour_int\"])\n  |> yield(name: \"Q3_1d_Last_Window_Hourly_Min_Max\")"
                       }
                     },
                     "refId": "A",
@@ -1601,7 +1615,7 @@
                     "x": {
                       "matcher": {
                         "id": "byName",
-                        "options": "hour"
+                        "options": "hour_int"
                       }
                     },
                     "y": {
@@ -1620,6 +1634,8 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.label}",
+                  "unit": "none",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -1687,20 +1703,20 @@
                       {
                         "id": "displayName",
                         "value": "Hour"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "none"
                       }
                     ]
                   },
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": ".*_value.*_field=\"m.*"
+                      "options": "_value"
                     },
                     "properties": [
-                      {
-                        "id": "displayName",
-                        "value": "${__field.labels._field} - ${__field.labels.airline}"
-                      },
                       {
                         "id": "unit",
                         "value": "m"
@@ -1717,8 +1733,8 @@
         "kind": "Panel",
         "spec": {
           "id": 23,
-          "title": "Departure Delay Distribution Percentiles Hourly - 7d",
-          "description": "",
+          "title": "Q3: Hourly Departure Delay Percentiles - Latest 7d Window",
+          "description": "Latest seven-day Flink window only. Shows p25, p50, p75 and p90 by scheduled departure hour for each selected airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1735,7 +1751,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\r\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\r\n  |> group(columns: [\"airline\", \"_field\", \"hour\"])\r\n  |> last()\r\n  |> group(columns: [\"airline\", \"_field\"])\r\n  |> map(fn: (r) => ({ r with hour: int(v: r.hour) }))\r\n  |> sort(columns: [\"hour\"])"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) =>\n      r[\"_field\"] == \"p25\" or\n      r[\"_field\"] == \"p50\" or\n      r[\"_field\"] == \"p75\" or\n      r[\"_field\"] == \"p90\"\n    )\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\ndata\n  |> filter(fn: (r) => r._time == latest._time)\n  |> map(fn: (r) => ({\n      r with\n      hour_int: int(v: r.hour),\n      label: r.airline + \" - \" + r._field\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"hour\", \"hour_int\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"hour_int\"])\n  |> yield(name: \"Q3_7d_Last_Window_Hourly_Percentiles\")"
                       }
                     },
                     "refId": "A",
@@ -1765,7 +1781,7 @@
                     "x": {
                       "matcher": {
                         "id": "byName",
-                        "options": "hour"
+                        "options": "hour_int"
                       }
                     },
                     "y": {
@@ -1784,6 +1800,8 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.label}",
+                  "unit": "none",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -1851,20 +1869,20 @@
                       {
                         "id": "displayName",
                         "value": "Hour"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "none"
                       }
                     ]
                   },
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": ".*_value.*_field=\"p.*"
+                      "options": "_value"
                     },
                     "properties": [
-                      {
-                        "id": "displayName",
-                        "value": "${__field.labels._field} - ${__field.labels.airline}"
-                      },
                       {
                         "id": "unit",
                         "value": "m"
@@ -1881,8 +1899,8 @@
         "kind": "Panel",
         "spec": {
           "id": 24,
-          "title": "Departure Delay Distribution Percentiles Hourly - 7d",
-          "description": "",
+          "title": "Q3: Hourly Departure Delay Min/Max - Latest 7d Window",
+          "description": "Latest seven-day Flink window only. Shows effective hourly minimum and maximum departure delay for each selected airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1899,7 +1917,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\r\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\r\n  |> group(columns: [\"airline\", \"_field\", \"hour\"])\r\n  |> last()\r\n  |> group(columns: [\"airline\", \"_field\"])\r\n  |> map(fn: (r) => ({ r with hour: int(v: r.hour) }))\r\n  |> sort(columns: [\"hour\"])"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"7d\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\ndata\n  |> filter(fn: (r) => r._time == latest._time)\n  |> map(fn: (r) => ({\n      r with\n      hour_int: int(v: r.hour),\n      label: r.airline + \" - \" + (if r._field == \"max\" then \"Max Delay\" else \"Min Delay\")\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"hour\", \"hour_int\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"hour_int\"])\n  |> yield(name: \"Q3_7d_Last_Window_Hourly_Min_Max\")"
                       }
                     },
                     "refId": "A",
@@ -1929,7 +1947,7 @@
                     "x": {
                       "matcher": {
                         "id": "byName",
-                        "options": "hour"
+                        "options": "hour_int"
                       }
                     },
                     "y": {
@@ -1948,6 +1966,8 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.label}",
+                  "unit": "none",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2015,20 +2035,20 @@
                       {
                         "id": "displayName",
                         "value": "Hour"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "none"
                       }
                     ]
                   },
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": ".*_value.*_field=\"m.*"
+                      "options": "_value"
                     },
                     "properties": [
-                      {
-                        "id": "displayName",
-                        "value": "${__field.labels._field} - ${__field.labels.airline}"
-                      },
                       {
                         "id": "unit",
                         "value": "m"
@@ -2045,8 +2065,8 @@
         "kind": "Panel",
         "spec": {
           "id": 25,
-          "title": "Departure Delay Distribution Percentiles Hourly - Global",
-          "description": "",
+          "title": "Q3: Hourly Departure Delay Percentiles - Global Latest Snapshot",
+          "description": "Latest global window snapshot only. Shows p25, p50, p75 and p90 by scheduled departure hour for each selected airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2063,7 +2083,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\r\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\r\n  |> group(columns: [\"airline\", \"_field\", \"hour\"])\r\n  |> last()\r\n  |> group(columns: [\"airline\", \"_field\"])\r\n  |> map(fn: (r) => ({ r with hour: int(v: r.hour) }))\r\n  |> sort(columns: [\"hour\"])"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) =>\n      r[\"_field\"] == \"p25\" or\n      r[\"_field\"] == \"p50\" or\n      r[\"_field\"] == \"p75\" or\n      r[\"_field\"] == \"p90\"\n    )\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\ndata\n  |> filter(fn: (r) => r._time == latest._time)\n  |> map(fn: (r) => ({\n      r with\n      hour_int: int(v: r.hour),\n      label: r.airline + \" - \" + r._field\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"hour\", \"hour_int\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"hour_int\"])\n  |> yield(name: \"Q3_Global_Last_Window_Hourly_Percentiles\")"
                       }
                     },
                     "refId": "A",
@@ -2093,7 +2113,7 @@
                     "x": {
                       "matcher": {
                         "id": "byName",
-                        "options": "hour"
+                        "options": "hour_int"
                       }
                     },
                     "y": {
@@ -2112,6 +2132,8 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.label}",
+                  "unit": "none",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2179,20 +2201,20 @@
                       {
                         "id": "displayName",
                         "value": "Hour"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "none"
                       }
                     ]
                   },
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": ".*_value.*_field=\"p.*"
+                      "options": "_value"
                     },
                     "properties": [
-                      {
-                        "id": "displayName",
-                        "value": "${__field.labels._field} - ${__field.labels.airline}"
-                      },
                       {
                         "id": "unit",
                         "value": "m"
@@ -2209,8 +2231,8 @@
         "kind": "Panel",
         "spec": {
           "id": 26,
-          "title": "Departure Delay Distribution Percentiles Hourly - Global",
-          "description": "",
+          "title": "Q3: Hourly Departure Delay Min/Max - Global Latest Snapshot",
+          "description": "Latest global window snapshot only. Shows effective hourly minimum and maximum departure delay by scheduled departure hour for each selected airline.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2227,7 +2249,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\r\n  |> filter(fn: (r) => r[\"window_type\"] == \"global\")\r\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\r\n  |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\r\n  |> group(columns: [\"airline\", \"_field\", \"hour\"])\r\n  |> last()\r\n  |> group(columns: [\"airline\", \"_field\"])\r\n  |> map(fn: (r) => ({ r with hour: int(v: r.hour) }))\r\n  |> sort(columns: [\"hour\"])"
+                        "query": "data =\n  from(bucket: \"flights-data\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n    |> filter(fn: (r) => r[\"window_type\"] == \"global\")\n    |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n    |> filter(fn: (r) => r[\"_field\"] == \"min\" or r[\"_field\"] == \"max\")\n\nlatest = data\n  |> group()\n  |> max(column: \"_time\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\ndata\n  |> filter(fn: (r) => r._time == latest._time)\n  |> map(fn: (r) => ({\n      r with\n      hour_int: int(v: r.hour),\n      label: r.airline + \" - \" + (if r._field == \"max\" then \"Max Delay\" else \"Min Delay\")\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"hour\", \"hour_int\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"hour_int\"])\n  |> yield(name: \"Q3_Global_Last_Window_Hourly_Min_Max\")"
                       }
                     },
                     "refId": "A",
@@ -2257,7 +2279,7 @@
                     "x": {
                       "matcher": {
                         "id": "byName",
-                        "options": "hour"
+                        "options": "hour_int"
                       }
                     },
                     "y": {
@@ -2276,6 +2298,8 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "displayName": "${__field.labels.label}",
+                  "unit": "none",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -2343,20 +2367,20 @@
                       {
                         "id": "displayName",
                         "value": "Hour"
+                      },
+                      {
+                        "id": "unit",
+                        "value": "none"
                       }
                     ]
                   },
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": ".*_value.*_field=\"m.*"
+                      "options": "_value"
                     },
                     "properties": [
-                      {
-                        "id": "displayName",
-                        "value": "${__field.labels._field} - ${__field.labels.airline}"
-                      },
                       {
                         "id": "unit",
                         "value": "m"
@@ -2373,8 +2397,8 @@
         "kind": "Panel",
         "spec": {
           "id": 4,
-          "title": "Departure Delay Distribution Percentiles - 1d",
-          "description": "",
+          "title": "Q3: Average Departure Delay Percentiles by Airline - 1d",
+          "description": "Daily Flink windows. For each airline and percentile, the panel averages the hourly percentile values observed within each 1-day logical window and plots the point at the window end.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2391,7 +2415,7 @@
                         "name": "influxdb-results"
                       },
                       "spec": {
-                        "query": "from(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) => r[\"_field\"] == \"p25\" or r[\"_field\"] == \"p50\" or r[\"_field\"] == \"p75\" or r[\"_field\"] == \"p90\")\n  |> group(columns: [\"airline\", \"_field\"])\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"Percentiles\")"
+                        "query": "import \"date\"\n\nfrom(bucket: \"flights-data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"flights_q3_results\")\n  |> filter(fn: (r) => r[\"window_type\"] == \"1d\")\n  |> filter(fn: (r) => r[\"airline\"] =~ /^${airline:regex}$/)\n  |> filter(fn: (r) =>\n    r[\"_field\"] == \"p25\" or\n    r[\"_field\"] == \"p50\" or\n    r[\"_field\"] == \"p75\" or\n    r[\"_field\"] == \"p90\"\n  )\n  |> group(columns: [\"airline\", \"_field\", \"_time\"])\n  |> mean(column: \"_value\")\n  |> map(fn: (r) => ({\n      r with\n      _time: date.add(d: 1d, to: r._time),\n      label: r.airline + \" - Avg \" + r._field\n  }))\n  |> keep(columns: [\"_time\", \"_value\", \"airline\", \"_field\", \"label\"])\n  |> group(columns: [\"label\"])\n  |> sort(columns: [\"_time\"])\n  |> yield(name: \"Q3_1d_Avg_Percentiles_By_Hour\")"
                       }
                     },
                     "refId": "A",
@@ -2427,7 +2451,7 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "displayName": "${__series.name}",
+                  "displayName": "${__field.labels.label}",
                   "unit": "m",
                   "thresholds": {
                     "mode": "absolute",
@@ -2486,8 +2510,8 @@
         "kind": "Panel",
         "spec": {
           "id": 5,
-          "title": "Airport Rank - 1h",
-          "description": "",
+          "title": "Q2: Airports with Most Severe Delays - Latest 1h Window",
+          "description": "Ranks airports by the number of severe delay events in the latest available 1-hour Q2 window.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2614,8 +2638,8 @@
         "kind": "Panel",
         "spec": {
           "id": 6,
-          "title": "Airport Rank - 6h",
-          "description": "",
+          "title": "Q2: Airports with Most Severe Delays - Latest 6h Window",
+          "description": "Ranks airports by the number of severe delay events in the latest available 6-hour Q2 window.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2742,8 +2766,8 @@
         "kind": "Panel",
         "spec": {
           "id": 7,
-          "title": "Airport Rank - Global",
-          "description": "",
+          "title": "Q2: Airports with Most Severe Delays - Global Latest Snapshot",
+          "description": "Ranks airports by the cumulative number of severe delay events in the latest available global Q2 snapshot.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2870,8 +2894,8 @@
         "kind": "Panel",
         "spec": {
           "id": 8,
-          "title": "Max Dealy - 1h",
-          "description": "",
+          "title": "Q2: Maximum Departure Delay by Airport - Latest 1h Window",
+          "description": "Shows the airports ranked in the latest available 1-hour Q2 window by their maximum observed departure delay.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2914,7 +2938,7 @@
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
                 "orientation": "horizontal",
                 "showValue": "always",
@@ -2929,6 +2953,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "unit": "m",
                   "thresholds": {
                     "mode": "percentage",
                     "steps": [
@@ -2981,8 +3006,8 @@
         "kind": "Panel",
         "spec": {
           "id": 9,
-          "title": "Mean Dealy - 1h",
-          "description": "",
+          "title": "Q2: Mean Departure Delay by Airport - Latest 1h Window",
+          "description": "Shows the airports ranked in the latest available 1-hour Q2 window by their mean departure delay.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -3025,7 +3050,7 @@
                   "calcs": [],
                   "displayMode": "list",
                   "placement": "bottom",
-                  "showLegend": true
+                  "showLegend": false
                 },
                 "orientation": "horizontal",
                 "showValue": "always",
@@ -3040,6 +3065,7 @@
               },
               "fieldConfig": {
                 "defaults": {
+                  "unit": "m",
                   "thresholds": {
                     "mode": "percentage",
                     "steps": [
@@ -3489,7 +3515,7 @@
       "timezone": "utc",
       "from": "2025-01-01T00:00:00.000Z",
       "to": "2025-04-30T23:59:59.000Z",
-      "autoRefresh": "auto",
+      "autoRefresh": "",
       "autoRefreshIntervals": [
         "5s",
         "10s",
