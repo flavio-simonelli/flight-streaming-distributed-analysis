@@ -22,8 +22,12 @@ public class TargetAirlineFilter implements FilterFunction<FlightRecord> {
      * Constructs a new filter function parameterized with the allowed airline carriers.
      *
      * @param targetAirlines the set of airline unique codes to retain in the pipeline
+     * @throws IllegalArgumentException if the targetAirlines set is null
      */
     public TargetAirlineFilter(Set<String> targetAirlines) {
+        if (targetAirlines == null) {
+            throw new IllegalArgumentException("targetAirlines set cannot be null");
+        }
         this.targetAirlines = targetAirlines;
     }
 
@@ -31,11 +35,10 @@ public class TargetAirlineFilter implements FilterFunction<FlightRecord> {
      * Evaluates if the flight record belongs to one of the targeted airlines.
      *
      * @param event the flight event to test
-     * @return true if the flight is not null and matches a target airline code, false otherwise
-     * @throws Exception if an error occurs during filtering execution
+     * @return true if the flight is not null, has a non-null airline, and matches a target airline code, false otherwise
      */
     @Override
-    public boolean filter(FlightRecord event) throws Exception {
-        return event != null && targetAirlines.contains(event.getAirline());
+    public boolean filter(FlightRecord event) {
+        return event != null && event.getAirline() != null && targetAirlines.contains(event.getAirline());
     }
 }

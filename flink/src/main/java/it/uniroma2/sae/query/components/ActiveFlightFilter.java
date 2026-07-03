@@ -21,10 +21,9 @@ public class ActiveFlightFilter implements FilterFunction<FlightRecord> {
      *
      * @param event the flight event to test
      * @return true if the flight is active (not null, not cancelled, and not diverted), false otherwise
-     * @throws Exception if an error occurs during filtering execution
      */
     @Override
-    public boolean filter(FlightRecord event) throws Exception {
+    public boolean filter(FlightRecord event) {
         return event != null && !event.isCancelled() && !event.isDiverted();
     }
 }
