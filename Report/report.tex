@@ -343,13 +343,13 @@ Per ovviare a ciò, il JobManager e i TaskManager di Flink sono configurati nei 
 
 \section{Infrastruttura di Deployment}\label{sec:deployment_infrastructure}
 
-La pipeline di \textit{Sky Analytics Stream} è stata progettata per supportare due modalità di esecuzione speculari ma dimensionate diversamente: un deployment locale a container singolo/multiplo per sviluppo, e un deployment distribuito multi-nodo su infrastruttura cloud per test prestazionali ed esperimenti di scalabilità.
+La pipeline di \textit{Sky Analytics Stream} è stata progettata per supportare due modalità di esecuzione speculari ma dimensionate diversamente: un deployment locale a container multiplo per sviluppo, e un deployment distribuito multi-nodo su infrastruttura cloud per test prestazionali ed esperimenti di scalabilità.
 
-\subsection{Deployment Locale (Docker Compose)}\label{subsec:local_deployment}
+\subsection{Deployment Locale}\label{subsec:local_deployment}
 
-La configurazione locale consente di validare la correttezza logica del codice e testare il comportamento del sistema in scenari controllati. Viene realizzata tramite un file \texttt{docker-compose.yml} che orchestra undici container connessi a una rete privata bridge (\texttt{sae-net}):
+La configurazione locale consente di validare la correttezza logica del codice e testare il comportamento del sistema in scenari controllati. Viene realizzata tramite un file \texttt{docker-compose.yml} che orchestra undici container connessi a una rete privata bridge:
 \begin{itemize}
-    \item \textbf{Ingestion \& Broker}: Un container per il broker Kafka (versione \texttt{4.3.1}) e un container di inizializzazione (\texttt{init-kafka}) che crea i topic necessari impostandovi il rispettivo partizionamento (6 partizioni per lo stream di ingresso);
+    \item \textbf{Ingestion \& Broker}: Un container per il broker Kafka e un container di inizializzazione che crea i topic necessari impostandovi il rispettivo partizionamento (6 partizioni per lo stream di ingresso);
     \item \textbf{Stream Processing}: Un container Flink JobManager e tre container TaskManager. Ogni TaskManager dispone di due slot di elaborazione, per un parallelismo massimo locale di 6;
     \item \textbf{State Storage}: Tre container HDFS (un NameNode e due DataNodes) per supportare il salvataggio dei checkpoint in modalità distribuita locale;
     \item \textbf{Persistence \& Telemetry}: Un container InfluxDB (versione \texttt{2.7}) per storicizzare risultati e telemetrie, accoppiato a un container Telegraf che converte i messaggi JSON consumati da Kafka nel modello dati di InfluxDB;
@@ -360,32 +360,39 @@ I parametri di configurazione (porte fisiche, credenziali di accesso ai database
 
 \subsection{Deployment Distribuito su AWS EC2}\label{subsec:ec2_deployment}
 
-Per condurre le campagne sperimentali in condizioni di carico reale e misurare la reale scalabilità orizzontale, il sistema è distribuito su un cluster multi-nodo in ambiente cloud \textbf{Amazon Web Services (AWS)}.
+Per condurre le campagne sperimentali in condizioni di carico reale, il sistema è distribuito su un cluster multi-nodo in ambiente cloud Amazon Web Services.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\columnwidth]{graphs/DeploymentView-EC2}
+    \caption{Vista architetturale del deployment distribuito su AWS EC2.}
+    \label{fig:deployment_ec2}
+\end{figure}
 
 \subsubsection{Provisioning dell'Infrastruttura (CloudFormation \& Route 53)}\label{subsubsec:cf_route53}
-Il deployment su AWS è automatizzato tramite script Bash (\texttt{deploy-network.sh} e \texttt{deploy-node.sh}) che richiamano template di \textbf{AWS CloudFormation}. L'orchestratore esegue le seguenti fasi:
+
+Il deployment su AWS è automatizzato tramite script che richiamano template di \textbf{AWS CloudFormation}. L'orchestratore esegue le seguenti fasi:
 \begin{enumerate}
     \item \textbf{Network Stack}: Crea una VPC dedicata, una sottorete pubblica con CIDR associato, una Security Group con regole di ingresso/uscita per le porte dei servizi, e una \textbf{Private Hosted Zone} su \textbf{Amazon Route 53} con dominio privato \texttt{flight-analysis.local};
-    \item \textbf{Bootstrap ed S3}: I pacchetti pre-compilati (fat-jar di Flink), i file di configurazione (\texttt{telegraf.conf}) e le variabili d'ambiente (\texttt{.env}) vengono caricati su un bucket \textbf{Amazon S3} privato;
-    \item \textbf{Node Provisioning}: Lancia le istanze EC2. Ciascun nodo esegue uno script di bootstrap (\texttt{User Data}) che installa Docker, scarica le configurazioni e i pacchetti dal bucket S3 (utilizzando un ruolo IAM temporaneo assegnato all'istanza) e avvia i container Docker locali. I nodi si registrano automaticamente su Route 53 per consentire la risoluzione dei nomi privati (es. \texttt{jobmanager.flight-analysis.local}).
+    \item \textbf{Bootstrap ed S3}: I pacchetti pre-compilati, i file di configurazione e le variabili d'ambiente vengono caricati su un bucket \textbf{Amazon S3} privato;
+    \item \textbf{Node Provisioning}: Lancia le istanze EC2. Ciascun nodo esegue uno script di bootstrap che installa Docker, scarica le configurazioni e i pacchetti dal bucket S3 e avvia i container Docker locali. I nodi vengono registrati automaticamente su Route 53 per consentire la risoluzione dei nomi privati.
 \end{enumerate}
 
-\subsubsection{Dimensionamento delle Istanze EC2 (Macchine utilizzate)}\label{subsubsec:ec2_instances}
-Il cluster distribuito è composto da istanze EC2 appartenenti alla famiglia general-purpose (\texttt{t3}) e compute-optimized (\texttt{c6i}) di AWS, dimensionate per bilanciare i costi con la necessità di risorse CPU e memoria:
+\subsubsection{Dimensionamento delle Istanze EC2}\label{subsubsec:ec2_instances}
+Il cluster distribuito è composto da istanze EC2 appartenenti alla famiglia general-purpose \texttt{t3} e compute-optimized \texttt{c6i} di AWS\footnote{\url{https://aws.amazon.com/it/ec2/pricing/on-demand/}}, dimensionate per bilanciare i costi con la necessità di risorse CPU e memoria:
 \begin{itemize}
-    \item \textbf{Kafka Cluster} (3 Istanze):
+    \item \textbf{Kafka Cluster}:
     \begin{itemize}
-        \item \emph{Broker 1 (Voter/Controller)}: Istanza \textbf{\texttt{t3.large}} (2 vCPU, 8 GB RAM) con disco SSD EBS per gestire il carico di scrittura primario e coordinare il quorum;
-        \item \emph{Broker 2 \& 3}: Istanze \textbf{\texttt{t3.medium}} (2 vCPU, 4 GB RAM) che agiscono come repliche e broker ausiliari.
+        \item \emph{Broker 1}: Istanza \textbf{\texttt{t3.large}} (2 vCPU, 8 GiB RAM) per gestire il carico di scrittura primario e avviare il reply del dataset;
+        \item \emph{Broker 2 \& 3}: Istanze \textbf{2 x \texttt{t3.medium}} (2 vCPU, 4 GiB RAM) che agiscono come repliche e broker ausiliari.
     \end{itemize}
-    \item \textbf{Flink JobManager} (1 Istanza): Istanza \textbf{\texttt{c6i.large}} (2 vCPU, 4 GB RAM) ottimizzata per il calcolo, adibita al coordinamento dei checkpoint, schedulazione dei task e gestione dell'interfaccia web di monitoraggio;
-    \item \textbf{Flink TaskManagers} (3 o più Istanze): Istanze \textbf{\texttt{t3.medium}} (2 vCPU, 4 GB RAM) adibite all'esecuzione fisica dei task di Flink (ogni TaskManager ospita 2 slot di calcolo);
-    \item \textbf{InfluxDB \& Telegraf Node} (1 Istanza): Istanza \textbf{\texttt{c6i.large}} (2 vCPU, 4 GB RAM) compute-optimized per far fronte alle intense scritture batch di Telegraf su InfluxDB e interrogazioni da Grafana;
-    \item \textbf{Grafana Metrics Node} (1 Istanza): Istanza \textbf{\texttt{t3.small}} (2 vCPU, 2 GB RAM) per ospitare il servizio di dashboarding;
-    \item \textbf{Ingestion/Simulator Node} (1 Istanza): Istanza \textbf{\texttt{t3.medium}} (2 vCPU, 4 GB RAM) su cui gira il simulatore in Go che invia gli eventi in streaming verso il cluster Kafka.
+    \item \textbf{Flink JobManager}: Istanza \textbf{\texttt{c6i.large}} (2 vCPU, 4 GiB RAM) ottimizzata per il calcolo;
+    \item \textbf{Flink TaskManagers}: Istanze \textbf{3 x \texttt{c6i.large}} (2 vCPU, 4 GiB RAM) adibite all'esecuzione fisica dei task di Flink (ogni TaskManager ospita 2 slot di calcolo);
+    \item \textbf{InfluxDB e Telegraf}: Istanza \textbf{\texttt{t3.small}} (2 vCPU, 2 GiB RAM) per il salvataggio persistente di metriche e risultati;
+    \item \textbf{Grafana}: Istanza \textbf{\texttt{t3.small}} (2 vCPU, 2 GiB RAM) per ospitare il servizio di dashboarding;
 \end{itemize}
 
-La risoluzione dei nomi DNS privati (ad esempio \texttt{kafka.flight-analysis.local} che mappa tramite record CNAME al broker primario, e \texttt{flink.flight-analysis.local} al JobManager) consente alle macchine di dialogare in modo trasparente senza dover hardcodare gli indirizzi IP pubblici o privati variabili delle istanze.
+La risoluzione dei nomi DNS privati consente alle macchine di dialogare in modo trasparente senza dover hardcodare gli indirizzi IP pubblici o privati variabili delle istanze.
 
 % ------------------------------
 
