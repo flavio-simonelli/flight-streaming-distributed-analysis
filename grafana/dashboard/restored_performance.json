@@ -4,19 +4,19 @@
   "metadata": {
     "name": "restore-perf-metrics",
     "namespace": "default",
-    "uid": "f96ae3f1-095e-4c81-819c-c9a086ae0c4e",
-    "resourceVersion": "1783040071362984",
-    "generation": 14,
-    "creationTimestamp": "2026-06-29T20:39:53Z",
+    "uid": "f312ae52-7ce4-4bd8-b75f-f7e025c4c67f",
+    "resourceVersion": "1783177856760992",
+    "generation": 4,
+    "creationTimestamp": "2026-07-04T00:53:30Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "39341723779072"
+      "grafana.app/deprecatedInternalID": "1552716532023296"
     },
     "annotations": {
-      "grafana.app/createdBy": "user:ffqlmnhchz0u8f",
+      "grafana.app/createdBy": "user:afr0ovwpvsc8we",
       "grafana.app/folder": "",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/updatedBy": "user:ffqlmnhchz0u8f",
-      "grafana.app/updatedTimestamp": "2026-07-03T00:54:31Z"
+      "grafana.app/updatedBy": "user:afr0ovwpvsc8we",
+      "grafana.app/updatedTimestamp": "2026-07-04T15:10:56Z"
     }
   },
   "spec": {
@@ -1468,7 +1468,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.1.0",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -1587,7 +1587,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.1.0",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -2509,7 +2509,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_oldest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Oldest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Oldest_P95\")"
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_oldest_ms_p90$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P90 Oldest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Oldest_P90\")"
                       }
                     },
                     "refId": "A",
@@ -2645,7 +2645,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.1.0",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -2749,7 +2749,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_avg_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Avg \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Avg_P95\")"
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_avg_ms_p99$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> filter(fn: (r) => not strings.containsStr(v: r.task_name, substr: \"Global\"))\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P90 Avg \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Avg_P90\")"
                       }
                     },
                     "refId": "A",
@@ -2870,7 +2870,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_newest_ms_p95$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P95 Newest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Newest_P95\")"
+                        "query": "import \"regexp\"\r\nimport \"strings\"\r\n\r\nfrom(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] =~ /^taskmanager_job_task_operator_processing_latency_.*_e2e_newest_ms_p90$/\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> filter(fn: (r) => r[\"_value\"] > 0.0)\r\n  |> filter(fn: (r) => r[\"task_name\"] =~ /.*Sink: Writer.*/)\r\n  |> map(fn: (r) => {\r\n      q = regexp.findString(r: /Q[0-9]+/, v: r.task_name)\r\n\r\n      w =\r\n        if strings.containsStr(v: r.task_name, substr: \"Global\") then \"Global\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1h\") then \"1h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"6h\") then \"6h\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"1d\") then \"1d\"\r\n        else if strings.containsStr(v: r.task_name, substr: \"7d\") then \"7d\"\r\n        else \"Final\"\r\n\r\n      return {\r\n        r with\r\n        series: \"P90 Newest \" + q + \": \" + w\r\n      }\r\n  })\r\n\r\n  // Max tra subtask e campioni nella finestra\r\n  |> group(columns: [\"series\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n\r\n  |> yield(name: \"E2E_Latency_Newest_P90\")"
                       }
                     },
                     "refId": "A",
@@ -3964,8 +3964,8 @@
     ],
     "timeSettings": {
       "timezone": "utc",
-      "from": "2026-07-03T00:17:47.559Z",
-      "to": "2026-07-03T00:31:35.674Z",
+      "from": "2026-07-04T14:29:52.929Z",
+      "to": "2026-07-04T14:43:54.846Z",
       "autoRefresh": "auto",
       "autoRefreshIntervals": [
         "5s",

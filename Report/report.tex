@@ -3,6 +3,8 @@
 \usepackage[utf8]{inputenc}
 \usepackage[italian]{babel}
 \usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage{xargs}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{booktabs}
@@ -54,6 +56,55 @@
 \def\@oddfoot{}%
 \def\@evenfoot{}}
 \makeatother
+
+% \throughputChart[width]{nome_file}{caption}{label}
+\newcommandx{\throughputChart}[4][1=0.95\linewidth]{%
+    \begin{figure}[H]
+        \centering
+        % trim={<sinistra> <basso> <destra> <alto>}
+        \adjustbox{trim={0.01\width} {0.805\height} {0.00\width} {0.04\height}, clip}{%
+            \includegraphics[width=#1]{../Results/charts/#2}%
+        }
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+% \latencyChart[width]{nome_file}{caption}{label}
+\newcommandx{\latencyChart}[4][1=0.99\linewidth]{%
+    \begin{figure}[H]
+        \centering
+        \adjustbox{trim={0.01\width} {0.455\height} {0.00\width} {0.308\height}, clip}{%
+            \includegraphics[width=#1]{../Results/charts/#2}%
+        }
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+% \checkpointChart[width]{nome_file}{caption}{label}
+\newcommandx{\checkpointChart}[4][1=0.95\linewidth]{%
+    \begin{figure}[H]
+        \centering
+        \adjustbox{trim={0.01\width} {0.348\height} {0.00\width} {0.55\height}, clip}{%
+            \includegraphics[width=#1]{../Results/charts/#2}%
+        }
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+% \outoforderChart[width]{nome_file}{caption}{label}
+\newcommandx{\outoforderChart}[4][1=0.85\linewidth]{%
+    \begin{figure}[H]
+        \centering
+        \adjustbox{trim={0.01\width} {0.01\height} {0.00\width} {0.650\height}, clip}{%
+            \includegraphics[width=#1]{../Results/charts/#2}%
+        }
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
 
 \pagestyle{headings}
 
@@ -406,7 +457,7 @@ I parametri di configurazione (porte fisiche, credenziali di accesso ai database
 
 Per condurre le campagne sperimentali in condizioni di carico reale, il sistema è distribuito su un cluster multi-nodo in ambiente cloud Amazon Web Services.
 
-\begin{figure}[H]
+\begin{figure}[h]
     \centering
     \includegraphics[width=0.90\columnwidth]{graphs/DeploymentView-EC2}
     \caption{Vista architetturale del deployment distribuito su AWS EC2.}
@@ -599,60 +650,115 @@ C.~Masson, J.~E. Rim, and H.~K. Lee, ``DDSketch: A fast and fully-mergeable quan
 
 In questa appendice sono raccolti i grafici di telemetria estratti da Grafana relativi alle campagne di test descritte nella Sezione~\ref{sec:experimental_evaluation}.
 
-\subsection{Grafici del Primo Confronto: Parallelismo e Scalabilità}
+\subsection{Parallelismo e Scalabilità}
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para1_part6.png}
-    \hfill
-    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para3_part6.png}
-    \caption{Throughput del cluster per lo scenario a medio carico ($14.400\times$) con parallelismo $P=1$ (sinistra) e $P=3$ (destra).}
-    \label{fig:cluster_throughput_comparison}
-\end{figure*}
+% --------------
+%   THROUGHPUT  
+% --------------
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para1_part6.png}
-    \hfill
-    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para6_part6.png}
-    \caption{Utilizzo della CPU sui nodi TaskManager nello stress test ($43.200\times$) con parallelismo $P=1$ (sinistra) e $P=6$ (destra).}
-    \label{fig:node_cpu_comparison}
-\end{figure*}
+\throughputChart{cluster_clean_run_medium_para1_part6}{Throughput del cluster per lo scenario a medio carico con parallelismo $P=1$.}{fig:cluster_throughput_medium_p1}
 
-\clearpage
+\throughputChart{cluster_clean_run_medium_para3_part6}{Throughput del cluster per lo scenario a medio carico con parallelismo $P=3$.}{fig:cluster_throughput_medium_p3}
 
-\subsection{Grafici del Secondo Confronto: Gestione del Disordine}
+\throughputChart{cluster_clean_run_medium_para6_part6}{Throughput del cluster per lo scenario a medio carico con parallelismo $P=6$.}{fig:cluster_throughput_medium_p6}
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.48\linewidth]{graphs/cluster_delay_run_d30_l0.png}
-    \hfill
-    \includegraphics[width=0.48\linewidth]{graphs/cluster_delay_run_d5_l25.png}
-    \caption{Throughput e metriche del cluster per la Configurazione A ($D=30$, $L=0$, sinistra) e la Configurazione B ($D=5$, $L=25$, destra).}
-    \label{fig:cluster_delay_comparison_d5}
-\end{figure*}
+\throughputChart{cluster_clean_run_fast_para1_part6}{Throughput del cluster per lo scenario a alto carico con parallelismo $P=1$.}{fig:cluster_throughput_fast_p1}
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.6\linewidth]{graphs/cluster_delay_run_d10_l0.png}
-    \caption{Metriche del cluster per la Configurazione C ($D=10$, $L=0$), con evidenza del grafico ``Record Scartati per Finestra'' in basso a sinistra.}
-    \label{fig:cluster_delay_comparison_d10}
-\end{figure*}
+\throughputChart{cluster_clean_run_fast_para3_part6}{Throughput del cluster per lo scenario a alto carico con parallelismo $P=3$.}{fig:cluster_throughput_fast_p3}
 
-\subsection{Grafici del Terzo Confronto: Checkpointing e Resilienza}
+\throughputChart{cluster_clean_run_fast_para6_part6}{Throughput del cluster per lo scenario a alto carico con parallelismo $P=6$.}{fig:cluster_throughput_fast_p6}
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.75\linewidth]{graphs/cluster_chk_run_int5_fail1.png}
-    \caption{Telemetria del cluster Flink durante lo Scenario 3 (guasto e ripristino), con evidenza del crollo e successivo picco del throughput (catch-up phase) e della latenza mark.}
-    \label{fig:cluster_checkpoint_recovery}
-\end{figure*}
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.75\linewidth]{graphs/node_chk_run_int5_fail1.png}
-    \caption{CPU e Memory Utilization dei TaskManager durante lo Scenario 3: il worker 3 subisce il crash, mentre il worker 1 subisce un picco di CPU al $60\%$ per la catch-up phase.}
-    \label{fig:node_checkpoint_recovery}
-\end{figure*}
+% -------------
+%    LATENZA   
+% -------------
+
+\latencyChart{cluster_clean_run_medium_para1_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=1$.}{fig:cluster_latency_medium_p90_p1}
+
+\latencyChart{cluster_clean_run_medium_para3_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=3$.}{fig:cluster_latency_medium_p90_p3}
+
+\latencyChart{cluster_clean_run_medium_para6_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=6$.}{fig:cluster_latency_medium_p90_p6}
+
+\latencyChart{cluster_clean_run_fast_para1_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=1$.}{fig:cluster_latency_fast_p90_p1}
+
+\latencyChart{cluster_clean_run_fast_para3_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=3$.}{fig:cluster_latency_fast_p90_p3}
+
+\latencyChart{cluster_clean_run_fast_para6_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=6$.}{fig:cluster_latency_fast_p90_p6}
+
+
+\subsection{Gestione del Disordine}
+
+% --------------
+%   THROUGHPUT  
+% --------------
+
+\throughputChart{cluster_delay_run_d30_l0}{Throughput del cluster per lo scenario con delay $D=30$ e latenza $L=0$.}{fig:cluster_throughput_d30_l0}
+
+\throughputChart{cluster_delay_run_d5_l25}{Throughput del cluster per lo scenario con delay $D=5$ e latenza $L=25$.}{fig:cluster_throughput_d5_l25}
+
+\throughputChart{cluster_delay_run_d10_l0}{Throughput del cluster per lo scenario con delay $D=10$ e latenza $L=0$.}{fig:cluster_throughput_d10_l0}
+
+% -------------
+%    LATENZA   
+% -------------
+
+\latencyChart{cluster_delay_run_d30_l0}{Latenza end-to-end P90 per lo scenario con delay $D=30$ e latenza $L=0$.}{fig:cluster_latency_d30_l0}
+
+\latencyChart{cluster_delay_run_d5_l25}{Latenza end-to-end P90 per lo scenario con delay $D=5$ e latenza $L=25$.}{fig:cluster_latency_d5_l25}
+
+\latencyChart{cluster_delay_run_d10_l0}{Latenza end-to-end P90 per lo scenario con delay $D=10$ e latenza $L=0$.}{fig:cluster_latency_d10_l0}
+
+% -------------
+%   DISORDINE  
+% -------------
+
+\outoforderChart{cluster_delay_run_d30_l0}{Out-of-orderness per lo scenario con delay $D=30$ e latenza $L=0$.}{fig:cluster_ooo_d30_l0}
+
+\outoforderChart{cluster_delay_run_d5_l25}{Out-of-orderness per lo scenario con delay $D=5$ e latenza $L=25$.}{fig:cluster_ooo_d5_l25}
+
+\outoforderChart{cluster_delay_run_d10_l0}{Out-of-orderness per lo scenario con delay $D=10$ e latenza $L=0$.}{fig:cluster_ooo_d10_l0}
+
+
+\subsection{Checkpointing e Resilienza}
+
+% --------------
+%   THROUGHPUT  
+% --------------
+
+\throughputChart{cluster_chk_run_int30_fail0}{Throughput del cluster per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_throughput_int30_fail0}
+
+\throughputChart{cluster_chk_run_int5_fail0}{Throughput del cluster per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_throughput_int5_fail0}
+
+\throughputChart{cluster_chk_run_int5_fail1}{Throughput del cluster per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_throughput_int5_fail1}
+
+% -------------
+%    LATENZA   
+% -------------
+
+\latencyChart{cluster_chk_run_int30_fail0}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_latency_int30_fail0}
+
+\latencyChart{cluster_chk_run_int5_fail0}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_latency_int5_fail0}
+
+\latencyChart{cluster_chk_run_int5_fail1}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_latency_int5_fail1}
+
+% -------------
+%    LATENZA   
+% -------------
+
+\checkpointChart{cluster_chk_run_int30_fail0}{Checkpointing del cluster per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_chk_int30_fail0}
+
+\checkpointChart{cluster_chk_run_int5_fail0}{Checkpointing del cluster per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_chk_int5_fail0}
+
+\checkpointChart{cluster_chk_run_int5_fail1}{Checkpointing del cluster per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_chk_int5_fail1}
+
+% -------------
+%   DISORDINE  
+% -------------
+
+\outoforderChart{cluster_chk_run_int30_fail0}{Out-of-orderness per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_ooo_int30_fail0}
+
+\outoforderChart{cluster_chk_run_int5_fail0}{Out-of-orderness per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_ooo_int5_fail0}
+
+\outoforderChart{cluster_chk_run_int5_fail1}{Out-of-orderness per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_ooo_int5_fail1}
 
 \end{document}
