@@ -227,19 +227,51 @@ Si evidenzia che l'uso dell'accelerazione temporale per aumentare il throughput 
 \caption{Scenari di carico e accelerazione del simulatore Go}
 \label{tab:go_acceleration_scenarios}
 \scriptsize
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{2pt}
 \begin{tabular}{lccc}
 \toprule
 \textbf{Parametro / Metrica} & \textbf{Sce. A (Basso)} & \textbf{Sce. B (Medio)} & \textbf{Sce. C (Alto)} \\
 \midrule
-\textbf{Moltiplicatore} & 1.440x & 14.400x & 43.200x \\
+\textbf{Moltiplicatore target} & 1.440x & 14.400x & 43.200x \\
 \textbf{Fattore tempo log/real} & 1g / 1min & 10g / 1min & 30g / 1min \\
-\textbf{Durata del Replay} & $\approx$ 120 min & $\approx$ 12 min & $\approx$ 4 min \\
-\textbf{Throughput medio} & $\approx$ 305 ev/s & $\approx$ 3.050 ev/s & $\approx$ 9.150 ev/s \\
+\textbf{Durata del Replay nominale} & $\approx$ 120 min & $\approx$ 12 min & $\approx$ 4 min \\
+\textbf{Throughput nominale} & $\approx$ 305 ev/s & $\approx$ 3.050 ev/s & $\approx$ 9.150 ev/s \\
 \textbf{Finestra 1h reale} & 2,5 s & 0,25 s & 0,083 s \\
+\midrule
+\textbf{Efficienza reale} & $\approx$ 99\% & $\approx$ 96\% & $\approx$ 89\% -- 91\% \\
+\textbf{Throughput reale misurato} & $\approx$ 302 ev/s & $\approx$ 2.928 ev/s & $\approx$ 8.140 -- 8.320 ev/s \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+In base a tali scenari di accelerazione, è possibile stimare teoricamente il throughput massimo in uscita atteso per ciascuna delle tre query analitiche ($OUT_i$), assumendo che non si verifichino scarti o ritardi tardivi tali da innescare emissioni supplementari (Tabella~\ref{tab:max_throughput_expected}). La stima si basa sul numero massimo di chiavi attive e sulla frequenza di chiusura o trigger delle finestre in tempo reale:
+\begin{itemize}
+    \item \textbf{Query 1}: Emette $4$ record (uno per ciascuna compagnia target) alla chiusura di ogni finestra logica di $1$ ora.
+    \item \textbf{Query 2}: Consiste di tre finestre concorrenti. La finestra da $1$ ora e la finestra globale (avente trigger periodico a $1$ ora logica) emettono al massimo $10$ record ciascuna; la finestra da $6$ ore emette $10$ record ogni $6$ ore logiche (media di $1.67$ record/ora). Il totale teorico è dunque di $21.67$ record per ora logica.
+    \item \textbf{Query 3}: Composta da tre finestre. Le finestre da $1$ giorno e globale (con trigger a $1$ giorno logico) emettono al massimo $96$ record ciascuna ($4$ compagnie $\times$ $24$ ore); la finestra da $7$ giorni emette $96$ record ogni $7$ giorni logici (media di $13.71$ record/giorno). Il totale è di $205.71$ record per giorno logico.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Throughput massimo teorico e reale in uscita atteso per ciascuna query}
+\label{tab:max_throughput_expected}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Query / Pipeline} & \textbf{Sce. A (1.440x)} & \textbf{Sce. B (14.400x)} & \textbf{Sce. C (43.200x)} \\
+\midrule
+\textbf{Query 1} & 1,60 recs/s & 16,00 recs/s & 48,00 recs/s \\
+\textbf{Query 2 (1h + 6h + Global)} & 8,67 recs/s & 86,67 recs/s & 260,00 recs/s \\
+\textbf{Query 3 (1d + 7d + Global)} & 3,43 recs/s & 34,29 recs/s & 102,86 recs/s \\
+\midrule
+\textbf{Totale Max Nominale (OUT)} & \textbf{13,70 recs/s} & \textbf{136,96 recs/s} & \textbf{410,86 recs/s} \\
+\textbf{Totale Reale Atteso (OUT)} & \textbf{13,56 recs/s} & \textbf{131,48 recs/s} & \textbf{365,66 -- 373,88 recs/s} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Si osserva che nella realtà sperimentale, il throughput di Query 2 può risultare inferiore a causa della condizione sul traffico minimo ($\ge 30$ voli in event-time) che esclude molti aeroporti a bassa frequenza dall'ordinamento Top-10. Al contrario, il throughput reale di Query 3 (o Query 1) può talvolta registrare fluttuazioni positive rispetto a quello teorico a causa dei record tardivi (\textit{late records}) che, se rientranti nei margini di \textit{allowed lateness}, innescano aggiornamenti e pubblicazioni incrementali delle finestre Flink precedentemente chiuse.
 
 Il simulatore implementa diverse funzionalità avanzate e ottimizzazioni ingegneristiche:
 
@@ -409,7 +441,54 @@ La risoluzione dei nomi DNS privati consente alle macchine di dialogare in modo 
 % ------------------------------
 
 \section{Valutazione Sperimentale}\label{sec:experimental_evaluation}
-% Inserire qui la valutazione sperimentale.
+
+In questa sezione viene presentata la valutazione sperimentale dell'architettura \textit{Sky Analytics Stream}. L'analisi delle prestazioni è suddivisa in tre campagne di test mirate a valutare: l'impatto del parallelismo e la scalabilità, la gestione del disordine temporale (out-of-orderness), e l'impatto del checkpointing con il relativo ripristino in caso di guasti. Tutti i test sono stati condotti sul cluster distribuito AWS EC2 descritto nella Sezione~\ref{subsec:ec2_deployment}.
+
+\noindent\textbf{Nota sull'efficienza reale del simulatore}: Si evidenzia che la velocità di replay effettiva del simulatore Go risente del carico computazionale, dei context switch e dei tempi di I/O del sistema operativo, in particolare sotto elevati fattori di accelerazione temporale. Dalle rilevazioni sperimentali, il simulatore Go raggiunge circa il \textbf{99\%} dello speedup target nello scenario lento ($1.440\times$), circa il \textbf{96\%} nello scenario medio ($14.400\times$) e oscilla tra l'\textbf{89\%} e il \textbf{91\%} nello scenario veloce ($43.200\times$). Di conseguenza, i throughput in ingresso effettivi misurati su Flink risultano proporzionalmente ridimensionati rispetto ai valori nominali teorici.
+
+\subsection{Primo Confronto: Parallelismo e Scalabilità in Assenza di Disordine}\label{subsec:perf_parallelism}
+
+La prima campagna di test valuta il comportamento della pipeline al variare del livello di parallelismo ($P \in \{1, 3, 6\}$) in condizioni di dati ordinati all'origine (disordine aggiuntivo pari a $0$ e tolleranza al ritardo impostata a $0$). I test analizzano i due scenari a carico più sostenuto riprodotti dal simulatore Go: lo scenario a \textbf{Medio Carico} (moltiplicatore $14.400\times$, throughput nominale $\approx 3.050$ eventi/secondo) e lo scenario ad \textbf{Alto Carico} o stress test (moltiplicatore $43.200\times$, throughput nominale $\approx 9.150$ eventi/secondo). Le metriche prestazionali a livello di cluster e di nodo sono state raccolte da InfluxDB e visualizzate su Grafana.
+
+\subsubsection{Analisi del Throughput e delle Latenze a Livello di Cluster}\label{subsubsec:throughput_cluster}
+
+L'analisi del throughput a livello di cluster evidenzia differenze significative tra i livelli di parallelismo, in particolare nello scenario a medio carico ($14.400\times$):
+\begin{itemize}
+    \item \textbf{Parallelismo 1 ($P=1$)}: Come si osserva in Fig.~\ref{fig:cluster_throughput_comparison} (sinistra), il throughput in ingresso reale si attesta intorno a $\approx 2.400$ eventi/secondo. Questo valore è inferiore al throughput nominale di $3.050$ eventi/secondo generato dal simulatore, indicando che un singolo slot di calcolo non è in grado di sostenere il carico complessivo della pipeline, provocando un accumulo di ritardo (\textit{lag}) nei topic di Kafka a monte.
+    \item \textbf{Parallelismo 3 e 6 ($P \in \{3, 6\}$)}: Con l'aumento dei thread di elaborazione (Fig.~\ref{fig:cluster_throughput_comparison}, destra), il throughput in ingresso sale e si stabilizza perfettamente alla soglia nominale di $\approx 3.000$ eventi/secondo. Questo dimostra che il cluster ha superato il collo di bottiglia e riesce a consumare i dati alla velocità di generazione del simulatore. Il throughput in uscita totale si attesta a circa $100$ record/secondo complessivi (di cui $\approx 50$ record/s per la Query 1, $\approx 30$ record/s per la Query 2 e $\approx 15-18$ record/s per la Query 3).
+\end{itemize}
+
+Nello scenario ad alto carico ($43.200\times$), il throughput reale in ingresso si stabilizza per tutte le configurazioni di parallelismo a circa $\approx 8.100$ eventi/secondo, leggermente al di sotto del valore nominale di $9.150$ eventi/secondo. Questa limitazione non è imputabile a colli di bottiglia computazionali di Apache Flink, bensì a vincoli di I/O di rete o alla capacità di throughput del broker Kafka a singolo nodo nel nostro ambiente AWS EC2. Tuttavia, la latenza end-to-end media (\textit{Latency Mark}) rimane estremamente stabile e controllata al di sotto dei $120$ ms per la Query 2 Global (la più complessa), confermando la stabilità del motore di calcolo sotto carico pesante.
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para1_part6.png}
+    \hfill
+    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para3_part6.png}
+    \caption{Throughput del cluster per lo scenario a medio carico ($14.400\times$) con parallelismo $P=1$ (sinistra) e $P=3$ (destra).}
+    \label{fig:cluster_throughput_comparison}
+\end{figure*}
+
+\subsubsection{Analisi del Consumo delle Risorse a Livello di Nodo}\label{subsubsec:resource_node}
+
+L'incremento del parallelismo mostra un impatto chiaro e positivo sulla distribuzione del carico computazionale (CPU) tra le istanze EC2 attive:
+\begin{itemize}
+    \item \textbf{Parallelismo 1 ($P=1$)}: L'intera elaborazione del DAG di Flink viene allocata su un singolo slot di calcolo di un unico TaskManager. Nello scenario a medio carico, l'istanza \texttt{flink-worker-1} registra un uso di CPU del $\approx 12-16\%$, mentre gli altri worker rimangono inattivi ad uno $0\%$ reale. Nello stress test ad alto carico ($43.200\times$, Fig.~\ref{fig:node_cpu_comparison} a sinistra), l'unico worker attivo (\texttt{flink-worker-3}) subisce un picco di utilizzo di CPU che oscilla tra il $60\%$ e il $70\%$, rappresentando un punto singolo di potenziale instabilità per l'infrastruttura.
+    \item \textbf{Parallelismo 3 ($P=3$)}: Flink alloca i 3 slot attivi distribuendo il carico su due TaskManager: \texttt{flink-worker-3} registra circa il $45\%$ di CPU nello stress test, mentre \texttt{flink-worker-2} lavora al $22\%$ CPU. Il terzo worker rimane inutilizzato.
+    \item \textbf{Parallelismo 6 ($P=6$)}: Con tutti i 6 slot del cluster attivi (2 slot per ciascuno dei 3 TaskManager), il carico viene bilanciato in modo eccellente tra tutte e tre le macchine. Nello scenario a medio carico la CPU si attesta uniformemente tra il $11-13\%$, mentre nello stress test (Fig.~\ref{fig:node_cpu_comparison} a destra) tutte le istanze lavorano in modo cooperativo e simmetrico con un consumo di CPU stabile intorno al $25\%$.
+\end{itemize}
+
+Questo comportamento evidenzia la scalabilità orizzontale dell'applicazione: all'aumentare del parallelismo, Flink distribuisce i sotto-task e le relative finestre di calcolo in modo balanciato su tutti i nodi del cluster, riducendo drasticamente il carico sui singoli TaskManager ed eliminando i picchi di utilizzo della CPU.
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para1_part6.png}
+    \hfill
+    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para6_part6.png}
+    \caption{Utilizzo della CPU sui nodi TaskManager nello stress test ($43.200\times$) con parallelismo $P=1$ (sinistra) e $P=6$ (destra).}
+    \label{fig:node_cpu_comparison}
+\end{figure*}
+
 
 % ------------------------------
 
