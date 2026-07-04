@@ -541,15 +541,15 @@ Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga
 \centering
 \caption{Analisi dell'Overhead del Checkpointing (Parallelismo $P=6$).}
 \label{tab:checkpoint_overhead}
-\begin{tabular}{lcc}
+\begin{tabular}{p{2.8cm}cc}
 \hline
-\textbf{Metrica} & \textbf{Intervallo 5 Minuti} & \textbf{Intervallo 30 Secondi} \\
+\textbf{Metrica} & \textbf{Int. 5 Min} & \textbf{Int. 30 Sec} \\
 \hline
 \textbf{Stato Completato} & 3 Checkpoint & 29 Checkpoint \\
 \textbf{Dimensione Stato} & $\approx 8,20$ MiB & $\approx 4,02$ MiB \\
 \textbf{Durata Checkpoint} & $\approx 2,75$ s & $\approx 474$ ms \\
-\textbf{TaskManager GC Medio} & \textbf{266 ms} & \textbf{431 ms} \\
-\textbf{CPU TaskManager Media} & $\approx 11-13\%$ & $\approx 12-14\%$ \\
+\textbf{TM GC Medio} & \textbf{266 ms} & \textbf{431 ms} \\
+\textbf{CPU TM Media} & $\approx 11-13\%$ & $\approx 12-14\%$ \\
 \textbf{Throughput Ingressso} & Stabile a $2.928$ ev/s & Stabile a $2.928$ ev/s \\
 \hline
 \end{tabular}
