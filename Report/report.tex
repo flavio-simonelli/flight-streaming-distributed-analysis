@@ -461,14 +461,6 @@ L'analisi del throughput e delle latenze a livello di cluster rivela dinamiche p
 
 Nello scenario ad alto carico ($43.200\times$), il throughput reale in ingresso si stabilizza per tutte le configurazioni di parallelismo a circa $\approx 8.100 - 8.320$ eventi/secondo, corrispondente all'efficienza limite del $89\%-91\%$ del simulatore Go. La latenza media (\textit{Latency Mark}) per la Query 2 Global rimane sotto i $120$ ms, confermando la stabilità generale del motore di calcolo, sebbene anche in questo scenario si verifichi la deriva della latenza Newest al parallelismo $P=6$ fino ad $1$ minuto.
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para1_part6.png}
-    \hfill
-    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para3_part6.png}
-    \caption{Throughput del cluster per lo scenario a medio carico ($14.400\times$) con parallelismo $P=1$ (sinistra) e $P=3$ (destra).}
-    \label{fig:cluster_throughput_comparison}
-\end{figure*}
 
 \subsubsection{Analisi del Consumo delle Risorse a Livello di Nodo}\label{subsubsec:resource_node}
 
@@ -481,14 +473,49 @@ L'incremento del parallelismo mostra un impatto chiaro e positivo sulla distribu
 
 Questo comportamento evidenzia la scalabilità orizzontale dell'applicazione: all'aumentare del parallelismo, Flink distribuisce i sotto-task e le relative finestre di calcolo in modo balanciato su tutti i nodi del cluster, riducendo drasticamente il carico sui singoli TaskManager ed eliminando i picchi di utilizzo della CPU.
 
-\begin{figure*}[htbp]
-    \centering
-    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para1_part6.png}
-    \hfill
-    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para6_part6.png}
-    \caption{Utilizzo della CPU sui nodi TaskManager nello stress test ($43.200\times$) con parallelismo $P=1$ (sinistra) e $P=6$ (destra).}
-    \label{fig:node_cpu_comparison}
-\end{figure*}
+
+\subsection{Secondo Confronto: Gestione del Disordine Temporale (Out-of-Order)}\label{subsec:perf_out_of_order}
+
+La seconda campagna di test analizza l'efficacia delle strategie di gestione del disordine temporale (\textit{out-of-orderness}) introdotto dal simulatore Go (con probabilità di ritardo del $5\%$ e ritardo massimo pari a $30$ minuti logici). I test sono stati eseguiti con parallelismo $P=3$, moltiplicatore $14.400\times$, confrontando tre diverse configurazioni di Watermark Delay ($D$) e Allowed Lateness ($L$):
+\begin{enumerate}
+    \item \textbf{Configurazione A (Conservativa - $D=30$ min, $L=0$ min)}: Privilegia la completezza del dato impostando il ritardo del watermark pari al ritardo massimo teorico dei dati.
+    \item \textbf{Configurazione B (Ibrida - $D=5$ min, $L=25$ min)}: Cerca un compromesso emettendo risultati preliminari rapidi e aggiornandoli successivamente per $25$ minuti logici.
+    \item \textbf{Configurazione C (Aggressiva - $D=10$ min, $L=0$ min)}: Privilegia la tempestività e la riduzione dell'uso di memoria, scartando i record con ritardo superiore a $10$ minuti.
+\end{enumerate}
+
+\subsubsection{Analisi della Perdita di Dati e Accuratezza}\label{subsubsec:data_loss}
+
+L'analisi dei dati evidenzia l'impatto diretto dei parametri sulla completezza del calcolo:
+\begin{itemize}
+    \item \textbf{Configurazioni A e B}: Registrano un numero di record scartati pari a \textbf{zero} (Fig.~\ref{fig:cluster_delay_comparison_d5}). Nella Configurazione A, il ritardo di $30$ minuti consente a tutti gli eventi fuori ordine di rientrare prima del passaggio del watermark. Nella Configurazione B, sebbene il watermark si muova più rapidamente ($D=5$), la finestra resta attiva in memoria grazie a un' \textit{allowed lateness} di $25$ minuti, garantendo che i voli con ritardo fino a $30$ minuti ($5 + 25$) vengano comunque inclusi nel calcolo finale.
+    \item \textbf{Configurazione C}: Mostra una significativa perdita di dati. Nel grafico \textit{Record Scartati per Finestra} (Fig.~\ref{fig:cluster_delay_comparison_d10}, in basso a sinistra), si osserva un accumulo continuo di scarti che raggiunge $\approx 970$ record per la Query 2 (finestra 1h), $\approx 500$ record per la Query 1 e $\approx 250$ per la Query 2 (finestra 6h). La distribuzione dei ritardi degli scarti conferma che tutti gli eventi con sfasamento compreso tra $10$ e $30$ minuti sono stati rigettati da Flink, degradando la precisione dei risultati di business.
+\end{itemize}
+
+\subsubsection{Analisi delle Latenze e Trade-off Operativi}\label{subsubsec:latency_tradeoffs}
+
+Le tre strategie comportano trade-off operativi nettamente distinti (riassunti in Tabella~\ref{tab:delay_strategies_comparison}):
+\begin{itemize}
+    \item \textbf{Latenza di prima emissione}: Nella Configurazione A, la latenza di prima emissione è più elevata. La finestra deve attendere $30$ minuti di event-time prima che il watermark superi la fine della finestra stessa e ne causi la chiusura. Nella Configurazione B, il primo risultato parziale viene emesso solo dopo $5$ minuti, riducendo drasticamente il tempo di risposta percepito a valle.
+    \item \textbf{Carico di Scrittura sui Sink e Ricalcolo}: La Configurazione B, a fronte di una maggiore reattività, genera un carico di I/O considerevole. Ogni record tardivo che giunge dopo la chiusura iniziale della finestra causa la riapertura della stessa, l'esecuzione incrementale degli aggregatori e l'invio di un nuovo record di aggiornamento su Kafka, moltiplicando le scritture. Al contrario, la Configurazione A emette un singolo record consolidato per finestra, minimizzando il traffico di rete ed i ricalcoli.
+    \item \textbf{Occupazione di Memoria dello Stato}: Nelle configurazioni A e B, Flink deve mantenere in memoria lo stato delle finestre per un tempo prolungato (rispettivamente per $30$ e $25$ minuti logici oltre la fine della finestra). Nella Configurazione C lo stato viene rimosso immediatamente al passaggio del watermark ($L=0$), garantendo un minor consumo di memoria dello State Backend, ma al costo di una perdita di informazioni irreversibile.
+\end{itemize}
+
+\begin{table*}[htbp]
+\centering
+\caption{Confronto delle Strategie di Gestione del Disordine Temporale.}
+\label{tab:delay_strategies_comparison}
+\begin{tabular}{p{3.2cm}p{3.6cm}p{3.6cm}p{3.6cm}}
+\hline
+\textbf{Metrica / Impatto} & \textbf{Configurazione A} ($D=30$, $L=0$) & \textbf{Configurazione B} ($D=5$, $L=25$) & \textbf{Configurazione C} ($D=10$, $L=0$) \\
+\hline
+\textbf{Record Scartati} & \textbf{0} & \textbf{0} & \textbf{Rilevante} ($>1700$ record totali scartati) \\
+\textbf{Latenza Prima Emiss.} & \textbf{Alta} (attesa di 30 min logici) & \textbf{Bassa} (attesa di 5 min logici) & \textbf{Molto Bassa} (attesa di 10 min logici) \\
+\textbf{Aggiornamenti} & Nessuno (emissione finale) & \textbf{Multipli} (ogni record tardivo riapre la finestra) & Nessuno (emissione parziale) \\
+\textbf{Pressione Stato} & \textbf{Alta} (stato per +30 min) & \textbf{Medio-Alta} (stato per +25 min per update) & \textbf{Bassa} (stato rimosso dopo 10 min) \\
+\textbf{Scritture Sink} & 1 scrittura per finestra & Scritture multiple per finestra & 1 scrittura per finestra \\
+\hline
+\end{tabular}
+\end{table*}
 
 
 % ------------------------------
@@ -519,6 +546,47 @@ C.~Masson, J.~E. Rim, and H.~K. Lee, ``DDSketch: A fast and fully-mergeable quan
 \clearpage
 
 \section{Rappresentazioni Grafiche e Allegati}\label{sec:appendix_graphics}
-% Inserire qui eventuali diagrammi, grafici o tabelle aggiuntive.
+
+In questa appendice sono raccolti i grafici di telemetria estratti da Grafana relativi alle campagne di test descritte nella Sezione~\ref{sec:experimental_evaluation}.
+
+\subsection{Grafici del Primo Confronto: Parallelismo e Scalabilità}
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para1_part6.png}
+    \hfill
+    \includegraphics[width=0.48\linewidth]{graphs/cluster_clean_run_medium_para3_part6.png}
+    \caption{Throughput del cluster per lo scenario a medio carico ($14.400\times$) con parallelismo $P=1$ (sinistra) e $P=3$ (destra).}
+    \label{fig:cluster_throughput_comparison}
+\end{figure*}
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para1_part6.png}
+    \hfill
+    \includegraphics[width=0.48\linewidth]{graphs/node_clean_run_fast_para6_part6.png}
+    \caption{Utilizzo della CPU sui nodi TaskManager nello stress test ($43.200\times$) con parallelismo $P=1$ (sinistra) e $P=6$ (destra).}
+    \label{fig:node_cpu_comparison}
+\end{figure*}
+
+\clearpage
+
+\subsection{Grafici del Secondo Confronto: Gestione del Disordine}
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.48\linewidth]{graphs/cluster_delay_run_d30_l0.png}
+    \hfill
+    \includegraphics[width=0.48\linewidth]{graphs/cluster_delay_run_d5_l25.png}
+    \caption{Throughput e metriche del cluster per la Configurazione A ($D=30$, $L=0$, sinistra) e la Configurazione B ($D=5$, $L=25$, destra).}
+    \label{fig:cluster_delay_comparison_d5}
+\end{figure*}
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.6\linewidth]{graphs/cluster_delay_run_d10_l0.png}
+    \caption{Metriche del cluster per la Configurazione C ($D=10$, $L=0$), con evidenza del grafico ``Record Scartati per Finestra'' in basso a sinistra.}
+    \label{fig:cluster_delay_comparison_d10}
+\end{figure*}
 
 \end{document}
