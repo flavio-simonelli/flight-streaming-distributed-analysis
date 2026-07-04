@@ -517,6 +517,56 @@ Le tre strategie comportano trade-off operativi nettamente distinti (riassunti i
 \end{tabular}
 \end{table*}
 
+\subsection{Terzo Confronto: Impatto del Checkpointing e Tolleranza ai Guasti}\label{subsec:perf_checkpoint_fault_tolerance}
+
+La terza e ultima campagna di test valuta il comportamento della pipeline Flink in termini di resilienza ed efficienza del meccanismo di tolleranza ai guasti. Le prove sono state condotte con parallelismo $P=6$, moltiplicatore $14.400\times$, senza disordine sorgente aggiunto, confrontando tre differenti scenari:
+\begin{enumerate}
+    \item \textbf{Scenario 1 (Baseline Checkpoint)}: Checkpoint abilitato ogni $5$ minuti, nessun guasto iniettato.
+    \item \textbf{Scenario 2 (Valutazione Overhead)}: Checkpoint abilitato con frequenza elevata (ogni $30$ secondi), nessun guasto iniettato.
+    \item \textbf{Scenario 3 (Test di Ripristino)}: Checkpoint ogni $5$ minuti, con iniezione di $1$ fallimento al minuto $6$ di esecuzione reale (kill controllato del container del TaskManager \texttt{flink-worker-3}).
+\end{enumerate}
+
+La pipeline utilizza RocksDB come State Backend configurato con snapshot incrementali per minimizzare l'I/O di rete verso lo storage distribuito.
+
+\subsubsection{Analisi dell'Overhead del Checkpointing}\label{subsubsec:checkpoint_overhead}
+
+Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga in modo asincrono, la frequenza con cui esso viene innescato introduce un costo computazionale legato alla serializzazione dello stato e al coordinamento dei nodi:
+\begin{itemize}
+    \item \textbf{Dimensione e Durata}: Come evidenziato in Tabella~\ref{tab:checkpoint_overhead}, nello Scenario 1 (5 min) il completamento di uno snapshot richiede in media $\approx 2,75$ secondi per uno stato di $\approx 8,20$ MiB. Nello Scenario 2 (30 s), la durata scende a soli $\approx 474$ ms per uno stato medio di $\approx 4,02$ MiB. Questa drastica riduzione è il risultato diretto degli snapshot incrementali di RocksDB: poiché l'intervallo temporale è ridotto, la quantità di file SST modificati e copiati su MinIO/S3 è notevolmente inferiore.
+    \item \textbf{Attività di Garbage Collection (GC)}: Il vero collo di bottiglia introdotto dal checkpoint frequente (Scenario 2) risiede nella sollecitazione della JVM. Il tempo di Garbage Collection medio dei TaskManager sale da **$266$ ms** (Scenario 1) a **$431$ ms** (Scenario 2). La creazione continua di metadati, barriere di allineamento e la serializzazione delle chiavi creano un elevato tasso di allocazione di oggetti a vita breve nella memoria Heap, innescando cicli di GC più frequenti.
+    \item \textbf{Impatto sul Throughput}: Nonostante l'incremento di GC pause e una minima crescita della CPU, il throughput reale in ingresso si mantiene stabile alla soglia di regime di $\approx 2.928$ eventi/secondo. Questo dimostra l'efficacia dell'algoritmo di barriere asincrone di Flink, che evita la saturazione o il blocco dei thread di calcolo primari.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Analisi dell'Overhead del Checkpointing (Parallelismo $P=6$).}
+\label{tab:checkpoint_overhead}
+\begin{tabular}{lcc}
+\hline
+\textbf{Metrica} & \textbf{Intervallo 5 Minuti} & \textbf{Intervallo 30 Secondi} \\
+\hline
+\textbf{Stato Completato} & 3 Checkpoint & 29 Checkpoint \\
+\textbf{Dimensione Stato} & $\approx 8,20$ MiB & $\approx 4,02$ MiB \\
+\textbf{Durata Checkpoint} & $\approx 2,75$ s & $\approx 474$ ms \\
+\textbf{TaskManager GC Medio} & \textbf{266 ms} & \textbf{431 ms} \\
+\textbf{CPU TaskManager Media} & $\approx 11-13\%$ & $\approx 12-14\%$ \\
+\textbf{Throughput Ingressso} & Stabile a $2.928$ ev/s & Stabile a $2.928$ ev/s \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Analisi del Restore e Funzionamento del Failover}\label{subsubsec:restore_failover}
+
+Nello Scenario 3 viene simulato un guasto critico arrestando brutalmente l'istanza \texttt{flink-worker-3} al sesto minuto di esecuzione reale. Le metriche a livello di cluster (Fig.~\ref{fig:cluster_checkpoint_recovery}) e di nodo (Fig.~\ref{fig:node_checkpoint_recovery}) mostrano la sequenza esatta degli eventi:
+\begin{itemize}
+    \item \textbf{Rilevamento e Downtime}: Non appena il JobManager rileva l'assenza del TaskManager, interrompe immediatamente il Job. Il throughput in ingresso e uscita crolla a **zero** per un tempo di failover $T_{\text{failover}} \approx 15$ secondi logici reali. In questo intervallo il JobManager re-alloca la topologia distribuita sugli slot rimanenti e sul worker riavviato.
+    \item \textbf{Rollback dello Stato consistente}: Flink ripristina lo stato del Job recuperando i dati di business e i metadati dall'ultimo checkpoint consistente valido, effettuato al minuto 5 (stato di $\approx 7,40$ MiB), reimpostando i contatori e le finestre attive a quel preciso istante logico.
+    \item \textbf{Fase di Catch-up}: Durante il fermo di 15 secondi, il simulatore Go ha continuato ad inviare voli su Kafka, accumulando lag. Al riavvio, la sorgente Flink consuma i messaggi accumulati al massimo delle sue capacità. Il throughput in ingresso subisce una brusca impennata toccando un picco di **$\approx 9.000$ eventi/secondo** (3 volte la velocità di regime), mentre in uscita il throughput di scrittura tocca temporaneamente i **$230$ record/secondo**.
+    \item \textbf{Impennata della CPU e GC}: Per elaborare la mole di dati accumulata, il TaskManager riattivato (\texttt{flink-worker-1}) registra un picco di utilizzo della CPU che tocca il **$60\%$** (Fig.~\ref{fig:node_checkpoint_recovery}), mentre si osserva un picco concomitante nelle pause di GC della JVM dovuto al caricamento e riallineamento istantaneo delle strutture dati in memoria.
+    \item \textbf{Picco e Rientro delle Latenze}: Poiché i record processati durante la ripartenza hanno stazionato a lungo su Kafka, la loro latenza end-to-end aumenta significativamente, con un picco del \textit{Latency Mark} medio per la Query 2 Global che sale fino a **$2,5 - 3,5$ secondi**. Una volta azzerato il lag accumulato, l'elaborazione ritorna in tempo reale e le latenze rientrano istantaneamente sotto la soglia nominale dei $120$ ms.
+\end{itemize}
+
+Questo test dimostra la robustezza dell'architettura: il sistema ripristina la corretta elaborazione senza alcuna perdita di eventi o duplicazione logica. Le garanzie di recapito \textit{Exactly-Once} a livello end-to-end sono assicurate dall'idempotenza intrinseca di InfluxDB (che sovrascrive i record con la medesima chiave e timestamp di finestra) unita alla gestione degli offset da parte della KafkaSource di Flink.
 
 % ------------------------------
 
@@ -587,6 +637,22 @@ In questa appendice sono raccolti i grafici di telemetria estratti da Grafana re
     \includegraphics[width=0.6\linewidth]{graphs/cluster_delay_run_d10_l0.png}
     \caption{Metriche del cluster per la Configurazione C ($D=10$, $L=0$), con evidenza del grafico ``Record Scartati per Finestra'' in basso a sinistra.}
     \label{fig:cluster_delay_comparison_d10}
+\end{figure*}
+
+\subsection{Grafici del Terzo Confronto: Checkpointing e Resilienza}
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.75\linewidth]{graphs/cluster_chk_run_int5_fail1.png}
+    \caption{Telemetria del cluster Flink durante lo Scenario 3 (guasto e ripristino), con evidenza del crollo e successivo picco del throughput (catch-up phase) e della latenza mark.}
+    \label{fig:cluster_checkpoint_recovery}
+\end{figure*}
+
+\begin{figure*}[htbp]
+    \centering
+    \includegraphics[width=0.75\linewidth]{graphs/node_chk_run_int5_fail1.png}
+    \caption{CPU e Memory Utilization dei TaskManager durante lo Scenario 3: il worker 3 subisce il crash, mentre il worker 1 subisce un picco di CPU al $60\%$ per la catch-up phase.}
+    \label{fig:node_checkpoint_recovery}
 \end{figure*}
 
 \end{document}
