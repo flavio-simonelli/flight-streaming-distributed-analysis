@@ -4,25 +4,19 @@
   "metadata": {
     "name": "restored-analysis-results",
     "namespace": "default",
-    "uid": "80a4401a-c2d4-46bf-9fd1-9d78303912a8",
-    "resourceVersion": "1783089911087018",
-    "generation": 14,
-    "creationTimestamp": "2026-06-29T13:11:36Z",
+    "uid": "5d8df0b1-bb15-476a-98e2-40e6970b6658",
+    "resourceVersion": "1783183528374002",
+    "generation": 4,
+    "creationTimestamp": "2026-07-03T18:30:05Z",
     "labels": {
-      "grafana.app/deprecatedInternalID": "4430128047869952"
+      "grafana.app/deprecatedInternalID": "1456230004752384"
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
       "grafana.app/folder": "",
-      "grafana.app/managedBy": "classic-file-provisioning",
-      "grafana.app/managerAllowsEdits": "true",
-      "grafana.app/managerId": "Flink Metrics",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/sourceChecksum": "1dec1addafb0866eb6db5e366d3d454c",
-      "grafana.app/sourcePath": "/var/lib/grafana/dashboards/restored_results.json",
-      "grafana.app/sourceTimestamp": "1782503421000",
-      "grafana.app/updatedBy": "user:ffqlmnhchz0u8f",
-      "grafana.app/updatedTimestamp": "2026-07-03T14:45:11Z"
+      "grafana.app/updatedBy": "user:afr0ovwpvsc8we",
+      "grafana.app/updatedTimestamp": "2026-07-04T16:45:28Z"
     }
   },
   "spec": {
@@ -1517,9 +1511,22 @@
                 "overrides": [
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": "/.*hour.*/"
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "hour_int"
                     },
                     "properties": [
                       {
@@ -1533,27 +1540,6 @@
                       {
                         "id": "decimals",
                         "value": 0
-                      },
-                      {
-                        "id": "displayName",
-                        "value": "Hour"
-                      },
-                      {
-                        "id": "unit",
-                        "value": "none"
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "scope": "series",
-                      "options": "_value"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "m"
                       }
                     ]
                   }
@@ -1683,9 +1669,22 @@
                 "overrides": [
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": "/.*hour.*/"
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "hour_int"
                     },
                     "properties": [
                       {
@@ -1699,27 +1698,6 @@
                       {
                         "id": "decimals",
                         "value": 0
-                      },
-                      {
-                        "id": "displayName",
-                        "value": "Hour"
-                      },
-                      {
-                        "id": "unit",
-                        "value": "none"
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "scope": "series",
-                      "options": "_value"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "m"
                       }
                     ]
                   }
@@ -1849,9 +1827,22 @@
                 "overrides": [
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": "/.*hour.*/"
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "hour_int"
                     },
                     "properties": [
                       {
@@ -1865,27 +1856,6 @@
                       {
                         "id": "decimals",
                         "value": 0
-                      },
-                      {
-                        "id": "displayName",
-                        "value": "Hour"
-                      },
-                      {
-                        "id": "unit",
-                        "value": "none"
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "scope": "series",
-                      "options": "_value"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "m"
                       }
                     ]
                   }
@@ -2015,9 +1985,22 @@
                 "overrides": [
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": "/.*hour.*/"
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "hour_int"
                     },
                     "properties": [
                       {
@@ -2031,27 +2014,6 @@
                       {
                         "id": "decimals",
                         "value": 0
-                      },
-                      {
-                        "id": "displayName",
-                        "value": "Hour"
-                      },
-                      {
-                        "id": "unit",
-                        "value": "none"
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "scope": "series",
-                      "options": "_value"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "m"
                       }
                     ]
                   }
@@ -2181,9 +2143,22 @@
                 "overrides": [
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": "/.*hour.*/"
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "hour_int"
                     },
                     "properties": [
                       {
@@ -2197,27 +2172,6 @@
                       {
                         "id": "decimals",
                         "value": 0
-                      },
-                      {
-                        "id": "displayName",
-                        "value": "Hour"
-                      },
-                      {
-                        "id": "unit",
-                        "value": "none"
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "scope": "series",
-                      "options": "_value"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "m"
                       }
                     ]
                   }
@@ -2347,9 +2301,22 @@
                 "overrides": [
                   {
                     "matcher": {
-                      "id": "byRegexp",
+                      "id": "byName",
                       "scope": "series",
-                      "options": "/.*hour.*/"
+                      "options": "_value"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "m"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "scope": "series",
+                      "options": "hour_int"
                     },
                     "properties": [
                       {
@@ -2363,27 +2330,6 @@
                       {
                         "id": "decimals",
                         "value": 0
-                      },
-                      {
-                        "id": "displayName",
-                        "value": "Hour"
-                      },
-                      {
-                        "id": "unit",
-                        "value": "none"
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "scope": "series",
-                      "options": "_value"
-                    },
-                    "properties": [
-                      {
-                        "id": "unit",
-                        "value": "m"
                       }
                     ]
                   }
