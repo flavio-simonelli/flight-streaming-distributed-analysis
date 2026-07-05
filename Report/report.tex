@@ -11,6 +11,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{hyperref}
+\hypersetup{hypertexnames=false}
 \usepackage{cite} % IEEE specific package for bibliography management
 \usepackage{tabularx}
 \usepackage{float}
@@ -113,6 +114,65 @@
         \adjustbox{trim={0.01\width} {0.31\height} {0.00\width} {0.08\height}, clip}{%
             \includegraphics[width=#1]{../Results/charts/#2}%
         }
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+\newcommandx{\queryOneChart}[4][1=0.90\linewidth]{%
+    \begin{figure}[H]
+        \centering
+        \adjustbox{trim={0.00\width} {0.44\height} {0.00\width} {0.072\height}, clip}{%
+            \includegraphics[width=#1]{../Results/plots/#2}%
+        }
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+\newcommandx{\queryTwoOneHourChart}[4][1=0.95\linewidth]{%
+    \begin{figure}[H]\centering
+        \adjustbox{trim={0.00\width} {0.67\height} {0.00\width} {0.078\height}, clip}{\includegraphics[width=#1]{../Results/plots/#2}}
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+\newcommandx{\queryTwoSixHourChart}[4][1=0.95\linewidth]{%
+    \begin{figure}[H]\centering
+        \adjustbox{trim={0.00\width} {0.415\height} {0.00\width} {0.33\height}, clip}{\includegraphics[width=#1]{../Results/plots/#2}}
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+\newcommandx{\queryTwoGlobalChart}[4][1=0.95\linewidth]{%
+    \begin{figure}[H]\centering
+        \adjustbox{trim={0.00\width} {0.16\height} {0.00\width} {0.58\height}, clip}{\includegraphics[width=#1]{../Results/plots/#2}}
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+\newcommandx{\queryThreeOneDayChart}[4][1=0.98\linewidth]{%
+    \begin{figure}[H]\centering
+        \adjustbox{trim={0.01\width} {0.64\height} {0.01\width} {0.05\height}, clip}{\includegraphics[width=#1]{../Results/plots/#2}}
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+\newcommandx{\queryThreeSevenDayChart}[4][1=0.98\linewidth]{%
+    \begin{figure}[H]\centering
+        \adjustbox{trim={0.01\width} {0.33\height} {0.01\width} {0.36\height}, clip}{\includegraphics[width=#1]{../Results/plots/#2}}
+        \caption{#3}
+        \label{#4}
+    \end{figure}%
+}
+
+\newcommandx{\queryThreeGlobalChart}[4][1=0.98\linewidth]{%
+    \begin{figure}[H]\centering
+        \adjustbox{trim={0.01\width} {0.02\height} {0.01\width} {0.67\height}, clip}{\includegraphics[width=#1]{../Results/plots/#2}}
         \caption{#3}
         \label{#4}
     \end{figure}%
@@ -523,8 +583,8 @@ L'analisi del throughput e delle latenze a livello di cluster rivela dinamiche p
 
 Nello scenario ad alto carico, il throughput reale in ingresso si stabilizza per tutte le configurazioni di parallelismo a circa $\approx 8.100 - 8.320$ eventi/secondo. La telemetria della latenza \textit{Newest} (anch'essa valutata sul $90$-esimo percentile per omogeneità di confronto) rivela andamenti stabili:
 \begin{itemize}
-    \item \textbf{Parallelismi $P=1$ e $P=3$}: Entrambe le configurazioni presentano curve stabili e piatte per l'intera durata dei test. La latenza P90 si attesta costantemente intorno a $2$ s e $250$ ms (Fig.~\ref{fig:cluster_latency_fast_p90_p1} e Fig.~\ref{fig:cluster_latency_fast_p90_p3}).
-    \item \textbf{Parallelismo $P=6$}: La latenza P90 a $P=6$ (Fig.~\ref{fig:cluster_latency_fast_p90_p6}) rimane stabile e controllata intorno a $2-2,5$ s  $250$ ms per la maggior parte del test, registrando un unico picco transitorio che sale a $6,5$ secondi per la Query 3 7d, prima di stabilizzarsi nuovamente sul baseline prededente. Ciò conferma che a P90 gli effetti del watermark drift si traducono in oscillazioni temporanee piuttosto che in accumuli permanenti di ritardo.
+    \item \textbf{Parallelismi $P=1$ e $P=3$}: Entrambe le configurazioni presentano curve stabili e piatte per l'intera durata dei test. La latenza P90 si attesta costantemente intorno a $2,25$ s (Fig.~\ref{fig:cluster_latency_fast_p90_p1} e Fig.~\ref{fig:cluster_latency_fast_p90_p3}).
+    \item \textbf{Parallelismo $P=6$}: La latenza P90 a $P=6$ (Fig.~\ref{fig:cluster_latency_fast_p90_p6}) rimane stabile e controllata intorno a $2$--$2,5$ s per la maggior parte del test, registrando un unico picco transitorio che sale a $6,5$ secondi per la Query 3 7d, prima di stabilizzarsi nuovamente sul livello precedente. Ciò conferma che a P90 gli effetti del watermark drift si traducono in oscillazioni temporanee piuttosto che in accumuli permanenti di ritardo.
 \end{itemize}
 
 
@@ -605,21 +665,42 @@ Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga
 
 \subsubsection{Analisi del Restore}\label{subsubsec:restore_failover}
 
-Nello Scenario 3 viene simulato un guasto critico arrestando brutalmente l'istanza \texttt{flink-worker-1}. Le metriche a livello di cluster (Fig.~\ref{fig:cluster_throughput_int5_fail1} e Fig.~\ref{fig:cluster_latency_int5_fail1}) e di nodo (Fig.~\ref{fig:node_checkpoint_recovery}) mostrano la sequenza esatta degli eventi:
+Nello Scenario 3 viene simulato un guasto critico arrestando brutalmente l'istanza \texttt{flink-worker-1}. Le metriche a livello di cluster (Fig.~\ref{fig:cluster_throughput_int5_fail1} e Fig.~\ref{fig:cluster_latency_int5_fail1}) e di nodo (Fig.~\ref{fig:node_chk_run_int5_fail1}) mostrano la sequenza esatta degli eventi:
 \begin{itemize}
     \item \textbf{Rilevamento e Downtime}: Non appena il JobManager rileva l'assenza del TaskManager, interrompe immediatamente il Job. Il throughput in ingresso e uscita crolla a zero per un tempo di failover $T_{\text{failover}} \approx 15$ secondi logici reali. In questo intervallo il JobManager re-alloca la topologia distribuita sugli slot rimanenti e sul worker riavviato.
     \item \textbf{Rollback dello Stato consistente}: Flink ripristina lo stato del Job recuperando i dati di business e i metadati dall'ultimo checkpoint consistente valido reimpostando i contatori e le finestre attive a quel preciso istante logico.
     \item \textbf{Fase di Catch-up}: Durante il fermo di 15 secondi, il simulatore Go ha continuato ad inviare voli su Kafka, accumulando lag. Al riavvio, la sorgente Flink consuma i messaggi accumulati al massimo delle sue capacità. Il throughput in ingresso subisce una brusca impennata toccando un picco di $\approx 9.000$ eventi/secondo, mentre in uscita il throughput di scrittura tocca temporaneamente i $250$ record/secondo.
-    \item \textbf{Impennata della CPU}: Per elaborare la mole di dati accumulata, il TaskManager riattivato \texttt{flink-worker-1} registra un picco di utilizzo della CPU che tocca il $60\%$ (Fig.~\ref{fig:node_checkpoint_recovery}).
+    \item \textbf{Impennata della CPU}: Per elaborare la mole di dati accumulata, il TaskManager riattivato \texttt{flink-worker-1} registra un picco di utilizzo della CPU che tocca il $60\%$ (Fig.~\ref{fig:node_chk_run_int5_fail1}).
     \item \textbf{Picco e Rientro delle Latenze}: Poiché i record processati durante la ripartenza hanno stazionato a lungo su Kafka, la loro latenza end-to-end aumenta significativamente, con un picco della latenza \textit{Average} che sale fino a $2$ minuti. Una volta azzerato il lag accumulato, l'elaborazione ritorna in tempo reale e le latenze rientrano nei valori tipici.
 \end{itemize}
 
-Questo test dimostra la robustezza dell'architettura: il sistema ripristina la corretta elaborazione senza alcuna perdita di eventi o duplicazione logica. Le garanzie di recapito \textit{Exactly-Once} a livello end-to-end sono assicurate dall'idempotenza intrinseca di InfluxDB (che sovrascrive i record con la medesima chiave e timestamp di finestra) unita alla gestione degli offset da parte della KafkaSource di Flink.
+Questo test dimostra la robustezza dell'architettura: il sistema ripristina la corretta elaborazione senza perdita osservata di eventi né duplicazioni visibili nei risultati. Flink garantisce consistenza \textit{exactly-once} fino allo stato interno; sul tratto Kafka--InfluxDB, configurato \textit{at-least-once}, l'idempotenza delle scritture con la medesima chiave e timestamp di finestra rende innocue le duplicazioni prodotte durante il ripristino. La garanzia end-to-end dipende quindi dal mantenimento di tale schema di chiavi.
+
+\subsection{Analisi dei Risultati Analtici}\label{subsec:analytical_results}
+
+Oltre alle metriche infrastrutturali, sono stati osservati i risultati di business prodotti dalle tre query, confrontando il dataset completo con la versione soggetta a una perdita casuale degli eventi. I grafici completi sono riportati nell'Appendice~\ref{subsec:appendix_analytical_results}.
+
+\paragraph{Query 1 -- prestazioni delle compagnie.}
+Le serie orarie mostrano una marcata variabilità temporale: i ritardi medi restano generalmente nell'ordine di pochi minuti, ma presentano picchi concentrati in specifici giorni, coerenti con episodi operativi circoscritti. Anche il tasso di cancellazione è intermittente e alterna lunghi periodi prossimi allo zero a picchi locali. Tale co-occorrenza suggerisce che le criticità non siano distribuite uniformemente nel quadrimestre. Il confronto tra le quattro compagnie evidenzia profili differenti, ma la posizione dei picchi principali rimane sostanzialmente invariata nel caso con perdita (Figg.~\ref{fig:q1_aa_complete}--\ref{fig:q1_wn_loss}).
+
+\paragraph{Query 2 -- aeroporti con ritardi severi.}
+La graduatoria globale è dominata dagli aeroporti con identificativo 11298, 11292, 10397 e 13930, che nel dataset completo totalizzano rispettivamente 15.979, 13.629, 13.430 e 12.315 ritardi severi. Nelle finestre brevi la classifica è invece più volatile: l'ultima finestra di un'ora contiene poche decine di voli e solo due aeroporti superano la soglia di ammissibilità, mentre la finestra di sei ore restituisce una top-10 più stabile. Il risultato mette in luce un effetto importante della granularità: le finestre brevi sono più reattive, ma anche più sensibili alla casualità campionaria; la finestra globale identifica con maggiore affidabilità gli hub strutturalmente critici (Figg.~\ref{fig:q2_1h_complete}--\ref{fig:q2_global_loss}).
+
+\paragraph{Query 3 -- distribuzione dei ritardi.}
+Per tutte le compagnie la distanza tra mediana e percentile 90, insieme a massimi di molte ore, conferma una distribuzione fortemente asimmetrica a destra: la maggioranza dei voli parte in orario o con ritardi contenuti, mentre una piccola coda di eventi estremi determina gran parte della variabilità. Il profilo per ora del giorno rende inoltre visibile un peggioramento nelle fasce pomeridiane e serali, compatibile con la propagazione dei ritardi lungo le rotazioni giornaliere. Per WN, ad esempio, nella finestra globale si osservano $p_{25}\approx-4,35$ min, mediana prossima allo zero, $p_{75}\approx11$ min e $p_{90}\approx33,6$ min, a fronte di un massimo di circa 12 ore (Figg.~\ref{fig:q3_wn_global_complete} e~\ref{fig:q3_wn_global_loss}).
+
+\paragraph{Effetto della perdita.}
+Il confronto visuale mostra che trend, picchi principali, ordinamento degli aeroporti e profili dei percentili restano molto simili. La perdita casuale riduce la numerosità disponibile e può modificare marginalmente conteggi e posizioni vicine in classifica, ma non introduce uno scostamento sistematico evidente nelle metriche normalizzate, quali media, tasso di cancellazione e percentili. Questo comportamento è plausibile quando la perdita è approssimativamente uniforme e indipendente dal valore del ritardo. Non equivale però a dimostrare l'assenza di bias: una perdita correlata a compagnia, aeroporto, fascia oraria o severità del ritardo potrebbe alterare sensibilmente i risultati.
 
 % ------------------------------
 
 \section{Conclusioni e Sviluppi Futuri}\label{sec:conclusions_future_work}
-% Inserire qui le conclusioni.
+
+Il progetto ha realizzato una pipeline distribuita completa per l'analisi in event-time del traffico aereo, integrando simulazione accelerata, Kafka, Apache Flink, persistenza su InfluxDB e osservabilità tramite Grafana. Le prove mostrano che il sistema sostiene circa $2.900$ eventi/s nello scenario medio e oltre $8.000$ eventi/s nello scenario ad alto carico, mantenendo latenze stabili e senza accumulo permanente di ritardo. L'aumento del parallelismo non incrementa il throughput, limitato dalla sorgente, ma distribuisce il carico tra i TaskManager e riduce i picchi sul singolo nodo.
+
+La campagna sul disordine temporale conferma che watermark e \textit{allowed lateness} devono essere dimensionati congiuntamente: le configurazioni conservativa e ibrida preservano la completezza, mentre quella aggressiva riduce lo stato mantenuto ma scarta gli eventi oltre la soglia. Il checkpointing incrementale introduce un overhead contenuto; in presenza di guasto, il sistema completa il ripristino, assorbe il backlog Kafka e torna al regime ordinario. I risultati analitici mostrano inoltre che ritardi e cancellazioni sono concentrati temporalmente e che le distribuzioni dei ritardi hanno code destre pronunciate. Una perdita casuale non altera visibilmente le conclusioni aggregate, pur riducendo la confidenza sulle finestre meno popolate.
+
+Gli sviluppi futuri più utili riguardano una valutazione statistica ripetuta della perdita dati, test di carico capaci di saturare effettivamente Flink e un confronto tra politiche di watermark adattive.
 
 \begin{thebibliography}{10}
 
@@ -688,6 +769,14 @@ In questa appendice sono raccolti i grafici di telemetria estratti da Grafana re
 
 \nodeChart{node_clean_run_fast_para1_part6}{Utilizzo risorse per nodo (medio/alto carico) con parallelismo $P=1$.}{fig:node_cpu_comparison_p1}
 
+\nodeChart{node_clean_run_medium_para1_part6}{Utilizzo delle risorse per nodo a medio carico con parallelismo $P=1$.}{fig:node_medium_p1}
+
+\nodeChart{node_clean_run_medium_para3_part6}{Utilizzo delle risorse per nodo a medio carico con parallelismo $P=3$.}{fig:node_medium_p3}
+
+\nodeChart{node_clean_run_medium_para6_part6}{Utilizzo delle risorse per nodo a medio carico con parallelismo $P=6$.}{fig:node_medium_p6}
+
+\nodeChart{node_clean_run_fast_para3_part6}{Utilizzo delle risorse per nodo ad alto carico con parallelismo $P=3$.}{fig:node_fast_p3}
+
 \nodeChart{node_clean_run_fast_para6_part6}{Utilizzo risorse per nodo (medio/alto carico) con parallelismo $P=6$.}{fig:node_cpu_comparison_p6}
 
 
@@ -722,6 +811,16 @@ In questa appendice sono raccolti i grafici di telemetria estratti da Grafana re
 \outoforderChart{cluster_delay_run_d5_l25}{Out-of-orderness per lo scenario con delay $D=5$ e latenza $L=25$.}{fig:cluster_ooo_d5_l25}
 
 \outoforderChart{cluster_delay_run_d10_l0}{Out-of-orderness per lo scenario con delay $D=10$ e latenza $L=0$.}{fig:cluster_ooo_d10_l0}
+
+% -------------
+% RISORSE NODO
+% -------------
+
+\nodeChart{node_delay_run_d30_l0}{Utilizzo delle risorse per nodo con watermark delay $D=30$ min e allowed lateness $L=0$.}{fig:node_delay_d30_l0}
+
+\nodeChart{node_delay_run_d5_l25}{Utilizzo delle risorse per nodo con watermark delay $D=5$ min e allowed lateness $L=25$ min.}{fig:node_delay_d5_l25}
+
+\nodeChart{node_delay_run_d10_l0}{Utilizzo delle risorse per nodo con watermark delay $D=10$ min e allowed lateness $L=0$.}{fig:node_delay_d10_l0}
 
 
 \subsection{Checkpointing e Resilienza}
@@ -770,6 +869,60 @@ In questa appendice sono raccolti i grafici di telemetria estratti da Grafana re
 % RISORSE NODO 
 % -------------
 
-\nodeChart{node_chk_run_int5_fail1}{Utilizzo risorse per nodo (Scenario 3 con fallimento al minuto 6).}{fig:node_checkpoint_recovery}
+\nodeChart{node_chk_run_int5_fail1}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 5 minuti e con 0 fallimento.}{fig:node_chk_int5_fail0}
+
+\nodeChart{node_chk_run_int30_fail0}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 30 secondi e con 0 fallimento.}{fig:node_chk_int30_fail0}
+
+\nodeChart{node_chk_run_int5_fail0}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 5 minuti e con 1 fallimento.}{fig:node_chk_int5_fail1}
+
+\clearpage
+\subsection{Risultati delle Query Analitiche}\label{subsec:appendix_analytical_results}
+
+I grafici sono organizzati per scenario: viene presentato prima l'insieme completo dei risultati e, successivamente, l'insieme ottenuto con una perdita casuale degli eventi.
+
+\queryOneChart{Q1_AA_l0.png}{Query 1, dataset completo, American Airlines (AA): ritardo medio e tasso di cancellazione.}{fig:q1_aa_complete}
+\queryOneChart{Q1_DL_l0.png}{Query 1, dataset completo, Delta Air Lines (DL): ritardo medio e tasso di cancellazione.}{fig:q1_dl_complete}
+\queryOneChart{Q1_UA_l0.png}{Query 1, dataset completo, United Airlines (UA): ritardo medio e tasso di cancellazione.}{fig:q1_ua_complete}
+\queryOneChart{Q1_WN_l0.png}{Query 1, dataset completo, Southwest Airlines (WN): ritardo medio e tasso di cancellazione.}{fig:q1_wn_complete}
+
+\queryOneChart{Q1_AA_l10.png}{Query 1, dataset con perdita, American Airlines (AA): ritardo medio e tasso di cancellazione.}{fig:q1_aa_loss}
+\queryOneChart{Q1_DL_l10.png}{Query 1, dataset con perdita, Delta Air Lines (DL): ritardo medio e tasso di cancellazione.}{fig:q1_dl_loss}
+\queryOneChart{Q1_UA_l10.png}{Query 1, dataset con perdita, United Airlines (UA): ritardo medio e tasso di cancellazione.}{fig:q1_ua_loss}
+\queryOneChart{Q1_WN_l10.png}{Query 1, dataset con perdita, Southwest Airlines (WN): ritardo medio e tasso di cancellazione.}{fig:q1_wn_loss}
+
+\queryTwoOneHourChart{Q2_l0.png}{Query 2, dataset completo: classifica sulla finestra di un'ora.}{fig:q2_1h_complete}
+\queryTwoSixHourChart{Q2_l0.png}{Query 2, dataset completo: classifica sulla finestra di sei ore.}{fig:q2_6h_complete}
+\queryTwoGlobalChart{Q2_l0.png}{Query 2, dataset completo: classifica sulla finestra globale.}{fig:q2_global_complete}
+
+\queryTwoOneHourChart{Q2_l10.png}{Query 2, dataset con perdita: classifica sulla finestra di un'ora.}{fig:q2_1h_loss}
+\queryTwoSixHourChart{Q2_l10.png}{Query 2, dataset con perdita: classifica sulla finestra di sei ore.}{fig:q2_6h_loss}
+\queryTwoGlobalChart{Q2_l10.png}{Query 2, dataset con perdita: classifica sulla finestra globale.}{fig:q2_global_loss}
+
+\queryThreeOneDayChart{Q3_AA_l0.png}{Query 3, dataset completo, AA: finestra di un giorno.}{fig:q3_aa_1d_complete}
+\queryThreeSevenDayChart{Q3_AA_l0.png}{Query 3, dataset completo, AA: finestra di sette giorni.}{fig:q3_aa_7d_complete}
+\queryThreeGlobalChart{Q3_AA_l0.png}{Query 3, dataset completo, AA: finestra globale.}{fig:q3_aa_global_complete}
+\queryThreeOneDayChart{Q3_DL_l0.png}{Query 3, dataset completo, DL: finestra di un giorno.}{fig:q3_dl_1d_complete}
+\queryThreeSevenDayChart{Q3_DL_l0.png}{Query 3, dataset completo, DL: finestra di sette giorni.}{fig:q3_dl_7d_complete}
+\queryThreeGlobalChart{Q3_DL_l0.png}{Query 3, dataset completo, DL: finestra globale.}{fig:q3_dl_global_complete}
+\queryThreeOneDayChart{Q3_UA_l0.png}{Query 3, dataset completo, UA: finestra di un giorno.}{fig:q3_ua_1d_complete}
+\queryThreeSevenDayChart{Q3_UA_l0.png}{Query 3, dataset completo, UA: finestra di sette giorni.}{fig:q3_ua_7d_complete}
+\queryThreeGlobalChart{Q3_UA_l0.png}{Query 3, dataset completo, UA: finestra globale.}{fig:q3_ua_global_complete}
+\queryThreeOneDayChart{Q3_WN_l0.png}{Query 3, dataset completo, WN: finestra di un giorno.}{fig:q3_wn_1d_complete}
+\queryThreeSevenDayChart{Q3_WN_l0.png}{Query 3, dataset completo, WN: finestra di sette giorni.}{fig:q3_wn_7d_complete}
+\queryThreeGlobalChart{Q3_WN_l0.png}{Query 3, dataset completo, WN: finestra globale.}{fig:q3_wn_global_complete}
+
+\queryThreeOneDayChart{Q3_AA_l10.png}{Query 3, dataset con perdita, AA: finestra di un giorno.}{fig:q3_aa_1d_loss}
+\queryThreeSevenDayChart{Q3_AA_l10.png}{Query 3, dataset con perdita, AA: finestra di sette giorni.}{fig:q3_aa_7d_loss}
+\queryThreeGlobalChart{Q3_AA_l10.png}{Query 3, dataset con perdita, AA: finestra globale.}{fig:q3_aa_global_loss}
+\queryThreeOneDayChart{Q3_DL_l10.png}{Query 3, dataset con perdita, DL: finestra di un giorno.}{fig:q3_dl_1d_loss}
+\queryThreeSevenDayChart{Q3_DL_l10.png}{Query 3, dataset con perdita, DL: finestra di sette giorni.}{fig:q3_dl_7d_loss}
+\queryThreeGlobalChart{Q3_DL_l10.png}{Query 3, dataset con perdita, DL: finestra globale.}{fig:q3_dl_global_loss}
+\queryThreeOneDayChart{Q3_UA_l10.png}{Query 3, dataset con perdita, UA: finestra di un giorno.}{fig:q3_ua_1d_loss}
+\queryThreeSevenDayChart{Q3_UA_l10.png}{Query 3, dataset con perdita, UA: finestra di sette giorni.}{fig:q3_ua_7d_loss}
+\queryThreeGlobalChart{Q3_UA_l10.png}{Query 3, dataset con perdita, UA: finestra globale.}{fig:q3_ua_global_loss}
+\queryThreeOneDayChart{Q3_WN_l10.png}{Query 3, dataset con perdita, WN: finestra di un giorno.}{fig:q3_wn_1d_loss}
+\queryThreeSevenDayChart{Q3_WN_l10.png}{Query 3, dataset con perdita, WN: finestra di sette giorni.}{fig:q3_wn_7d_loss}
+\queryThreeGlobalChart{Q3_WN_l10.png}{Query 3, dataset con perdita, WN: finestra globale.}{fig:q3_wn_global_loss}
+
 
 \end{document}
