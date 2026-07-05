@@ -5,8 +5,8 @@
     "name": "restore-perf-metrics",
     "namespace": "default",
     "uid": "f312ae52-7ce4-4bd8-b75f-f7e025c4c67f",
-    "resourceVersion": "1783187204649013",
-    "generation": 5,
+    "resourceVersion": "1783177856760992",
+    "generation": 4,
     "creationTimestamp": "2026-07-04T00:53:30Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "1552716532023296"
@@ -16,7 +16,7 @@
       "grafana.app/folder": "",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
       "grafana.app/updatedBy": "user:afr0ovwpvsc8we",
-      "grafana.app/updatedTimestamp": "2026-07-04T17:46:44Z"
+      "grafana.app/updatedTimestamp": "2026-07-04T15:10:56Z"
     }
   },
   "spec": {
@@ -2047,7 +2047,7 @@
                         "name": "influxdb-metrics"
                       },
                       "spec": {
-                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_lateness_p90_minutes\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> group(columns: [\"operator_name\", \"host\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> sort(columns: [\"_time\"])\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"max_lateness_absolute\")"
+                        "query": "from(bucket: \"restored-metrics\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) =>\r\n    r[\"_measurement\"] == \"taskmanager_job_task_operator_max_lateness_minutes_absolute\"\r\n  )\r\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\r\n  |> toFloat()\r\n  |> group(columns: [\"operator_name\", \"host\", \"subtask_index\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\r\n  |> sort(columns: [\"_time\"])\r\n  |> group(columns: [\"operator_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\r\n  |> yield(name: \"max_lateness_absolute\")"
                       }
                     },
                     "refId": "A",
