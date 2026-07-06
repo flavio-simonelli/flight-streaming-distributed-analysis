@@ -25,6 +25,6 @@ services:
         metrics.latency.interval: 1000
         taskmanager.bind-host: 0.0.0.0
         taskmanager.host: ${NODE_HOSTNAME}
-        state.backend: rocksdb
-        state.backend.incremental: true
+        state.backend: hashmap
+        state.backend.incremental: false
     restart: always

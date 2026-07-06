@@ -25,8 +25,8 @@ services:
         metrics.latency.interval: 1000
         rest.bind-address: 0.0.0.0
         jobmanager.bind-host: 0.0.0.0
-        state.backend: rocksdb
-        state.backend.incremental: true
+        state.backend: hashmap
+        state.backend.incremental: false
     volumes:
       - ./flink:/opt/flink/flink-jobs
     restart: always
