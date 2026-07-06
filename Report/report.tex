@@ -407,7 +407,7 @@ dove $\alpha$ è l'errore relativo massimo garantito. Per rispondere a una query
 \end{equation}
 Il limite intrinseco di DDSketch risiede nel fatto che non memorizza i valori reali del dataset, fornendo un'approssimazione geometrica vincolata a un errore relativo $\left| \frac{x_q - \tilde{x}_q}{x_q} \right| \le \alpha$ invece di un dato reale di ritardo.
 
-Nel sistema progettato, impostando $\alpha = 0.01$ (errore massimo dell'1\%) e $m = 2048$ bin, tale approssimazione non rappresenta un problema in alcuno dei due scenari di utilizzo:
+Nel sistema progettato, impostando un'accuratezza relativa $\alpha = 0.01$ e una dimensione massima dello store $m = 2048$ bin (una configurazione che, come evidenziato in~\cite{masson2019ddsketch}, è in grado di coprire un range estremamente ampio che varia da meno di un millisecondo ($80\ \mu\text{s}$) a un anno intero logico coprendo tutti i quantili) tale approssimazione non rappresenta un problema in alcuno dei due scenari di utilizzo:
 \begin{enumerate}
     \item \textbf{Query 3 (Distribuzione dei Ritardi dei Voli):} Un'approssimazione dell'1\% su ritardi espressi in minuti (es. $\approx 36$ secondi su un'ora di ritardo) è del tutto irrilevante per le finalità analitiche e statistiche del business aeronautico.
     \item \textbf{Telemetria (Latenze E2E e dell'Operatore):} Nel monitoraggio prestazionale del cluster tramite Grafana, l'accuratezza a livello di millisecondo è ampiamente sufficiente per identificare anomalie e trend, rendendo ininfluente la perdita di precisione microscopica.
