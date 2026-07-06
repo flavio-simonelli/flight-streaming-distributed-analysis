@@ -395,20 +395,22 @@ Una delle decisioni architetturali più rilevanti del progetto riguarda il disal
 \end{itemize}
 
 \subsubsection{DDSketch per i Percentili}\label{subsubsec:flink_ddsketch}
-L'algoritmo probabilistico DDSketch è stato scelto e impiegato per risolvere i problemi di stima quantilica su flussi di dati continui mantenendo una complessità spaziale e temporale costante $O(1)$.
+Per la stima dei percentili su flussi di dati continui, l'architettura impiega l'algoritmo probabilistico DDSketch. La scelta è supportata dall'analisi comparativa di Fernando et al.~\cite{fernando2023quantiles} (in particolare la Tabella 4), la quale evidenzia come DDSketch garantisca un'elevata accuratezza sia sulle code che sulle porzioni centrali di distribuzioni fortemente sbilanciate (\textit{skewed}), tempi di inserimento e di query minimi (\textit{High Speed}), e una mergeability completa. Questo lo rende preferibile a KLL (che degrada sulle code asimmetriche) o UDDSketch/ReqSketch (caratterizzati da velocità computazionali inferiori).
 
-\paragraph{Funzionamento dell'Algoritmo}
-DDSketch mappa i valori numerici in ingresso in indici di bin logaritmici calcolati secondo la formula:
+Come formalizzato da Masson et al.~\cite{masson2019ddsketch}, l'algoritmo mappa i valori in ingresso $x$ in indici di bin logaritmici $i$ tramite:
 \begin{equation}
     i = \lfloor \log_{\gamma}(x) \rfloor \quad \text{con} \quad \gamma = \frac{1 + \alpha}{1 - \alpha}
 \end{equation}
-dove $\alpha$ rappresenta la precisione relativa massima garantita dall'algoritmo. Questo schema di partizionamento fa sì che l'ampiezza dei bin cresca esponenzialmente all'aumentare dei valori archiviati, garantendo un errore relativo controllato $\le \alpha$ anziché un errore assoluto. Tale caratteristica rende DDSketch ottimale per monitorare metriche caratterizzate da distribuzioni fortemente asimmetriche a destra, come i ritardi dei voli o le latenze di rete. In conformità con l'analisi teorica di Datadog~\cite{masson2019ddsketch}, tutte le istanze del sistema sono state ingegnerizzate impostando un'accuratezza relativa $\alpha = 0.01$ (errore massimo dell'1\%) e una dimensione massima dello store pari a $m = 2048$ bin, un dimensionamento ampiamente sufficiente a coprire un range di valori eterogeneo (da frazioni di secondo a un anno logico).
+dove $\alpha$ è l'errore relativo massimo garantito. Per rispondere a una query di quantile $q$ mappata nel bin $i$, la stima restituita è:
+\begin{equation}
+    \tilde{x}_q = \frac{2\gamma^i}{\gamma + 1}
+\end{equation}
+Il limite intrinseco di DDSketch risiede nel fatto che non memorizza i valori reali del dataset, fornendo un'approssimazione geometrica vincolata a un errore relativo $\left| \frac{x_q - \tilde{x}_q}{x_q} \right| \le \alpha$ invece di un dato reale di ritardo.
 
-\paragraph{Dualità d'uso nel Sistema}
-L'architettura sfrutta le proprietà dello sketch in due scenari ortogonali:
+Nel sistema progettato, impostando $\alpha = 0.01$ (errore massimo dell'1\%) e $m = 2048$ bin, tale approssimazione non rappresenta un problema in alcuno dei due scenari di utilizzo:
 \begin{enumerate}
-    \item \textbf{Distribuzione dei Ritardi:} DDSketch funge da accumulatore all'interno dello stato delle finestre temporali di Flink, aggregando i dati di ritardo per compagnia e fascia oraria su scale giornaliere, settimanali e globali senza mantenere i singoli record in memoria RAM.
-    \item \textbf{Metriche di Latenza Custom:} Per garantire l'osservabilità interna del cluster, i tracciatori prestazionali inseriti negli operatori chiave inviano le misurazioni end-to-end a istanze DDSketch di telemetria, esportando i percentili di runtime direttamente verso InfluxDB.
+    \item \textbf{Query 3 (Distribuzione dei Ritardi dei Voli):} Un'approssimazione dell'1\% su ritardi espressi in minuti (es. $\approx 36$ secondi su un'ora di ritardo) è del tutto irrilevante per le finalità analitiche e statistiche del business aeronautico.
+    \item \textbf{Telemetria (Latenze E2E e dell'Operatore):} Nel monitoraggio prestazionale del cluster tramite Grafana, l'accuratezza a livello di millisecondo è ampiamente sufficiente per identificare anomalie e trend, rendendo ininfluente la perdita di precisione microscopica.
 \end{enumerate}
 
 \subsubsection{Sistema di Telemetria}\label{subsubsec:flink_telemetry}
@@ -493,7 +495,7 @@ Il deployment su AWS è automatizzato tramite script che richiamano template di 
 \end{enumerate}
 
 \subsubsection{Dimensionamento delle Istanze EC2}\label{subsubsec:ec2_instances}
-Il cluster distribuito è composto da istanze EC2 appartenenti alla famiglia general-purpose \texttt{t3} e compute-optimized \texttt{c6i} di AWS\footnote{\url{https://aws.amazon.com/it/ec2/pricing/on-demand/}}, dimensionate per bilanciare i costi con la necessità di risorse computazionali stabili. In particolare, per i nodi di Apache Flink (JobManager e TaskManagers) è stata preferita la famiglia \texttt{c6i} rispetto a istanze burstable di tipo \texttt{t3} poiché l'uso di istanze burstable porterebbe al rapido esaurimento dei crediti di CPU (CPU Credit Tokens) sotto carico con il conseguente throttling della CPU.
+Il cluster distribuito è composto da istanze EC2 appartenenti alla famiglia general-purpose \texttt{t3} e compute-optimized \texttt{c6i} di AWS\footnote{\url{https://aws.amazon.com/it/ec2/pricing/on-demand/}}, dimensionate per bilanciare i costi con la necessità di risorse computazionali stabili. In particolare, per i nodi di Apache Flink (JobManager e TaskManagers) è stata preferita la famiglia \texttt{c6i} rispetto a istanze burstable di tipo \texttt{t3} poiché l'uso di istanze burstable porterebbe al rapido esaurimento dei crediti di CPU sotto carico con il conseguente throttling della CPU.
 \begin{itemize}
     \item \textbf{Kafka Cluster}:
     \begin{itemize}
@@ -874,51 +876,51 @@ In questa appendice sono raccolti i grafici di telemetria estratti da Grafana re
 %   THROUGHPUT  
 % --------------
 
-\throughputChart{cluster_chk_run_int30_fail0}{Throughput del cluster per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_throughput_int30_fail0}
+\throughputChart{cluster_chk_hashmap_run_int30_fail0}{Throughput del cluster per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_throughput_int30_fail0}
 
-\throughputChart{cluster_chk_run_int5_fail0}{Throughput del cluster per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_throughput_int5_fail0}
+\throughputChart{cluster_chk_hashmap_run_int5_fail0}{Throughput del cluster per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_throughput_int5_fail0}
 
-\throughputChart{cluster_chk_run_int5_fail1}{Throughput del cluster per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_throughput_int5_fail1}
-
-% -------------
-%    LATENZA   
-% -------------
-
-\latencyChart{cluster_chk_run_int30_fail0}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_latency_int30_fail0}
-
-\latencyChart{cluster_chk_run_int5_fail0}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_latency_int5_fail0}
-
-\latencyChart{cluster_chk_run_int5_fail1}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_latency_int5_fail1}
+\throughputChart{cluster_chk_hashmap_run_int5_fail1}{Throughput del cluster per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_throughput_int5_fail1}
 
 % -------------
 %    LATENZA   
 % -------------
 
-\checkpointChart{cluster_chk_run_int30_fail0}{Checkpointing del cluster per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_chk_int30_fail0}
+\latencyChart{cluster_chk_hashmap_run_int30_fail0}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_latency_int30_fail0}
 
-\checkpointChart{cluster_chk_run_int5_fail0}{Checkpointing del cluster per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_chk_int5_fail0}
+\latencyChart{cluster_chk_hashmap_run_int5_fail0}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_latency_int5_fail0}
 
-\checkpointChart{cluster_chk_run_int5_fail1}{Checkpointing del cluster per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_chk_int5_fail1}
+\latencyChart{cluster_chk_hashmap_run_int5_fail1}{Latenza end-to-end P90 per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_latency_int5_fail1}
+
+% -------------
+%    LATENZA   
+% -------------
+
+\checkpointChart{cluster_chk_hashmap_run_int30_fail0}{Checkpointing del cluster per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_chk_int30_fail0}
+
+\checkpointChart{cluster_chk_hashmap_run_int5_fail0}{Checkpointing del cluster per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_chk_int5_fail0}
+
+\checkpointChart{cluster_chk_hashmap_run_int5_fail1}{Checkpointing del cluster per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_chk_int5_fail1}
 
 % -------------
 %   DISORDINE  
 % -------------
 
-\outoforderChart{cluster_chk_run_int30_fail0}{Out-of-orderness per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_ooo_int30_fail0}
+\outoforderChart{cluster_chk_hashmap_run_int30_fail0}{Out-of-orderness per lo scenario con checkpointing ogni $30$ secondi e con 0 fallimenti.}{fig:cluster_ooo_int30_fail0}
 
-\outoforderChart{cluster_chk_run_int5_fail0}{Out-of-orderness per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_ooo_int5_fail0}
+\outoforderChart{cluster_chk_hashmap_run_int5_fail0}{Out-of-orderness per lo scenario con checkpointing ogni $5$ minuti e con 0 fallimenti.}{fig:cluster_ooo_int5_fail0}
 
-\outoforderChart{cluster_chk_run_int5_fail1}{Out-of-orderness per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_ooo_int5_fail1}
+\outoforderChart{cluster_chk_hashmap_run_int5_fail1}{Out-of-orderness per lo scenario con checkpointing ogni $5$ minuti e con 1 fallimento.}{fig:cluster_ooo_int5_fail1}
 
 % -------------
 % RISORSE NODO 
 % -------------
 
-\nodeChart{node_chk_run_int5_fail1}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 5 minuti e con 1 fallimento.}{fig:node_chk_run_int5_fail1}
+\nodeChart{node_chk_hashmap_run_int5_fail1}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 5 minuti e con 1 fallimento.}{fig:node_chk_hashmap_run_int5_fail1}
 
-\nodeChart{node_chk_run_int30_fail0}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 30 secondi e con 0 fallimento.}{fig:node_chk_int30_fail0}
+\nodeChart{node_chk_hashmap_run_int30_fail0}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 30 secondi e con 0 fallimento.}{fig:node_chk_hashmap_run_int30_fail0}
 
-\nodeChart{node_chk_run_int5_fail0}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 5 minuti e con 0 fallimenti.}{fig:node_chk_int5_fail0}
+\nodeChart{node_chk_hashmap_run_int5_fail0}{Utilizzo delle risorse per nodo per lo scenario con checkpointing ogni 5 minuti e con 0 fallimenti.}{fig:node_chk_hashmap_run_int5_fail0}
 
 \clearpage
 \subsection{Risultati delle Query Analitiche}\label{subsec:appendix_analytical_results}
