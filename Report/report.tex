@@ -400,7 +400,7 @@ Per la stima dei percentili su flussi di dati continui, l'architettura impiega l
 
 Come formalizzato da Masson et al.~\cite{masson2019ddsketch}, l'algoritmo mappa i valori in ingresso $x$ in indici di bin logaritmici $i$ tramite:
 \begin{equation}
-    i = \lfloor \log_{\gamma}(x) \rfloor \quad \text{con} \quad \gamma = \frac{1 + \alpha}{1 - \alpha}
+    i = \lceil \log_{\gamma}(x) \rceil \quad \text{con} \quad \gamma = \frac{1 + \alpha}{1 - \alpha}
 \end{equation}
 dove $\alpha$ è l'errore relativo massimo garantito. Per rispondere a una query di quantile $q$ mappata nel bin $i$, la stima restituita è:
 \begin{equation}
@@ -775,7 +775,7 @@ La topologia logica a grafo aciclico diretto generata a runtime da Apache Flink 
 \begin{table}[htbp]
 \centering
 \caption{Statistiche di Throughput (rec/s) nella Fase Transitoria.}
-\label{tab:transient_stats_all}
+\label{tab:transient_stats}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{cccccc}
@@ -812,7 +812,7 @@ F6 & $6800 \pm 2730$ & $225,0 \pm 91,8$ & $29,50 \pm 12,00$ & $131,0 \pm 53,7$ &
 \begin{table}[htbp]
 \centering
 \caption{Statistiche di Throughput (rec/s) a Regime.}
-\label{tab:steady_stats_all}
+\label{tab:steady_stats}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{cccccc}
