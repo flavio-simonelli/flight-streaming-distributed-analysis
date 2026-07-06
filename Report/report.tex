@@ -268,7 +268,7 @@ Il resto della relazione è organizzato come segue: la Sezione~\ref{sec:system_a
 
 \section{Architettura del Sistema}\label{sec:system_architecture}
 
-L'architettura di \textit{Sky Analytics Stream} è concepita come una pipeline multi-tier per lo stream processing distribuito ad alte prestazioni, orientata a garantire elevati standard di scalabilità orizzontale, robustezza strutturale e tolleranza ai guasti end-to-end. Il sistema adotta un approccio a microservizi fortemente disaccoppiati, orchestrati per cooperare in modo asincrono. Al fine di mappare coerentemente questa infrastruttura, la topologia viene analizzata sia sotto il profilo strutturale dello stack tecnologico coinvolto (Fig.~\ref{fig:architecture_diagram}), sia sotto quello dinamico del ciclo di vita operativo dei record (Fig.~\ref{fig:interaction_diagram}).
+Sky Analytics Stream è una pipeline distribuita per lo stream processing in event-time, progettata per elaborare flussi in tempo reale. L'architettura è organizzata in componenti debolmente accoppiate, ciascuna responsabile di una fase specifica: generazione, brokeraggio, elaborazione, persistenza dello stato, storicizzazione dei risultati e visualizzazione.
 
 \begin{figure}[H]
     \centering
@@ -278,30 +278,38 @@ L'architettura di \textit{Sky Analytics Stream} è concepita come una pipeline m
     \label{fig:architecture_diagram}
 \end{figure}
 
-Sotto l'aspetto statico, l'infrastruttura si articola in cinque livelli logici interconnessi. L'\textit{Ingestion Layer} sfrutta le proprietà di un cluster Apache Kafka operante come buffer centralizzato, il cui scopo fondamentale è disaccoppiare la sorgente di generazione dati sia dal motore di calcolo sia dai consumatori a valle, attutendo i picchi improvvisi di traffico ed esercitando una contropressione nativa. Il core computazionale risiede nel \textit{Processing Layer}, dove Apache Flink esegue l'elaborazione stateful ed event-driven modellata come un singolo grafo diretto aciclico. La persistenza dello stato \textit{in-flight} e la resilienza del cluster sono demandate allo \textit{State Storage Layer}, che combina l'efficienza locale di RocksDB (operante su disco/memoria dei worker) con la durevolezza distribuita di HDFS o Amazon S3 per il salvataggio dei checkpoint. A valle, lo \textit{Storage Layer} si affida al time-series database InfluxDB per la storicizzazione efficiente e separata delle metriche di telemetria e dei risultati analitici, i quali vengono infine esposti nel \textit{Visualization Layer} tramite dashboard dinamiche in Grafana per garantire la completa osservabilità del sistema.
+Come mostrato in Fig.~\ref{fig:architecture_diagram}, il livello di ingestione è basato su Apache Kafka, che agisce da buffer distribuito tra il simulatore e il motore di elaborazione. Kafka permette di assorbire variazioni temporanee del carico, disaccoppiare la velocità di produzione da quella di consumo e conservare i messaggi durante eventuali fasi di recovery. Il livello computazionale è implementato in Apache Flink, che consuma gli eventi dalle partizioni Kafka, assegna timestamp e watermark, mantiene stato per finestre event-time e produce i risultati delle query analitiche. Lo stato locale degli operatori è gestito tramite RocksDB, mentre i checkpoint vengono persistiti su storage distribuito per garantire il ripristino consistente dopo guasto. A valle, InfluxDB memorizza sia i risultati applicativi sia le metriche operative, rese consultabili tramite dashboard Grafana.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.99\columnwidth]{graphs/InteractionDiagram}
+    \vspace{-0.3cm}
     \caption{Diagramma di interazione tra le componenti principali della pipeline.}
     \label{fig:interaction_diagram}
 \end{figure}
 
-La traduzione dinamica di questo stack si sviluppa lungo un flusso sequenziale che governa il ciclo di vita di ogni singolo evento di volo, come illustrato nel diagramma di Fig.~\ref{fig:interaction_diagram}. Il processo ha inizio con la fase di \textit{Generazione e Replay}, in cui il simulatore Go estrae i dati grezzi e inietta i payload JSON nei broker. Successivamente, nella fase di \textit{Elaborazione Stateful}, i TaskManager di Flink consumano lo stream parallelamente dalle partizioni di Kafka, gestiscono l'avanzamento dei watermark in event-time e computano le query analitiche concorrenti, re-instradando i risultati intermedi su topic di output dedicati. Durante la marcia ordinaria del job, la fase di \textit{Fault-Tolerance} esegue periodicamente barriere asincrone di checkpoint basate sull'algoritmo di Chandy-Lamport, sincronizzando lo stato locale delle finestre e degli sketch probabilistici su HDFS con consistenza semantica \emph{exactly-once}. Infine, le fasi di \textit{Raccolta, Persistenza e Visualizzazione} vedono l'agente Telegraf consumare asincronamente i record da Kafka per caricarli nei relativi bucket di InfluxDB, mentre il reporter integrato di Flink invia le metriche di telemetria a un canale separato, consentendo a Grafana di aggiornare le dashboard in tempo reale senza interferire con le performance computazionali dello stream engine.
+Il ciclo di vita di un evento è illustrato in Fig.~\ref{fig:interaction_diagram}. Il simulatore Go legge il dataset storico, applica il fattore di accelerazione e pubblica i record JSON su Kafka. Flink consuma lo stream, applica i filtri di qualità, gestisce il disordine temporale tramite watermark e calcola in parallelo le tre query analitiche. I risultati vengono scritti su topic Kafka dedicati e successivamente trasferiti in InfluxDB tramite Telegraf. In parallelo, il reporter nativo di Flink invia direttamente a InfluxDB le metriche di runtime e le telemetrie custom, evitando di mescolare i dati applicativi con quelli di osservabilità. Questa separazione consente di monitorare il comportamento del sistema senza interferire con il flusso principale di elaborazione.
 
 % ------------------------------
 
 \section{Implementazione delle Componenti}\label{sec:implementation_details}
 
 \subsection{Simulatore di Ingestione}\label{subsec:ingestion_simulator}
-L'ingestione e il replay in tempo reale degli eventi storici sono interamente governati da un componente custom sviluppato in linguaggio Go. Questa scelta tecnologica è motivata dalla necessità di disporre di un agente di iniezione ad altissime prestazioni caratterizzato da un footprint di memoria ridotto, capace di azzerare i colli di bottiglia computazionali e prevenire le latenze spurie indotte dai cicli di Garbage Collection tipici degli ecosistemi basati su JVM
+L'ingestione e il replay degli eventi storici sono gestiti da un simulatore custom sviluppato in Go. La scelta è motivata dalla necessità di disporre di una sorgente leggera e ad alto throughput, capace di ridurre l'overhead presente in linguaggi che sfruttano il GC per la gestione della memoria (come Java). 
+Il simulatore legge il dataset dei voli, ordina i record rispetto all'event-time e li pubblica su Kafka in formato JSON, riproducendo gli intervalli temporali originali dopo averli compressi mediante un fattore di accelerazione configurabile.
 
-Per analizzare accuratamente la resilienza e i limiti operativi della topologia distribuita sotto sforzi differenziati, sono stati configurati tre distinti scenari di carico basati su fattori di accelerazione temporale crescenti, i cui parametri nominali e sperimentali sono dettagliati nella Tabella~\ref{tab:go_acceleration_scenarios}. L'introduzione di tali moltiplicatori comporta una compressione del tempo logico che contrae drasticamente la durata reale delle finestre temporali di Flink, imponendo frequenze di trigger e di calcolo dello stato estremamente elevate.
+Per ridurre i tempi di bootstrap, il simulatore gestisce automaticamente la preparazione del dataset: se l'archivio non è presente localmente, viene scaricato dal server di dipartimento\footnote{\url{http://www.ce.uniroma2.it/courses/sabd2526/project/project-1-data.tar.gz}} e validato tramite hash; i record estratti vengono poi convertiti in strutture tipizzate, ordinati e salvati in una cache binaria locale, in formato \texttt{.gob}. Questa cache evita di ripetere parsing e ordinamento nelle esecuzioni successive, senza modificare la semantica del replay.
+
+La temporizzazione del replay è basata sulla distanza logica tra eventi consecutivi. Tale distanza viene riscalata in tempo reale dividendo per il moltiplicatore scelto. A fattori di accelerazione elevati, tuttavia, una finestra logica di un'ora può corrispondere a pochi millisecondi reali; in queste condizioni le primitive standard di sleep del sistema operativo non garantiscono sempre una precisione sufficiente. Per questo motivo il simulatore adotta una strategia ibrida: per attese superiori a una soglia configurabile rilascia la CPU, mentre per intervalli molto brevi usa un'attesa attiva controllata. In questo modo si limita l'errore senza mantenere la CPU occupata per l'intera durata del replay.
+
+Il simulatore può anche introdurre disordine temporale artificiale. Con probabilità configurabile, un evento viene ritardato di un offset casuale limitato da una soglia massima espressa in minuti logici; successivamente, la sequenza viene ordinata rispetto al tempo effettivo di pubblicazione. Questo meccanismo permette di produrre stream in cui l'ordine di arrivo non coincide con l'event-time, rendendo possibile valutare sperimentalmente watermark, allowed lateness e gestione dei record tardivi.
+
+Per analizzare il comportamento della pipeline sotto carichi differenti sono stati definiti tre scenari di accelerazione, riportati in Tabella~\ref{tab:acceleration_scenarios}. L'aumento del moltiplicatore incrementa la velocità di arrivo degli eventi, ma comprime anche la durata reale delle finestre event-time. Di conseguenza, il carico generato non rappresenta solo un aumento del throughput in ingresso: aumenta anche la frequenza reale con cui Flink chiude le finestre, aggiorna lo stato ed emette i risultati. Per osservare un aumento di throughput privo di questa distorsione sarebbe invece necessario aumentare la quantità di dati nello stesso intervallo logico, ad esempio sintetizzando ulteriori voli, invece di comprimere ulteriormente il tempo.
 
 \begin{table}[htbp]
 \centering
 \caption{Scenari di carico}
-\label{tab:go_acceleration_scenarios}
+\label{tab:acceleration_scenarios}
 \scriptsize
 \setlength{\tabcolsep}{2pt}
 \begin{tabular}{lccc}
@@ -320,7 +328,7 @@ Per analizzare accuratamente la resilienza e i limiti operativi della topologia 
 \end{tabular}
 \end{table}
 
-In base alla periodicità dei trigger e al numero di chiavi attive stimate per ciascuna finestra logica, è possibile ricavare analiticamente il throughput massimo teorico e reale atteso in uscita per le tre query analitiche, come riassunto nella Tabella~\ref{tab:max_throughput_expected}. Nella realtà sperimentale, il volume effettivo di output della Query 2 può subire fluttuazioni negative a causa dei filtri stringenti sulle soglie dei ritardi severi, che escludono gli aeroporti a bassa frequenza dalla classifica Top-10. Al contrario, i throughput reali di Query 1 e Query 3 possono evidenziare picchi positivi transitori indotti dalla distributione intrinsecamente non uniforme dei voli reali sull'asse dell'event-time.
+A partire dagli scenari di Tabella~\ref{tab:acceleration_scenarios}, è possibile stimare il throughput massimo teorico in uscita per ciascuna query, riportato in Tabella~\ref{tab:max_throughput_expected}. La stima dipende dalla frequenza reale di chiusura o aggiornamento delle finestre e dal numero massimo di chiavi attive. Essa rappresenta quindi un limite superiore atteso in assenza di scarti, ritardi tardivi o filtri selettivi. Nelle misure reali, Query~2 può produrre meno record del massimo teorico perché la condizione sul numero minimo di voli in ritardo esclude diversi aeroporti a bassa frequenza; al contrario, Query~1 e Query~3 possono mostrare fluttuazioni temporanee dovute alla distribuzione non uniforme degli eventi nell'event-time.
 
 \begin{table}[htbp]
 \centering
@@ -341,15 +349,6 @@ In base alla periodicità dei trigger e al numero di chiavi attive stimate per c
 \bottomrule
 \end{tabular}
 \end{table}
-
-Per sostenere stabilmente tali regimi di iniezione senza alterare i clock interni di simulazione, l'architettura del generatore sfrutta ottimizzazioni ingegneristiche fondamentali:
-\begin{itemize}
-    \item \textbf{Ingestione Zero-Copy:} Se non presente localmente, il simulatore scarica il dataset tramite richiesta HTTP e ne valida l'integrità mediante hash SHA-1. L'archivio originale viene scompattato direttamente al volo in memoria RAM, escludendo le operazioni di I/O su disco ed eliminando i tempi morti di bootstrap.
-    \item \textbf{Binary Caching:} I record estratti dal file CSV vengono convertiti in strutture tipizzate, ordinati cronologicamente rispetto al loro event-time e serializzati in un file di cache binario locale \texttt{.gob} per minimizzare i tempi di inizializzazione delle esecuzioni successive.
-    \item \textbf{Sleep-Spinlock Ibrido:} Per ovviare all'inadeguatezza delle sleep del sistema operativo sotto alti fattori di accelerazione, dove l'overhead dello scheduler e i context switch inficerebbero la precisione del pacing, viene implementata una strategia di attesa mista. Se il delta temporale supera la soglia critica di \textit{spin threshold}, il thread rilascia la CPU; al di sotto di essa effettua un uno spinlock hardware, garantendo la massima accuratezza.
-    \item \textbf{Out-of-Order Injection:} Al fine di stressare e validare le metriche di tolleranza ai guasti, le strategie di watermarking e la gestione dei dati tardivi all'interno di Apache Flink, un decoratore probabilistico intercetta ogni record con probabilità $P \in [0, 1]$ e ne trasla l'istante di pubblicazione in avanti di un offset casuale limitato da un tetto configurabile in minuti logici, riproducendo i tipici disallineamenti di rete di uno stream reale.
-    \item \textbf{Pubblicazione Asincrona su Kafka:} Il writer adotta una politica di bilanciamento round-robin e accumula i messaggi in micro-batch (fino a 100 messaggi o 100 kB) con un timeout di 2 ms in modalità asincrona, evitando che l'attesa dei singoli ACK di rete distorca la temporizzazione del replay.
-\end{itemize}
 
 \subsection{Message Broker}\label{subsec:kafka_integration}
 
@@ -467,7 +466,7 @@ Per condurre le campagne sperimentali in condizioni di carico reale, il sistema 
     \label{fig:deployment_ec2}
 \end{figure}
 
-\subsubsection{Provisioning dell'Infrastruttura (CloudFormation \& Route 53)}\label{subsubsec:cf_route53}
+\subsubsection{Provisioning dell'Infrastruttura}\label{subsubsec:cf_route53}
 
 Il deployment su AWS è automatizzato tramite script che richiamano template di \textbf{AWS CloudFormation}. L'orchestratore esegue le seguenti fasi:
 \begin{enumerate}
@@ -496,15 +495,13 @@ La risoluzione dei nomi DNS privati consente alle macchine di dialogare in modo 
 
 \section{Valutazione Sperimentale}\label{sec:experimental_evaluation}
 
-L'analisi delle prestazioni è suddivisa in tre campagne di test mirate a valutare: l'impatto del parallelismo e la scalabilità, la gestione del disordine temporale e l'impatto del checkpointing con il relativo ripristino in caso di guasti. Tutti i test sono stati condotti sul cluster distribuito AWS EC2 descritto nella Sezione~\ref{subsec:ec2_deployment}.
-
-Si consideri che la velocità di replay effettiva del simulatore Go risente del carico computazionale, dei context switch e dei tempi di I/O del sistema operativo, in particolare sotto elevati fattori di accelerazione temporale si osserva una percentuale di efficienza variabile nel raggiungimento dello speedup target inserito, come mostrato in Tabella~\ref{tab:go_acceleration_scenarios}. Di conseguenza, i throughput in ingresso effettivi misurati su Flink risultano proporzionalmente ridimensionati rispetto ai valori nominali teorici.
+La valutazione sperimentale analizza tre aspetti della pipeline: scalabilità al variare del parallelismo, gestione del disordine temporale e impatto del checkpointing. Tutti i test sono stati condotti sul cluster AWS EC2 descritto nella Sezione~\ref{sec:deployment_infrastructure}. Gli scenari di carico considerati sono quelli riportati in Tabella~\ref{tab:acceleration_scenarios}.
 
 \subsection{Parallelismo e Scalabilità in Assenza di Disordine}\label{subsec:perf_parallelism}
 
-La prima campagna di test valuta il comportamento della pipeline al variare del livello di parallelismo, con $P \in \{1, 3, 6\}$, in condizioni di dati ordinati all'origine (disordine aggiuntivo pari a $0$ e tolleranza al ritardo impostata a $0$). Sono confrontati tre livelli di carico riprodotti dal simulatore Go: lo scenario a \textbf{Basso Carico} (moltiplicatore $1.440\times$, throughput nominale $\approx 305$ eventi/secondo), lo scenario a \textbf{Medio Carico} (moltiplicatore $14.400\times$, throughput nominale $\approx 3.050$ eventi/secondo) e lo scenario ad \textbf{Alto Carico} (moltiplicatore $43.200\times$, throughput nominale $\approx 9.150$ eventi/secondo).
+La prima campagna valuta il comportamento della pipeline al variare del parallelismo, con $P \in \{1,3,6\}$, in assenza di disordine artificiale e con allowed lateness pari a zero.
 
-\subsubsection{Analisi del Throughput e delle Latenze}\label{subsubsec:throughput_cluster}
+\subsubsection{Throughput e Latenze}\label{subsubsec:throughput_cluster}
 
 L'analisi del throughput e delle latenze a livello di cluster rivela dinamiche prestazionali importanti:
 \begin{itemize}
@@ -522,7 +519,7 @@ Nello scenario ad alto carico, il throughput reale in ingresso si stabilizza per
 \end{itemize}
 
 
-\subsubsection{Analisi del Consumo delle Risorse}\label{subsubsec:resource_node}
+\subsubsection{Consumo delle Risorse}\label{subsubsec:resource_node}
 
 L'incremento del parallelismo mostra un impatto chiaro e positivo sulla distribuzione del carico computazionale (CPU) tra le istanze EC2 attive:
 \begin{itemize}
@@ -544,7 +541,7 @@ La seconda campagna di test analizza l'efficacia delle strategie di gestione del
     \item \textbf{Configurazione Aggressiva - $D=10$ min, $L=0$ min}: Privilegia la tempestività e la riduzione dell'uso di memoria, scartando i record con ritardo superiore a $10$ minuti.
 \end{enumerate}
 
-\subsubsection{Analisi della Perdita di Dati e Accuratezza}\label{subsubsec:data_loss}
+\subsubsection{Perdita di Dati e Accuratezza}\label{subsubsec:data_loss}
 
 L'analisi dei dati evidenzia l'impatto diretto dei parametri sulla completezza del calcolo:
 \begin{itemize}
@@ -572,7 +569,7 @@ La terza e ultima campagna di test valuta il comportamento della pipeline Flink 
 
 La pipeline utilizza RocksDB come State Backend configurato con snapshot incrementali per minimizzare l'I/O di rete verso lo storage distribuito.
 
-\subsubsection{Analisi dell'Overhead del Checkpointing}\label{subsubsec:checkpoint_overhead}
+\subsubsection{Overhead del Checkpointing}\label{subsubsec:checkpoint_overhead}
 
 Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga in modo asincrono, la frequenza con cui esso viene innescato introduce un costo computazionale legato alla serializzazione dello stato e al coordinamento dei nodi:
 \begin{itemize}
@@ -598,7 +595,7 @@ Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga
 % \end{tabular}
 % \end{table}
 
-\subsubsection{Analisi del Restore}\label{subsubsec:restore_failover}
+\subsubsection{Effetti del Restore}\label{subsubsec:restore_failover}
 
 Nello Scenario 3 viene simulato un guasto critico arrestando brutalmente l'istanza \texttt{flink-worker-1}. Le metriche a livello di cluster (Fig.~\ref{fig:cluster_throughput_int5_fail1} e Fig.~\ref{fig:cluster_latency_int5_fail1}) e di nodo (Fig.~\ref{fig:node_chk_run_int5_fail1}) mostrano la sequenza esatta degli eventi:
 \begin{itemize}
@@ -611,7 +608,7 @@ Nello Scenario 3 viene simulato un guasto critico arrestando brutalmente l'istan
 
 Questo test dimostra la robustezza dell'architettura: il sistema ripristina la corretta elaborazione senza perdita osservata di eventi né duplicazioni visibili nei risultati. Flink garantisce consistenza \textit{exactly-once} fino allo stato interno; sul tratto Kafka--InfluxDB, configurato \textit{at-least-once}, l'idempotenza delle scritture con la medesima chiave e timestamp di finestra rende innocue le duplicazioni prodotte durante il ripristino. La garanzia end-to-end dipende quindi dal mantenimento di tale schema di chiavi.
 
-\subsection{Analisi dei Risultati Analtici}\label{subsec:analytical_results}
+\subsection{Risultati Analitici}\label{subsec:analytical_results}
 
 Oltre alle metriche infrastrutturali, sono stati osservati i risultati di business prodotti dalle tre query, confrontando il dataset completo con la versione soggetta a una perdita casuale degli eventi. I grafici completi sono riportati nell'Appendice~\ref{subsec:appendix_analytical_results}.
 
@@ -637,14 +634,68 @@ La campagna sul disordine temporale conferma che watermark e \textit{allowed lat
 
 Gli sviluppi futuri più utili riguardano una valutazione statistica ripetuta della perdita dati, test di carico capaci di saturare effettivamente Flink e un confronto tra politiche di watermark adattive.
 
-\begin{thebibliography}{10}
+\vspace{0.5em}
+\begin{thebibliography}{9}
 
-\bibitem{fernando2023quantiles}
-L.~Fernando, H.~Bindra, and K.~Daudjee, ``An experimental analysis of quantile sketches over data streams,'' in \emph{Proceedings of the 26th International Conference on Extending Database Technology (EDBT '23)}, pp. 1--12, 2023.
-
-\bibitem{masson2019ddsketch}
-C.~Masson, J.~E. Rim, and H.~K. Lee, ``DDSketch: A fast and fully-mergeable quantile sketch with relative-error guarantees,'' \emph{Proceedings of the VLDB Endowment}, vol. 12, no. 12, pp. 2195--2205, 2019.
-
+    % Academic & Project References
+    \bibitem{sabd_course}
+    Università di Roma ``Tor Vergata'', ``Corso di Sistemi e Architetture per Big Data (A.A. 2025/2026),''
+    \url{https://www.ce.uniroma2.it/courses/sabd2526/}, Consultato: Luglio 2026.
+    
+    % Quantile Sketches
+    \bibitem{fernando2023quantiles}
+    L.~Fernando, H.~Bindra, and K.~Daudjee, ``An experimental analysis of quantile sketches over data streams,''
+    in \emph{Proceedings of the 26th International Conference on Extending Database Technology (EDBT '23)},
+    pp. 1--12, 2023.
+    
+    \bibitem{masson2019ddsketch}
+    C.~Masson, J.~E. Rim, and H.~K. Lee, ``DDSketch: A fast and fully-mergeable quantile sketch with relative-error guarantees,''
+    \emph{Proceedings of the VLDB Endowment}, vol.~12, no.~12, pp. 2195--2205, 2019.
+    
+    % Stream Processing & Messaging
+    \bibitem{flink_docs}
+    Apache Software Foundation, ``Apache Flink Documentation,''
+    \url{https://nightlies.apache.org/flink/flink-docs-stable/}, Consultato: Luglio 2026.
+    
+    \bibitem{kafka_docs}
+    Apache Software Foundation, ``Apache Kafka Documentation,''
+    \url{https://kafka.apache.org/documentation/}, Consultato: Luglio 2026.
+    
+    % Storage, Telemetry & Visualization
+    \bibitem{influxdb_docs}
+    InfluxData, ``InfluxDB OSS v2 Documentation,''
+    \url{https://docs.influxdata.com/influxdb/v2/}, Consultato: Luglio 2026.
+    
+    
+    \bibitem{telegraf_docs}
+    InfluxData, ``Telegraf Documentation,''
+    \url{https://docs.influxdata.com/telegraf/v1/}, Consultato: Luglio 2026.
+    
+    \bibitem{grafana_docs}
+    Grafana Labs, ``Grafana Documentation,''
+    \url{https://grafana.com/docs/grafana/latest/}, Consultato: Luglio 2026.
+    
+    % State Storage & Cloud Infrastructure
+    \bibitem{rocksdb_docs}
+    Meta, ``RocksDB Documentation,''
+    \url{https://github.com/facebook/rocksdb/wiki}, Consultato: Luglio 2026.
+    
+    \bibitem{aws_ec2}
+    Amazon Web Services, ``Amazon EC2 Documentation,''
+    \url{https://docs.aws.amazon.com/ec2/}, Consultato: Luglio 2026.
+    
+    \bibitem{aws_s3}
+    Amazon Web Services, ``Amazon S3 Documentation,''
+    \url{https://docs.aws.amazon.com/s3/}, Consultato: Luglio 2026.
+    
+    \bibitem{aws_cloudformation}
+    Amazon Web Services, ``AWS CloudFormation Documentation,''
+    \url{https://docs.aws.amazon.com/cloudformation/}, Consultato: Luglio 2026.
+    
+    \bibitem{aws_route53}
+    Amazon Web Services, ``Amazon Route 53 Documentation,''
+    \url{https://docs.aws.amazon.com/Route53/}, Consultato: Luglio 2026.
+    
 \end{thebibliography}
 
 \clearpage
