@@ -442,7 +442,7 @@ Il JobManager e i TaskManager di Flink sono configurati nei file di deploy per c
 % \end{itemize}
 
 \subsubsection{Dettagli delle Query Analitiche}\label{subsubsec:flink_queries}
-La pipeline computazionale condivide la sorgente dei dati e il filtro di data quality. All'ingresso di ciascun ramo, una funzione di \texttt{map} effettua una proiezione dei record originari in modelli dati leggeri e specifici, riducendo la dimensionalità degli eventi per minimizzare l'impronta di memoria e i costi di shuffle sulla rete. Successivamente, la topologia si divide in tre sotto-DAG concorrenti:
+La pipeline computazionale condivide la sorgente dei dati e il filtro di data quality. All'ingresso di ciascun ramo, una funzione di \texttt{map} effettua una proiezione dei record originari (\texttt{FlightRecord}) in modelli dati leggeri e specifici, riducendo la dimensionalità degli eventi per minimizzare l'impronta di memoria e i costi di shuffle sulla rete. Successivamente, la topologia si divide in tre sotto-DAG concorrenti, il cui grafo complessivo (Flink DAG) è illustrato in Fig.~\ref{fig:flink_dag} (riportato in Appendice~\ref{subsec:appendix_flink_dag}):
 \begin{itemize}
     \item \textbf{Query 1 -- Aggregazioni Compagnie:} Partiziona lo stream tramite \texttt{keyBy(Airline)} e lo convoglia in finestre \textit{Tumbling} da 1 ora in Event-Time. Il calcolo incrementale della media dei ritardi e del tasso di cancellazione è delegato a una \texttt{AggregateFunction} operante in tempo costante $O(1)$, minimizzando lo stato mantenuto.
     \item \textbf{Query 2 -- Top-10 Aeroporti:} Sfrutta tre finestre concorrenti (1h tumbling, 6h tumbling e globale con trigger orario). Per ottimizzare lo shuffle di rete, il calcolo è diviso in due stadi logici: un'aggregazione locale per aeroporto, tramite \texttt{keyBy(OriginAirport)}, seguita da un'aggregazione globale sul timestamp di fine finestra. In una \texttt{KeyedProcessFunction}, i dati parziali sono storicizzati in un \texttt{MapState} e processati allo scattare di un timer su watermark tramite un Min-Heap limitato a 10 elementi. Questo estrae la classifica con complessità $O(N \log 10)$, pulendo lo stato locale subito dopo l'emissione.
@@ -749,7 +749,18 @@ Ogni singolo blocco di codice, configurazione o direttiva infrastrutturale deriv
 
 \section{Rappresentazioni Grafiche e Allegati}\label{sec:appendix_graphics}
 
-In questa appendice sono raccolti i grafici di telemetria estratti da Grafana relativi alle campagne di test descritte nella Sezione~\ref{sec:experimental_evaluation}.
+In questa appendice sono raccolti il grafo del job di Flink e i grafici di telemetria estratti da Grafana relativi alle campagne di test descritte nella Sezione~\ref{sec:experimental_evaluation}.
+
+\subsection{Topologia del Job (Flink DAG)}\label{subsec:appendix_flink_dag}
+
+La topologia logica a grafo aciclico diretto (DAG) generata a runtime da Apache Flink per l'esecuzione parallela e concorrente delle tre query analitiche è illustrata in Fig.~\ref{fig:flink_dag}.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{graphs/Flink-DAG}
+    \caption{Grafo Aciclico Diretto (DAG) della topologia del Job Flink.}
+    \label{fig:flink_dag}
+\end{figure}
 
 \subsection{Parallelismo e Scalabilità}
 
