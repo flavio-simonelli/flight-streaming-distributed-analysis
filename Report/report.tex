@@ -352,16 +352,15 @@ A partire dagli scenari di Tabella~\ref{tab:acceleration_scenarios}, è possibil
 
 \subsection{Message Broker}\label{subsec:kafka_integration}
 
-Per disaccoppiare la sorgente dei dati dal motore di stream processing ed assorbire le fluttuazioni di carico, è stato integrato Apache Kafka:
+Come framework di message broker è stato integrato Apache Kafka:
 \begin{itemize}
-    \item \textbf{Partizionamento e Topic:} Il flusso in ingresso sul topic primario \texttt{flights-stream} è configurato con 6 partizioni per consentire a Flink di scalare linearmente fino a parallelismo 6. In questo modo si garantisce un mapping ottimale 1:1 tra partizioni fisiche e subtask del consumer, evitando che subtask rimangano inattivi (*idle*). I topic di output sono dedicati per singola query e granularità temporale.
-    \item \textbf{Bilanciamento dell'Ingestione:} Il simulatore Go scrive i record in modalità \textit{Round-Robin} (con chiave nulla) per distribuire uniformemente il carico ed evitare sia \textit{hot partitions} (sbilanciamenti per compagnia o aeroporto) sia la presenza di partizioni inattive (\textit{idle partitions}), le quali arresterebbero l'avanzamento del watermark globale di Flink. L'ordine per partizione non è un vincolo per Flink, il quale ordina e riconcilia logicamente il flusso in Event-Time tramite i Watermark.
-    \item \textbf{Ingestione in Flink:} Tramite la classe nativa \texttt{KafkaSource} e uno schema di deserializzazione custom, ogni record viene mappato nell'oggetto Java tipizzato \texttt{FlightRecord}, estraendo l'event-time del volo e registrando il timestamp di ingestione.
+    \item \textbf{Partizionamento e Topic:} Il flusso in ingresso sul topic primario \texttt{flights-stream} è configurato con 6 partizioni per consentire a Flink di scalare linearmente fino a parallelismo 6. In questo modo si garantisce un mapping ottimale 1:1 tra partizioni fisiche e subtask del consumer, evitando che subtask rimangano inattivi. I topic di output sono dedicati per singola query e granularità temporale.
+    \item \textbf{Bilanciamento dell'Ingestione:} Il simulatore Go scrive i record in modalità \textit{Round-Robin} (con chiave nulla) per distribuire uniformemente il carico ed evitare sia \textit{hot partitions} (sbilanciamenti per compagnia o aeroporto) sia la presenza di \textit{idle partitions}, le quali arresterebbero l'avanzamento del watermark globale di Flink. L'ordine per partizione non è un vincolo per Flink, il quale ordina e riconcilia logicamente il flusso in Event-Time tramite i Watermark.
     \item \textbf{Scrittura dei Risultati:} Avviene mediante istanze di \texttt{KafkaSink} configurate con consegna \textit{at-least-once} per via della garanzia di idempotenza di InfluxDB. La distribuzione del carico varia in base alle necessità di ordinamento e coerenza delle query:
     \begin{itemize}
         \item \textit{Query 1} (topic \texttt{flights-q1-results}): Partizionato per chiave (\textit{airline}) per instradare i record di ciascuna compagnia sulla stessa partizione, preservando l'ordine cronologico delle medie orarie, permettendo ad un possibile consumer di leggere i dati relativi solamente ad una specifica compagnia.
-        \item \textit{Query 2} (topic \texttt{flights-q2-*h-results}): Partizionato per chiave (\textit{origin\_airport\_id}) per garantire la corretta sequenzialità temporale delle classifiche dello stesso aeroporto durante la scrittura su InfluxDB.
-        \item \textit{Query 3} (topic \texttt{flights-q3-*-results}): Trasmesso con chiave nulla (distribuzione bilanciata nativa tramite \textit{Sticky Partitioning} o \textit{Round-Robin}) per massimizzare il throughput di scrittura del cluster.
+        \item \textit{Query 2} (topic \texttt{flights-q2-*h-results}): Partizionato per chiave (\textit{origin\_airport\_id}) per garantire la possibilità ad un consumer di leggere solamente la posizione in classifica di specifici aeroporti.
+        \item \textit{Query 3} (topic \texttt{flights-q3-*-results}): Trasmesso con chiave nulla seguendo quindi una distribuzione bilanciata nativa tramite \textit{Sticky Partitioning} \textit{Round-Robin}.
     \end{itemize}
 \end{itemize}
 
@@ -383,8 +382,8 @@ Per gli eventi che superano entrambe le barriere, Flink utilizza canali di Side 
 \subsubsection{Fault Tolerance}\label{subsubsec:flink_checkpointing}
 La tolleranza ai guasti e la resilienza del cluster sono gestite tramite il meccanismo di checkpointing distribuito asincrono di Flink (basato sull'algoritmo di Chandy-Lamport):
 \begin{itemize}
-    \item \textbf{Consistenza Exactly-Once}: Il motore è impostato per garantire che lo stato interno degli operatori venga ripristinato esattamente nello stesso stato pre-fallimento, tramite politica \emph{exactly-once}.
-    \item \textbf{State Backend incrementale}: Per evitare colli di bottiglia, lo stato in-flight delle finestre è ospitato su disco locale tramite il backend \textit{RocksDB}. Quest'ultimo scrive le tabelle di stato in file SST locali ed effettua checkpoint incrementali asincroni, garantendo tempi di salvataggio rapidi anche per stati di grandi dimensioni. I dati vengono poi copiati su HDFS e S3, per garantire durabilità e disponibilità in caso di guasto del nodo.
+    \item \textbf{Consistenza Exactly-Once}: Il motore è impostato per garantire che lo stato interno degli operatori venga ripristinato esattamente nello stesso stato pre-fallimento, tramite politica \emph{exactly-once}. Si garantisce che lo stato memorizzato (inclusi gli accumulatori delle finestre e gli istogrammi probabilistici DDSketch) rifletta l'elaborazione di tutti i record precedenti la barriera e di nessun record successivo. In caso di guasto di un TaskManager, lo stato viene ripristinato dall'ultimo snapshot consistente registrato, garantendo che nessun evento modifichi lo stato interno più di una volta.
+    \item \textbf{Persistenza}: I checkpoint dello stato vengono catturati in modo asincrono e persistiti su storage distribuito (HDFS nell'ambiente locale e Amazon S3 in ambiente AWS EC2), garantendo durabilità e disponibilità per il ripristino in caso di guasto del nodo.
     % \item \textbf{Ottimizzazioni anti-saturazione}: La proprietà \texttt{MIN\_PAUSE\_BETWEEN\_CHECKPOINTS} assicura un intervallo di riposo minimo tra la fine di un checkpoint e l'inizio del successivo, eliminando il rischio di saturazione della CPU.
 \end{itemize}
 
@@ -396,7 +395,7 @@ Una delle decisioni architetturali più rilevanti del progetto riguarda il disal
 \end{itemize}
 
 \subsubsection{DDSketch per i Percentili}\label{subsubsec:flink_ddsketch}
-L'algoritmo probabilistico DDSketch è impiegato per risolvere problemi di stima quantilica accurata su flussi di dati continui mantenendo una complessità spaziale e temporale costante $O(1)$.
+L'algoritmo probabilistico DDSketch è stato scelto e impiegato per risolvere i problemi di stima quantilica su flussi di dati continui mantenendo una complessità spaziale e temporale costante $O(1)$.
 
 \paragraph{Funzionamento dell'Algoritmo}
 DDSketch mappa i valori numerici in ingresso in indici di bin logaritmici calcolati secondo la formula:
