@@ -412,11 +412,21 @@ L'architettura sfrutta le proprietà dello sketch in due scenari ortogonali:
 \end{enumerate}
 
 \subsubsection{Sistema di Telemetria}\label{subsubsec:flink_telemetry}
-L'osservabilità e il monitoraggio delle performance del sistema in tempo reale si basano su un set di metriche personalizzate registrate tramite la Flink Metric API. Tali metriche si dividono in tre categorie principali:
+L'osservabilità e il monitoraggio delle performance del sistema in tempo reale si basano sulle metriche native del motore Flink e su un set di metriche personalizzate esposte tramite la Flink Metric API. Quest'ultime si dividono in tre categorie principali:
 \begin{itemize}
-    \item \textbf{Metriche di Data Quality}: Contatore incrementale ad ogni violazione delle regole di integrità nel filtro di preprocessing.
-    \item \textbf{Metriche di Record Tardivi}: All'interno dell'operatore di side-output, vengono registrati il contatore per la quantità di voli arrivati oltre la tolleranza temporale, il gauge di picco storico del ritardo logico e i percentili stimati di latenza dell'event-time.
-    \item \textbf{Metriche di Latenza E2E}: Misurate in ogni operatore chiave. Esse includono sia la latenza interna dell'operatore, sia la latenza end-to-end dei dati, stimata su tre orizzonti diversi: rispetto al record più vecchio nella finestra, rispetto al record più recente e rispetto all'istante medio di Ingestion della finestra.
+    \item \textbf{Data Quality (\texttt{corrupted\_records\_total})}: Un \texttt{Counter} registrato nell'operatore di preprocessing (\texttt{LogicalInconsistencyFilter}) che rileva e incrementa il numero totale di record scartati poiché non conformi ai vincoli di schema o alle regole di consistenza di business.
+    \item \textbf{Record Tardivi (\texttt{LateRecordMetricAnalyzer})}: All'interno della gestione del side-output, vengono registrate metriche per valutare l'accuratezza dei meccanismi di gestione dell'out-of-ordering:
+    \begin{itemize}
+        \item \texttt{total\_late\_records\_count}: Un \texttt{Counter} cumulativo che tiene traccia del volume totale di voli scartati perché giunti oltre l'allowed lateness.
+        \item \texttt{max\_lateness\_minutes\_absolute}: Un \texttt{Gauge} che memorizza il ritardo logico massimo assoluto in minuti registrato dall'avvio del job.
+        \item \texttt{lateness\_p50/p90/p95/p99\_minutes}: Un gruppo di \texttt{Gauge} che stima l'andamento dei percentili del disallineamento temporale (lateness) servendosi dell'algoritmo DDSketch.
+    \end{itemize}
+    \item \textbf{Latenze (\texttt{ProcessingLatencyTracker})}: Integrate negli operatori analitici chiave per tracciare i tempi di elaborazione interni e la latenza di transito in millisecondi:
+    \begin{itemize}
+        \item \texttt{operator\_ms\_*}\ (con percentili \texttt{p50}, \texttt{p90}, \texttt{p95}, \texttt{p99} e \texttt{max}): Un gruppo di \texttt{Gauge} che misura il tempo di calcolo locale speso dall'operatore per processare i singoli record o i batch.
+        \item \texttt{e2e\_newest\_ms\_*}\ e \texttt{e2e\_oldest\_ms\_*}: \texttt{Gauge} che calcolano la latenza end-to-end misurata, rispettivamente, dal timestamp di ingestion nel sistema del record più recente e di quello più vecchio appartenenti alla finestra corrente.
+        \item \texttt{e2e\_avg\_ms\_*}: Un \texttt{Gauge} che stima la latenza end-to-end media calcolata in base alla media dei timestamp di ingestion dei record all'interno della finestra.
+    \end{itemize}
 \end{itemize}
 
 A differenza dei risultati di business delle query, le metriche di telemetria hanno un ciclo di vita transitorio ed elevata frequenza di aggiornamento. Di conseguenza, non necessitano di un canale persistente basato su Kafka, il quale comporterebbe solo un inutile overhead di rete ed un inquinamento dei topic con dati estranei all'analitica.
@@ -483,7 +493,7 @@ Il deployment su AWS è automatizzato tramite script che richiamano template di 
 \end{enumerate}
 
 \subsubsection{Dimensionamento delle Istanze EC2}\label{subsubsec:ec2_instances}
-Il cluster distribuito è composto da istanze EC2 appartenenti alla famiglia general-purpose \texttt{t3} e compute-optimized \texttt{c6i} di AWS\footnote{\url{https://aws.amazon.com/it/ec2/pricing/on-demand/}}, dimensionate per bilanciare i costi con la necessità di risorse CPU e memoria:
+Il cluster distribuito è composto da istanze EC2 appartenenti alla famiglia general-purpose \texttt{t3} e compute-optimized \texttt{c6i} di AWS\footnote{\url{https://aws.amazon.com/it/ec2/pricing/on-demand/}}, dimensionate per bilanciare i costi con la necessità di risorse computazionali stabili. In particolare, per i nodi di Apache Flink (JobManager e TaskManagers) è stata preferita la famiglia \texttt{c6i} rispetto a istanze burstable di tipo \texttt{t3} poiché l'uso di istanze burstable porterebbe al rapido esaurimento dei crediti di CPU (CPU Credit Tokens) sotto carico con il conseguente throttling della CPU.
 \begin{itemize}
     \item \textbf{Kafka Cluster}:
     \begin{itemize}
