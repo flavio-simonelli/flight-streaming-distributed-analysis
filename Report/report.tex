@@ -304,7 +304,7 @@ La temporizzazione del replay è basata sulla distanza logica tra eventi consecu
 
 Il simulatore può anche introdurre disordine temporale artificiale. Con probabilità configurabile, un evento viene ritardato di un offset casuale limitato da una soglia massima espressa in minuti logici; successivamente, la sequenza viene ordinata rispetto al tempo effettivo di pubblicazione. Questo meccanismo permette di produrre stream in cui l'ordine di arrivo non coincide con l'event-time, rendendo possibile valutare sperimentalmente watermark, allowed lateness e gestione dei record tardivi.
 
-Per analizzare il comportamento della pipeline sotto carichi differenti sono stati definiti tre scenari di accelerazione, riportati in Tabella~\ref{tab:acceleration_scenarios}. L'aumento del moltiplicatore incrementa la velocità di arrivo degli eventi, ma comprime anche la durata reale delle finestre event-time. Di conseguenza, il carico generato non rappresenta solo un aumento del throughput in ingresso: aumenta anche la frequenza reale con cui Flink chiude le finestre, aggiorna lo stato ed emette i risultati. Per osservare un aumento di throughput privo di questa distorsione sarebbe invece necessario aumentare la quantità di dati nello stesso intervallo logico, ad esempio sintetizzando ulteriori voli, invece di comprimere ulteriormente il tempo.
+Per analizzare il comportamento della pipeline sotto carichi differenti sono stati definiti tre scenari di accelerazione, riportati in Tabella~\ref{tab:acceleration_scenarios}. L'aumento del moltiplicatore incrementa la velocità di arrivo degli eventi, ma comprime anche la durata reale delle finestre event-time. Di conseguenza, il carico generato non rappresenta solo un aumento del throughput in ingresso: aumenta anche la frequenza reale con cui Flink chiude le finestre, aggiorna lo stato ed emette i risultati. Per osservare un aumento di throughput (in ingresso) privo di questa distorsione sarebbe invece necessario aumentare la quantità di dati nello stesso intervallo logico, ad esempio sintetizzando ulteriori voli, invece di comprimere ulteriormente il tempo.
 
 \begin{table}[htbp]
 \centering
@@ -352,7 +352,7 @@ A partire dagli scenari di Tabella~\ref{tab:acceleration_scenarios}, è possibil
 
 \subsection{Message Broker}\label{subsec:kafka_integration}
 
-Per disaccoppiare la sorgente dei dati dal motore di stream processing ed assorbire le fluttuazioni di carico, è stato integrato Apache Kafka. La componente si articola secondo le seguenti direttive:
+Per disaccoppiare la sorgente dei dati dal motore di stream processing ed assorbire le fluttuazioni di carico, è stato integrato Apache Kafka:
 \begin{itemize}
     \item \textbf{Partizionamento e Topic:} Il flusso in ingresso è instradato sul topic primario \texttt{flights-stream}, configurato con 6 partizioni per consentire la scalabilità orizzontale di Flink. I flussi analitici in uscita sono distribuiti su topic dedicati per granularità temporale, disaccoppiando Flink dallo storage a valle.
     \item \textbf{Ingestione in Flink:} Tramite la classe nativa \texttt{KafkaSource} e uno schema di deserializzazione custom, ogni record viene mappato nell'oggetto Java tipizzato \texttt{FlightRecord}, estraendo l'event-time del volo e registrando il timestamp di ingestione.
@@ -369,21 +369,23 @@ La riproduzione dei dati può introdurre disallineamenti logici che richiedono s
 \begin{itemize}
     \item \textbf{Watermark}: Viene adottata una strategia configurata con la politica di disordine massimo limitato, parametrizzata tramite il file \texttt{application.yaml}.
     \item \textbf{Idleness Detection}: Per evitare che il blocco o il rallentamento di una delle 6 partizioni di Kafka arresti l'avanzamento del watermark globale dell'intera pipeline, la strategia è irrobustita dall'uso della \textit{idleness}, che esclude temporaneamente dal calcolo le partizioni inattive.
-    \item \textbf{Dati Tardivi}: A livello di finestra, viene applicato il metodo \texttt{allowedLateness(d)} per consentire l'aggiornamento tardivo delle metriche qualora giungessero eventi con un ritardo superiore al watermark ma inferiore alla tolleranza aggiuntiva. Per gli eventi che superano anche questa seconda barriera, Flink utilizza un canale di Side Output dedicati per reindirizzare tali record a un analizzatore personalizzato, impedendo che vengano scartati silenziosamente.
+    \item \textbf{Dati Tardivi}: A livello di finestra, viene applicato il metodo \texttt{allowedLateness(d)} per consentire l'aggiornamento tardivo delle metriche qualora giungessero eventi con un ritardo superiore al watermark ma inferiore alla tolleranza aggiuntiva.
 \end{itemize}
+
+Per gli eventi che superano entrambe le barriere, Flink utilizza canali di Side Output dedicati per reindirizzare tali record a un analizzatore personalizzato per poterli tracciare.
 
 \subsubsection{Fault Tolerance}\label{subsubsec:flink_checkpointing}
 La tolleranza ai guasti e la resilienza del cluster sono gestite tramite il meccanismo di checkpointing distribuito asincrono di Flink (basato sull'algoritmo di Chandy-Lamport):
 \begin{itemize}
     \item \textbf{Consistenza Exactly-Once}: Il motore è impostato per garantire che lo stato interno degli operatori venga ripristinato esattamente nello stesso stato pre-fallimento, tramite politica \emph{exactly-once}.
-    \item \textbf{State Backend incrementale}: Per evitare colli di bottiglia, lo stato in-flight delle finestre è ospitato su disco locale tramite il backend \textit{RocksDB}. Quest'ultimo scrive le tabelle di stato in file SST locali ed effettua checkpoint incrementali asincroni, garantendo tempi di salvataggio rapidi anche per stati di grandi dimensioni.
+    \item \textbf{State Backend incrementale}: Per evitare colli di bottiglia, lo stato in-flight delle finestre è ospitato su disco locale tramite il backend \textit{RocksDB}. Quest'ultimo scrive le tabelle di stato in file SST locali ed effettua checkpoint incrementali asincroni, garantendo tempi di salvataggio rapidi anche per stati di grandi dimensioni. I dati vengono poi copiati su HDFS e S3, per garantire durabilità e disponibilità in caso di guasto del nodo.
     % \item \textbf{Ottimizzazioni anti-saturazione}: La proprietà \texttt{MIN\_PAUSE\_BETWEEN\_CHECKPOINTS} assicura un intervallo di riposo minimo tra la fine di un checkpoint e l'inizio del successivo, eliminando il rischio di saturazione della CPU.
 \end{itemize}
 
 \subsubsection{Garanzie di Consegna E2E}\label{subsubsec:flink_delivery_guarantees}
 Una delle decisioni architetturali più rilevanti del progetto riguarda il disallineamento pianificato delle garanzie di consegna:
 \begin{itemize}
-    \item \textbf{At-Least-Once su Kafka}: Il \texttt{SinkBuilder} configura i producer Kafka impostando \textit{at-least-once}. L'implementazione di un sink \textit{exactlyonce} richiederebbe l'attivazione del protocollo a transazioni distribuite di Kafka, il quale introduce un forte overhead di coordinamento.
+    \item \textbf{At-Least-Once su Kafka}: Il \texttt{SinkBuilder} configura i producer Kafka impostando \textit{at-least-once}. L'implementazione di un sink \textit{exactly-once} richiederebbe l'attivazione del protocollo a transazioni distribuite di Kafka, il quale introduce un forte overhead di coordinamento.
     \item \textbf{Exactly-Once tramite Idempotenza}: Questa perdita teorica di consistenza sui sink viene completamente compensata a valle da InfluxDB. Poiché InfluxDB è un database temporale che memorizza i punti indicizzati per timestamp e tag-set primari, eventuali messaggi duplicati scritti da Kafka a causa di un ripristino di Flink verranno sovrascritti in modo identico. Questo schema ibrido permette di ottenere la consistenza matematica dell'Exactly-Once end-to-end senza pagare il costo prestazionale delle transazioni distribuite.
 \end{itemize}
 
@@ -433,7 +435,7 @@ La pipeline computazionale condivide a monte la sorgente dei dati e i filtri log
 \begin{itemize}
     \item \textbf{Query 1 -- Aggregazioni Compagnie:} Applica il filtro \texttt{TargetAirlineFilter} ed esegue una proiezione per ridurre l'impronta di memoria dei record prima dello shuffle di rete. Lo stream viene partizionato tramite \texttt{keyBy(FlightRecord::getAirline)} e convogliato in finestre di tipo \textit{Tumbling} della durata di 1 ora in Event-Time. Il calcolo della media dei ritardi e del tasso di cancellazione è delegato a un aggregatore incrementale derivato da \texttt{AggregateFunction}, garantendo un aggiornamento dello stato locale in tempo costante $O(1)$ ad ogni record.
     \item \textbf{Query 2 -- Top-10 Aeroporti strutturali e volatili:} Sfrutta tre finestre concorrenti (1 ora tumbling, 6 ore tumbling e finestra globale con trigger periodico ogni ora logica). Il calcolo è ingegnerizzato in due fasi logiche distinte per ottimizzare i shuffle di rete: prima viene eseguita un'aggregazione locale per isolare il numero di ritardi severi per ciascun aeroporto tramite \texttt{keyBy(FlightRecord::getOriginAirport)}, dopodiché i flussi parziali vengono uniti e ri-partizionati sul timestamp di fine finestra. All'interno di una \texttt{KeyedProcessFunction}, i dati vengono storicizzati in un \texttt{MapState} e viene registrato un timer sul watermark; allo scattare del timer, la funzione istanzia un Min-Heap limitato a 10 elementi. Questo consente di estrarre la classifica finale riducendo la complessità temporale a $O(N \log 10)$. Lo stato locale viene interamente ripulito subito dopo l'emissione su Kafka per prevenire memory leak.
-    \item \textbf{Query 3 -- Distribuzione oraria dei Percentili:} Raggruppa gli eventi su una chiave composita formata dalla tupla identificativa \texttt{(airline, hour\_of\_day)} per isolare le 24 fasce orarie della giornata. Lo stream viene elaborato su tre finestre parallele (1 giorno tumbling, 7 giorni sliding e globale). La logica sfrutta una \texttt{ProcessWindowFunction} accoppiata al summenzionato modulo DDSketch come accumulatore di stato incrementale, emettendo i percentili storici interpolati direttamente dai bin dello sketch.
+    \item \textbf{Query 3 -- Distribuzione oraria dei Percentili:} Raggruppa gli eventi su una chiave composita formata dalla tupla identificativa \texttt{(airline, hour\_of\_day)} per isolare le 24 fasce orarie della giornata. Lo stream viene elaborato su tre finestre parallele (1 giorno tumbling, 7 giorni tumbling e globale). La logica sfrutta una \texttt{ProcessWindowFunction} accoppiata al summenzionato modulo DDSketch come accumulatore di stato incrementale, emettendo i percentili storici interpolati direttamente dai bin dello sketch.
 \end{itemize}
 
 % ------------------------------
@@ -468,7 +470,7 @@ Per condurre le campagne sperimentali in condizioni di carico reale, il sistema 
 
 \subsubsection{Provisioning dell'Infrastruttura}\label{subsubsec:cf_route53}
 
-Il deployment su AWS è automatizzato tramite script che richiamano template di \textbf{AWS CloudFormation}. L'orchestratore esegue le seguenti fasi:
+Il deployment su AWS è automatizzato tramite script che richiamano template di AWS CloudFormation. L'orchestratore esegue le seguenti fasi:
 \begin{enumerate}
     \item \textbf{Network Stack}: Crea una VPC dedicata, una sottorete pubblica con CIDR associato, una Security Group con regole di ingresso/uscita per le porte dei servizi, e una \textbf{Private Hosted Zone} su \textbf{Amazon Route 53} con dominio privato \texttt{flight-analysis.local};
     \item \textbf{Bootstrap ed S3}: I pacchetti pre-compilati, i file di configurazione e le variabili d'ambiente vengono caricati su un bucket \textbf{Amazon S3} privato;
@@ -521,7 +523,7 @@ Nello scenario ad alto carico, il throughput reale in ingresso si stabilizza per
 
 \subsubsection{Consumo delle Risorse}\label{subsubsec:resource_node}
 
-L'incremento del parallelismo mostra un impatto chiaro e positivo sulla distribuzione del carico computazionale (CPU) tra le istanze EC2 attive:
+L'incremento del parallelismo mostra un impatto chiaro e positivo sulla distribuzione del carico computazionale tra le istanze EC2 attive:
 \begin{itemize}
     \item \textbf{Basso carico}: Con $P=1$ il solo worker attivo resta tipicamente intorno allo $0,1$--$0,2\%$ di CPU, con picchi sporadici inferiori all'$1,5\%$ (Fig.~\ref{fig:node_slow_p1}). Con $P=6$, invece, tutti i worker oscillano prevalentemente tra l'$1\%$ e il $5\%$, oltre a un picco di avvio vicino al $25\%$ (Fig.~\ref{fig:node_slow_p6}). A questo livello di traffico il costo di scheduling, serializzazione e coordinamento dei sotto-task domina quindi il lavoro utile; $P=1$ è la configurazione più efficiente.
     \item \textbf{Parallelismo $P=1$}: L'intera elaborazione del DAG di Flink viene allocata su un singolo slot di calcolo di un unico TaskManager. Nello scenario a medio carico, l'istanza \texttt{flink-worker-1} registra un uso di CPU del $\approx 12-16\%$, mentre gli altri worker rimangono inattivi ad uno $0\%$ reale. Nel test ad alto carico (Fig.~\ref{fig:node_cpu_comparison_p1}), l'unico worker attivo \texttt{flink-worker-3} subisce un picco di utilizzo di CPU che oscilla tra il $60\%$ e il $70\%$, rappresentando un punto singolo di potenziale instabilità per l'infrastruttura.
@@ -534,7 +536,7 @@ Questo comportamento evidenzia una scalabilità orizzontale dipendente dal caric
 
 \subsection{Gestione del Disordine Temporale}\label{subsec:perf_out_of_order}
 
-La seconda campagna di test analizza l'efficacia delle strategie di gestione del disordine temporale (\textit{out-of-orderness}) introdotto dal simulatore Go (con probabilità di ritardo del $5\%$ e ritardo massimo pari a $30$ minuti logici). I test sono stati eseguiti con parallelismo $P=3$, moltiplicatore $14.400\times$, confrontando tre diverse configurazioni di Watermark Delay e Allowed Lateness:
+La seconda campagna di test analizza l'efficacia delle strategie di gestione del disordine temporale introdotto dal simulatore Go (con probabilità di ritardo del $5\%$ e ritardo massimo pari a $30$ minuti logici). I test sono stati eseguiti con parallelismo $P=3$, moltiplicatore $14.400\times$, confrontando tre diverse configurazioni di Watermark Delay e Allowed Lateness:
 \begin{enumerate}
     \item \textbf{Configurazione Conservativa - $D=30$ min, $L=0$ min}: Privilegia la completezza del dato impostando il ritardo del watermark pari al ritardo massimo teorico dei dati.
     \item \textbf{Configurazione Ibrida - $D=5$ min, $L=25$ min}: Cerca un compromesso emettendo risultati preliminari rapidi e aggiornandoli successivamente per $25$ minuti logici.
@@ -545,7 +547,7 @@ La seconda campagna di test analizza l'efficacia delle strategie di gestione del
 
 L'analisi dei dati evidenzia l'impatto diretto dei parametri sulla completezza del calcolo:
 \begin{itemize}
-    \item \textbf{Configurazioni Conservativa e Ibrida}: Registrano un numero di record scartati pari a \textbf{zero} (Fig.~\ref{fig:cluster_ooo_d30_l0} e Fig.~\ref{fig:cluster_ooo_d5_l25}). Nella configurazione conservativa, il ritardo di $30$ minuti consente a tutti gli eventi fuori ordine di rientrare prima del passaggio del watermark. Nella configurazione ibrida, sebbene il watermark si muova più rapidamente, la finestra resta attiva in memoria grazie a un' \textit{allowed lateness} di $25$ minuti, garantendo che i voli con ritardo fino a $30$ minuti vengano comunque inclusi nel calcolo finale.
+    \item \textbf{Configurazioni Conservativa e Ibrida}: Registrano un numero di record scartati pari a zero (Fig.~\ref{fig:cluster_ooo_d30_l0} e Fig.~\ref{fig:cluster_ooo_d5_l25}). Nella configurazione conservativa, il ritardo di $30$ minuti consente a tutti gli eventi fuori ordine di rientrare prima del passaggio del watermark. Nella configurazione ibrida, sebbene il watermark si muova più rapidamente, la finestra resta attiva in memoria grazie a un' \textit{allowed lateness} di $25$ minuti, garantendo che i voli con ritardo fino a $30$ minuti vengano comunque inclusi nel calcolo finale.
     \item \textbf{Configurazione Aggressiva}: Mostra una significativa perdita di dati. Nel grafico \textit{Record Scartati per Finestra} (Fig.~\ref{fig:cluster_ooo_d10_l0}), si osserva un accumulo continuo di scarti che raggiunge $\approx 970$ record per la Query 2 (finestra 1h), $\approx 590$ record per la Query 1 e $\approx 250$ per la Query 2 (finestra 6h). La distribuzione dei ritardi degli scarti conferma che tutti gli eventi con sfasamento compreso tra $10$ e $30$ minuti sono stati rigettati da Flink, degradando la precisione dei risultati di business.
 \end{itemize}
 
