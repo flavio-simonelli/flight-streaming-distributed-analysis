@@ -516,38 +516,40 @@ La prima campagna valuta il comportamento della pipeline al variare del parallel
 
 \subsubsection{Throughput e Latenze}\label{subsubsec:throughput_cluster}
 
-L'analisi del throughput e delle latenze a livello di cluster rivela dinamiche prestazionali importanti:
+L'analisi prestazionale della pipeline al variare del parallelismo viene strutturata separando la valutazione quantitativa dei volumi di processing (tramite i grafici a barre aggregati) dallo studio della dinamica temporale dei ritardi (tramite la telemetria in tempo reale).
+
+\paragraph{Analisi del Throughput}
+I grafici mediati sulle tre run indicano un comportamento lineare e stabile del sistema tra la fase transitoria e il regime stazionario (Fig~\ref{fig:throughput_in_trans_comparison} -- Fig~\ref{fig:throughput_q3_steady_comparison}).
 \begin{itemize}
-    \item \textbf{Scenario a basso carico}: Il throughput in ingresso oscilla regolarmente intorno a $300$ eventi/s per tutti i livelli di parallelismo, mentre quello complessivo in uscita rimane vicino a $10$ record/s (Figg.~\ref{fig:cluster_throughput_slow_p1}--\ref{fig:cluster_throughput_slow_p6}). La coincidenza delle curve conferma che $P=1$ dispone già di capacità ampiamente sufficiente e che, in questo regime, il parallelismo non produce alcun beneficio di throughput.
-    \item \textbf{Throughput in Ingresso e Uscita costante}: A differenza di quanto ci si potrebbe attendere, nello scenario a medio carico il throughput in ingresso reale si attesta costantemente a $\approx 2.900$ eventi/secondo per tutti i livelli di parallelismo. Analogamente, il throughput totale in uscita rimane stabile a $\approx 100$ record/secondo (suddiviso tra Query 1 a $\approx 13$ recs/s, Query 2 a $\approx 58-62$ recs/s e Query 3 a $\approx 27-30$ recs/s). Questo indica che anche un singolo slot è sufficiente a processare l'intero carico dello scenario medio senza accumulare lag su Kafka.
-    \item \textbf{Comportamento della latenza Newest P90 al parallelismo 6}: L'analisi del $90$-esimo percentile della latenza \textit{Newest} mostra una stabilità generale intorno ai $5$ secondi per i parallelismi $P=1$ (Fig.~\ref{fig:cluster_latency_medium_p90_p1}) e $P=3$ (Fig.~\ref{fig:cluster_latency_medium_p90_p3}). Al parallelismo $P=6$, tuttavia, a causa della frammentazione del flusso su 6 slot paralleli e del conseguente disallineamento temporaneo dei watermark, si registrano dei picchi transitori: la latenza P90 per la Query 3 7d sale temporaneamente fino a $18,5$ secondi (Fig.~\ref{fig:cluster_latency_medium_p90_p6}), mentre la Query 3 Global mostra un picco di $12,5$ secondi. Questo andamento a impulsi, che poi rientra al baseline di $5$ s, indica disallineamenti temporanei tra i sotto-task di Flink piuttosto che un ritardo cumulativo e permanente.
+    \item \textbf{Scenario Slow:} Il throughput in ingresso si attesta stabilmente a $\approx 300$ eventi/s per tutti i livelli di parallelismo, con un output complessivo di $\approx 10$ record/s. $P=1$ dispone già di capacità sufficiente; lo scale-out non produce alcun beneficio.
+    \item \textbf{Scenario Medium:} L'ingestion si stabilizza a $\approx 2.700$ eventi/s nel transitorio e $\approx 3.000$ eventi/s a regime, con un output totale di $\approx 100$ record/s. L'assenza di variazioni al variare di $P$ conferma che un singolo slot è ampiamente sufficiente a processare il carico senza accumulare lag.
+    \item \textbf{Scenario Fast:} Nella fase transitoria l'ingestion si attesta uniformemente a $\approx 6.800\text{--}7.000$ eventi/s per tutte le configurazioni. Nello \textit{Steady State}, l'omogeneità si mantiene: tutti i livelli di parallelismo si fissano stabilmente a $\approx 8.500$ eventi/s con varianza minima, confermando l'assenza di instabilità nell'ingestion a $P=6$. Specularmente, il throughput in uscita mostra un trend incrementale all'aumentare di $P$ sia nel transitorio (da $\approx 192$ a $\approx 222$ record/s) sia a regime (da $\approx 235$ a $\approx 282$ record/s). Questo fenomeno è legato alla natura accelerata del flusso di dati, dove finestre logiche di ore o giorni vengono compresse ed elaborate in pochi millisecondi reali; in questo contesto, la disponibilità di un maggior numero di slot paralleli ottimizza l'efficienza di svuotamento simultaneo di finestre così dense, assorbendo l'intensità dei picchi di emissione senza introdurre colli di bottiglia.
 \end{itemize}
 
-Nel caso a basso carico, sia le latenze medie interne degli operatori sia le curve \textit{Newest P90} rimangono sostanzialmente stabili durante ciascuna esecuzione, senza una crescita progressiva o segnali di accumulo (Figg.~\ref{fig:cluster_latency_slow_p1}--\ref{fig:cluster_latency_slow_p6}). Le finestre lunghe di Query 3 si attestano su livelli diversi rispetto alle query più frequenti; ciò è coerente con la loro minore frequenza di emissione e non costituisce, da solo, un indice di saturazione. Anche i limitati cambi di livello osservabili con $P=6$ sono transitori e non permettono di concludere che il maggiore parallelismo peggiori la latenza. Il risultato supportato dai grafici è quindi più circoscritto: tutti i parallelismi gestiscono stabilmente il basso carico, mentre $P>1$ non offre un beneficio misurabile sul throughput.
-
-Nello scenario ad alto carico, il throughput reale in ingresso si stabilizza per tutte le configurazioni di parallelismo a circa $\approx 8.100 - 8.320$ eventi/secondo. La telemetria della latenza \textit{Newest} (anch'essa valutata sul $90$-esimo percentile per omogeneità di confronto) rivela andamenti stabili:
+\paragraph{Analisi delle Latenze}
+L'andamento temporale del $90$-esimo percentile della latenza \textit{Newest} e delle latenze interne evidenzia l'impatto del coordinamento distribuito (Fig~\ref{fig:cluster_latency_slow_p1} -- Fig~\ref{fig:cluster_latency_fast_p6}):
 \begin{itemize}
-    \item \textbf{Parallelismi $P=1$ e $P=3$}: Entrambe le configurazioni presentano curve stabili e piatte per l'intera durata dei test. La latenza P90 si attesta costantemente intorno a $2,25$ s (Fig.~\ref{fig:cluster_latency_fast_p90_p1} e Fig.~\ref{fig:cluster_latency_fast_p90_p3}).
-    \item \textbf{Parallelismo $P=6$}: La latenza P90 a $P=6$ (Fig.~\ref{fig:cluster_latency_fast_p90_p6}) rimane stabile e controllata intorno a $2$--$2,5$ s per la maggior parte del test, registrando un unico picco transitorio che sale a $6,5$ secondi per la Query 3 7d, prima di stabilizzarsi nuovamente sul livello precedente. Ciò conferma che a P90 gli effetti del watermark drift si traducono in oscillazioni temporanee piuttosto che in accumuli permanenti di ritardo.
+    \item \textbf{Scenario Slow:} Sia le latenze medie interne degli operatori sia le curve \textit{Newest P90} rimangono stabili durante ciascuna esecuzione, senza crescita progressiva o segnali di accumulo per tutti i livelli di parallelismo.
+    \item \textbf{Scenario Medium:} La latenza P90 mostra una stabilità generale intorno ai $5$ secondi per $P=1$ e $P=3$. Al parallelismo $P=6$, a causa della frammentazione del flusso su 6 slot paralleli e del conseguente disallineamento temporaneo dei watermark, si registrano picchi transitori: la latenza per la Query 3 7d sale temporaneamente fino a $18,5$ secondi, mentre la Query 3 Global mostra un picco di $12,5$ secondi, prima di rientrare al baseline.
+    \item \textbf{Scenario Fast:} Per $P=1$ e $P=3$ le curve rimangono stabili e piatte per l'intera durata dei test, con la latenza P90 costantemente intorno a $2,25$ s. A $P=6$, la latenza rimane controllata intorno a $2\text{--}2,5$ s per la maggior parte del test, registrando un unico picco transitorio che sale a $6,5$ secondi per la Query 3 7d prima di ridepositarsi. Questo andamento a impulsi conferma che gli effetti del watermark drift si traducono in oscillazioni temporanee di coordinamento tra i sotto-task piuttosto che in un ritardo cumulativo permanente.
 \end{itemize}
-
 
 \subsubsection{Consumo delle Risorse}\label{subsubsec:resource_node}
 
-L'incremento del parallelismo mostra un impatto chiaro e positivo sulla distribuzione del carico computazionale tra le istanze EC2 attive:
-\begin{itemize}
-    \item \textbf{Basso carico}: Con $P=1$ il solo worker attivo resta tipicamente intorno allo $0,1$--$0,2\%$ di CPU, con picchi sporadici inferiori all'$1,5\%$ (Fig.~\ref{fig:node_slow_p1}). Con $P=6$, invece, tutti i worker oscillano prevalentemente tra l'$1\%$ e il $5\%$, oltre a un picco di avvio vicino al $25\%$ (Fig.~\ref{fig:node_slow_p6}). A questo livello di traffico il costo di scheduling, serializzazione e coordinamento dei sotto-task domina quindi il lavoro utile; $P=1$ è la configurazione più efficiente.
-    \item \textbf{Parallelismo $P=1$}: L'intera elaborazione del DAG di Flink viene allocata su un singolo slot di calcolo di un unico TaskManager. Nello scenario a medio carico, l'istanza \texttt{flink-worker-1} registra un uso di CPU del $\approx 12-16\%$, mentre gli altri worker rimangono inattivi ad uno $0\%$ reale. Nel test ad alto carico (Fig.~\ref{fig:node_cpu_comparison_p1}), l'unico worker attivo \texttt{flink-worker-3} subisce un picco di utilizzo di CPU che oscilla tra il $60\%$ e il $70\%$, rappresentando un punto singolo di potenziale instabilità per l'infrastruttura.
-    \item \textbf{Parallelismo $P=3$}: Flink alloca i 3 slot attivi distribuendo il carico su due TaskManager: \texttt{flink-worker-3} registra circa il $45\%$ di CPU nel test ad alto carico, mentre \texttt{flink-worker-2} lavora al $22\%$ CPU. Il terzo worker rimane inutilizzato.
-    \item \textbf{Parallelismo $P=6$}: Con tutti i 6 slot del cluster attivi (2 slot per ciascuno dei 3 TaskManager), il carico viene bilanciato in modo eccellente tra tutte e tre le macchine. Nello scenario a medio carico la CPU si attesta uniformemente tra il $10-15\%$, mentre nel test ad alto carico (Fig.~\ref{fig:node_cpu_comparison_p6}) tutte le istanze lavorano in modo cooperativo e simmetrico con un consumo di CPU stabile tra il $20-30\%$.
-\end{itemize}
+L'analisi dell'utilizzo di CPU e memoria Heap sui nodi EC2 svela le dinamiche infrastrutturali che governano le metriche di throughput e latenza, evidenziando il trade-off tra efficienza di calcolo e overhead di coordinamento distribuito (Fig~\ref{fig:node_slow_p1} -- Fig~\ref{fig:node_fast_p6}).
 
-Questo comportamento evidenzia una scalabilità orizzontale dipendente dal carico: negli scenari medio e alto, l'aumento del parallelismo distribuisce i sotto-task e riduce i picchi sul singolo TaskManager; nello scenario lento, invece, la capacità aggiuntiva resta inutilizzata e introduce soltanto overhead di coordinamento. Il parallelismo dovrebbe quindi essere dimensionato rispetto al traffico atteso, anziché mantenuto staticamente al valore massimo.
+\paragraph{Scenario a Basso Carico}
+In questo regime emergono chiaramente i costi di sfoltimento e orchestrazione dell'architettura. Mentre un singolo slot smaltisce il flusso con un impiego di risorse trascurabile, lo scale-out massimo costringe tutti i nodi del cluster a un lavoro simmetrico di pura sincronizzazione. L'incremento di CPU e le oscillazioni di memoria heap sono interamente riconducibili alla gestione dei sotto-task, confermando l'inefficienza del parallelismo in assenza di un carico reale.
 
+\paragraph{Scenario a Medio Carico}
+Il traffico crescente evidenzia la transizione del sistema verso logiche di ripartizione del carico. Le configurazioni a basso parallelismo ($P=1$, $P=3$) costringono Flink ad accentrare l'esecuzione del DAG su una frazione dei nodi, lasciando le restanti risorse inerti. Solo con $P=6$ si ottiene la simmetria delle curve di CPU e memoria, stabilizzando l'infrastruttura.
+
+\paragraph{Scenario ad Alto Carico}
+Sotto stress test, il bilanciamento delle risorse diventa il fattore decisivo per la tenuta del cluster. Con $P=1$, la pressione di un flusso accelerato (in cui finestre temporali estese vengono compresse in pochi millisecondi) grava su un'unica istanza, portando la CPU a livelli critici e saturando la memoria heap. Lo scale-out a $P=6$ esprime la massima efficacia della scalabilità orizzontale: il carico viene distribuito in modo cooperativo e paritetico tra tutti i nodi. Questo abbatte i picchi di consumo singoli e garantisce la resilienza del sistema.
 
 \subsection{Gestione del Disordine Temporale}\label{subsec:perf_out_of_order}
 
-La seconda campagna di test analizza l'efficacia delle strategie di gestione del disordine temporale introdotto dal simulatore Go (con probabilità di ritardo del $5\%$ e ritardo massimo pari a $30$ minuti logici). I test sono stati eseguiti con parallelismo $P=3$, moltiplicatore $14.400\times$, confrontando tre diverse configurazioni di Watermark Delay e Allowed Lateness:
+La seconda campagna di test analizza l'efficacia delle strategie di gestione del disordine temporale introdotto dal simulatore (con probabilità di ritardo del $5\%$ e ritardo massimo pari a $30$ minuti logici). I test sono stati eseguiti con parallelismo $P=3$, moltiplicatore $14.400\times$, confrontando tre diverse configurazioni di Watermark Delay e Allowed Lateness:
 \begin{enumerate}
     \item \textbf{Configurazione Conservativa - $D=30$ min, $L=0$ min}: Privilegia la completezza del dato impostando il ritardo del watermark pari al ritardo massimo teorico dei dati.
     \item \textbf{Configurazione Ibrida - $D=5$ min, $L=25$ min}: Cerca un compromesso emettendo risultati preliminari rapidi e aggiornandoli successivamente per $25$ minuti logici.
@@ -559,7 +561,7 @@ La seconda campagna di test analizza l'efficacia delle strategie di gestione del
 L'analisi dei dati evidenzia l'impatto diretto dei parametri sulla completezza del calcolo:
 \begin{itemize}
     \item \textbf{Configurazioni Conservativa e Ibrida}: Registrano un numero di record scartati pari a zero (Fig.~\ref{fig:cluster_ooo_d30_l0} e Fig.~\ref{fig:cluster_ooo_d5_l25}). Nella configurazione conservativa, il ritardo di $30$ minuti consente a tutti gli eventi fuori ordine di rientrare prima del passaggio del watermark. Nella configurazione ibrida, sebbene il watermark si muova più rapidamente, la finestra resta attiva in memoria grazie a un' \textit{allowed lateness} di $25$ minuti, garantendo che i voli con ritardo fino a $30$ minuti vengano comunque inclusi nel calcolo finale.
-    \item \textbf{Configurazione Aggressiva}: Mostra una significativa perdita di dati. Nel grafico \textit{Record Scartati per Finestra} (Fig.~\ref{fig:cluster_ooo_d10_l0}), si osserva un accumulo continuo di scarti che raggiunge $\approx 970$ record per la Query 2 (finestra 1h), $\approx 590$ record per la Query 1 e $\approx 250$ per la Query 2 (finestra 6h). La distribuzione dei ritardi degli scarti conferma che tutti gli eventi con sfasamento compreso tra $10$ e $30$ minuti sono stati rigettati da Flink, degradando la precisione dei risultati di business.
+    \item \textbf{Configurazione Aggressiva}: Mostra una significativa perdita di dati. Nel grafico \textit{Record Scartati per Finestra} (Fig.~\ref{fig:cluster_ooo_d10_l0}), si osserva un accumulo continuo di scarti che raggiunge $\approx 970$ record per la Query 2 (finestra 1h), $\approx 590$ record per la Query 1 e $\approx 250$ per la Query 2 (finestra 6h). La distribuzione dei ritardi degli scarti conferma che tutti gli eventi con sfasamento compreso tra $10$ e $30$ minuti sono stati rigettati da Flink, degradando leggermente la precisione dei risultati di business.
 \end{itemize}
 
 \subsubsection{Trade-off Operativi}\label{subsubsec:latency_tradeoffs}
@@ -573,21 +575,21 @@ Le tre strategie comportano trade-off operativi distinti:
 
 \subsection{Impatto del Checkpointing}\label{subsec:perf_checkpoint_fault_tolerance}
 
-La terza e ultima campagna di test valuta il comportamento della pipeline Flink in termini di resilienza ed efficienza del meccanismo di tolleranza ai guasti. Le prove sono state condotte con parallelismo $P=6$, moltiplicatore $14.400\times$, senza disordine sorgente aggiunto, confrontando tre differenti scenari:
+La terza e ultima campagna di test valuta il comportamento della pipeline Flink in termini di resilienza ed efficienza del meccanismo di tolleranza ai guasti. Le prove sono state condotte con parallelismo $P=6$, moltiplicatore $14.400\times$, HashMap come State Backend, senza disordine sorgente aggiunto, confrontando tre differenti scenari:
 \begin{enumerate}
     \item \textbf{Scenario 1 - Baseline Checkpoint}: Checkpoint abilitato ogni $5$ minuti, nessun guasto iniettato.
     \item \textbf{Scenario 2 - Valutazione Overhead}: Checkpoint abilitato con frequenza elevata (ogni $30$ secondi), nessun guasto iniettato.
     \item \textbf{Scenario 3 - Test di Ripristino}: Checkpoint ogni $5$ minuti, con iniezione di $1$ fallimento (kill controllato del container del TaskManager \texttt{flink-worker-1}).
 \end{enumerate}
 
-La pipeline utilizza RocksDB come State Backend configurato con snapshot incrementali per minimizzare l'I/O di rete verso lo storage distribuito.
+È stato scelto il backend HashMap poiché l'architettura sfrutta principalmente accumulatori e funzioni di aggregazione senza memorizzare i dati grezzi, oltre che la cardinalità delle chiavi su cui si effettua l'aggregaione è contenuta; questo mantiene lo stato estremamente compatto e massimizza le performance in-memory, escludendo l'overhead di I/O e serializzazione tipico di RocksDB.
 
 \subsubsection{Overhead del Checkpointing}\label{subsubsec:checkpoint_overhead}
 
 Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga in modo asincrono, la frequenza con cui esso viene innescato introduce un costo computazionale legato alla serializzazione dello stato e al coordinamento dei nodi:
 \begin{itemize}
-    \item \textbf{Dimensione e Durata}: Nello Scenario 1 il completamento di uno snapshot richiede $\approx 2,75$ secondi per uno stato di $\approx 8,20$ MiB. Nello Scenario 2, la durata scende a soli $\approx 474$ ms per uno stato medio di $\approx 4,02$ MiB. Questa drastica riduzione è il risultato diretto degli snapshot incrementali di RocksDB: poiché l'intervallo temporale è ridotto, la quantità di file modificati e copiati su S3 è inferiore.
-    \item \textbf{Impatto sul Throughput}: Il throughput reale in ingresso si mantiene stabile alla soglia di regime di $\approx 2.928$ eventi/secondo, mostrando che, in questo caso, l'introduzione di checkpoint più frequenti non intaccano le prestazioni del sistema.
+    \item \textbf{Dimensione e Durata}: Nello Scenario 1 il completamento di uno snapshot richiede $\approx 800$ ms per uno stato di $\approx 1,5$ MiB. Nello Scenario 2, la durata scende a soli $\approx 550$ ms per uno stato medio di $\approx 1,6$ MiB.
+    \item \textbf{Impatto sul Throughput}: Il throughput reale in ingresso si mantiene stabile alla soglia di regime di $\approx 2.900$ eventi/secondo, mostrando che, in questo caso, l'introduzione di checkpoint più frequenti non intaccano le prestazioni del sistema.
 \end{itemize}
 
 % \begin{table}[htbp]
@@ -599,8 +601,8 @@ Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga
 % \textbf{Metrica} & \textbf{Int. 5 Min} & \textbf{Int. 30 Sec} \\
 % \hline
 % \textbf{Stato Completato} & 3 Checkpoint & 29 Checkpoint \\
-% \textbf{Dimensione Stato} & $\approx 8,20$ MiB & $\approx 4,02$ MiB \\
-% \textbf{Durata Checkpoint} & $\approx 2,75$ s & $\approx 474$ ms \\
+% \textbf{Dimensione Stato} & $\approx 1,5$ MiB & $\approx 1,6$ MiB \\
+% \textbf{Durata Checkpoint} & $\approx 800$ ms & $\approx 550$ ms \\
 % \textbf{TM GC Medio} & \textbf{266 ms} & \textbf{431 ms} \\
 % \textbf{CPU TM Media} & $\approx 11-13\%$ & $\approx 12-14\%$ \\
 % \textbf{Throughput Ingressso} & Stabile a $2.928$ ev/s & Stabile a $2.928$ ev/s \\
@@ -610,16 +612,16 @@ Sebbene in Apache Flink la scrittura del checkpoint sullo storage remoto avvenga
 
 \subsubsection{Effetti del Restore}\label{subsubsec:restore_failover}
 
-Nello Scenario 3 viene simulato un guasto critico arrestando brutalmente l'istanza \texttt{flink-worker-1}. Le metriche a livello di cluster (Fig.~\ref{fig:cluster_throughput_int5_fail1} e Fig.~\ref{fig:cluster_latency_int5_fail1}) e di nodo (Fig.~\ref{fig:node_chk_run_int5_fail1}) mostrano la sequenza esatta degli eventi:
+Nello Scenario 3 viene simulato un guasto critico arrestando brutalmente l'istanza \texttt{flink-worker-1}. Le metriche a livello di cluster (Fig.~\ref{fig:cluster_throughput_int5_fail1} e Fig.~\ref{fig:cluster_latency_int5_fail1}) e di nodo (Fig.~\ref{fig:node_chk_hashmap_run_int5_fail1}) mostrano la sequenza esatta degli eventi:
 \begin{itemize}
-    \item \textbf{Rilevamento e Downtime}: Non appena il JobManager rileva l'assenza del TaskManager, interrompe immediatamente il Job. Il throughput in ingresso e uscita crolla a zero per un tempo di failover $T_{\text{failover}} \approx 15$ secondi logici reali. In questo intervallo il JobManager re-alloca la topologia distribuita sugli slot rimanenti e sul worker riavviato.
-    \item \textbf{Rollback dello Stato consistente}: Flink ripristina lo stato del Job recuperando i dati di business e i metadati dall'ultimo checkpoint consistente valido reimpostando i contatori e le finestre attive a quel preciso istante logico.
-    \item \textbf{Fase di Catch-up}: Durante il fermo di 15 secondi, il simulatore Go ha continuato ad inviare voli su Kafka, accumulando lag. Al riavvio, la sorgente Flink consuma i messaggi accumulati al massimo delle sue capacità. Il throughput in ingresso subisce una brusca impennata toccando un picco di $\approx 9.000$ eventi/secondo, mentre in uscita il throughput di scrittura tocca temporaneamente i $250$ record/secondo.
-    \item \textbf{Impennata della CPU}: Per elaborare la mole di dati accumulata, il TaskManager riattivato \texttt{flink-worker-1} registra un picco di utilizzo della CPU che tocca il $60\%$ (Fig.~\ref{fig:node_chk_run_int5_fail1}).
-    \item \textbf{Picco e Rientro delle Latenze}: Poiché i record processati durante la ripartenza hanno stazionato a lungo su Kafka, la loro latenza end-to-end aumenta significativamente, con un picco della latenza \textit{Average} che sale fino a $2$ minuti. Una volta azzerato il lag accumulato, l'elaborazione ritorna in tempo reale e le latenze rientrano nei valori tipici.
+    \item \textbf{Rilevamento e Downtime}: Non appena il JobManager rileva l'assenza del TaskManager, interrompe immediatamente il Job. Il throughput in ingresso e uscita crolla a zero per un tempo di failover $T_{\text{failover}} \approx 15$ secondi reali, intervallo in cui il JobManager re-alloca la topologia distribuita e riavvia il worker orchestrando gli slot rimanenti.
+    \item \textbf{Rollback dello Stato consistente}: Flink ripristina lo stato del Job recuperando i dati di business e i metadati dall'ultimo checkpoint consistente valido, reimpostando i contatori e le finestre attive a quel preciso istante logico.
+    \item \textbf{Fase di Catch-up}: Durante il fermo del cluster, il simulatore ha continuato a inviare dati su Kafka, accumulando lag. Al riavvio, le sorgenti Flink consumano i messaggi arretrati al massimo delle proprie capacità: il throughput in ingresso subisce una brusca impennata toccando un picco di $\approx 2.800$ eventi/secondo (per singolo subtask), mentre il throughput complessivo in uscita schizza temporaneamente oltre i $400$ record/secondo.
+    \item \textbf{Impennata della CPU}: Per elaborare massivamente la mole di dati accumulata nella coda, il TaskManager riattivato \texttt{flink-worker-1} subisce una forte sollecitazione, registrando un picco di utilizzo della CPU che tocca il $90\%$.
+    \item \textbf{Picco e Rientro delle Latenze}: Poiché i record processati durante la ripartenza hanno stazionato a lungo nel sistema, la loro latenza end-to-end aumenta significativamente, mostrando un picco transitorio nel percentile \textit{Newest} che sfiora i $3$ minuti. Una volta azzerato il lag accumulato, l'elaborazione ritorna in tempo reale e le latenze rientrano immediatamente nei livelli di baseline.
 \end{itemize}
 
-Questo test dimostra la robustezza dell'architettura: il sistema ripristina la corretta elaborazione senza perdita osservata di eventi né duplicazioni visibili nei risultati. Flink garantisce consistenza \textit{exactly-once} fino allo stato interno; sul tratto Kafka--InfluxDB, configurato \textit{at-least-once}, l'idempotenza delle scritture con la medesima chiave e timestamp di finestra rende innocue le duplicazioni prodotte durante il ripristino. La garanzia end-to-end dipende quindi dal mantenimento di tale schema di chiavi.
+Questo test dimostra la robustezza dell'architettura: il sistema ripristina la corretta elaborazione senza alcuna perdita osservata di eventi né duplicazioni visibili nei risultati. Flink garantisce consistenza \textit{exactly-once} fino dello stato interno; sul tratto Kafka--InfluxDB, configurato \textit{at-least-once}, l'idempotenza delle scritture con la medesima chiave e timestamp di finestra rende innocue le duplicazioni prodotte durante il ripristino. La garanzia end-to-end dipende quindi dal mantenimento di tale schema di chiavi.
 
 \subsection{Risultati Analitici}\label{subsec:analytical_results}
 
@@ -643,11 +645,13 @@ Il confronto visuale mostra che trend, picchi principali, ordinamento degli aero
 
 Il progetto ha realizzato una pipeline distribuita completa per l'analisi in event-time del traffico aereo, integrando simulazione accelerata, Kafka, Apache Flink, persistenza su InfluxDB e osservabilità tramite Grafana. Le prove mostrano che il sistema sostiene circa $300$ eventi/s nello scenario lento, $2.900$ eventi/s nello scenario medio e oltre $8.000$ eventi/s nello scenario ad alto carico, senza accumulo permanente di ritardo. L'aumento del parallelismo non incrementa il throughput, limitato dalla sorgente: ai carichi medio e alto distribuisce il lavoro e riduce i picchi sul singolo nodo, mentre a basso carico mantiene latenze stabili ma non offre vantaggi prestazionali misurabili.
 
-La campagna sul disordine temporale conferma che watermark e \textit{allowed lateness} devono essere dimensionati congiuntamente: le configurazioni conservativa e ibrida preservano la completezza, mentre quella aggressiva riduce lo stato mantenuto ma scarta gli eventi oltre la soglia. Il checkpointing incrementale introduce un overhead contenuto; in presenza di guasto, il sistema completa il ripristino, assorbe il backlog Kafka e torna al regime ordinario. I risultati analitici mostrano inoltre che ritardi e cancellazioni sono concentrati temporalmente e che le distribuzioni dei ritardi hanno code destre pronunciate. Una perdita casuale non altera visibilmente le conclusioni aggregate, pur riducendo la confidenza sulle finestre meno popolate.
+La campagna sul disordine temporale conferma che watermark e \textit{allowed lateness} devono essere dimensionati congiuntamente: le configurazioni conservativa e ibrida preservano la completezza, mentre quella aggressiva riduce lo stato mantenuto ma scarta gli eventi oltre la soglia. Il checkpointing introduce un overhead contenuto; in presenza di guasto, il sistema completa il ripristino, assorbe il backlog Kafka e torna al regime ordinario. I risultati analitici mostrano inoltre che ritardi e cancellazioni sono concentrati temporalmente e che le distribuzioni dei ritardi hanno code destre pronunciate. Una perdita casuale non altera visibilmente le conclusioni aggregate, pur riducendo la confidenza sulle finestre meno popolate.
 
 Gli sviluppi futuri più utili riguardano una valutazione statistica ripetuta della perdita dati, test di carico capaci di saturare effettivamente Flink e un confronto tra politiche di watermark adattive.
 
-\vspace{0.5em}
+\clearpage
+\onecolumn
+
 \begin{thebibliography}{9}
 
     % Academic & Project References
@@ -688,31 +692,12 @@ Gli sviluppi futuri più utili riguardano una valutazione statistica ripetuta de
     Grafana Labs, ``Grafana Documentation,''
     \url{https://grafana.com/docs/grafana/latest/}, Consultato: Luglio 2026.
     
-    % State Storage & Cloud Infrastructure
-    \bibitem{rocksdb_docs}
-    Meta, ``RocksDB Documentation,''
-    \url{https://github.com/facebook/rocksdb/wiki}, Consultato: Luglio 2026.
-    
-    \bibitem{aws_ec2}
-    Amazon Web Services, ``Amazon EC2 Documentation,''
-    \url{https://docs.aws.amazon.com/ec2/}, Consultato: Luglio 2026.
-    
-    \bibitem{aws_s3}
-    Amazon Web Services, ``Amazon S3 Documentation,''
-    \url{https://docs.aws.amazon.com/s3/}, Consultato: Luglio 2026.
-    
-    \bibitem{aws_cloudformation}
-    Amazon Web Services, ``AWS CloudFormation Documentation,''
-    \url{https://docs.aws.amazon.com/cloudformation/}, Consultato: Luglio 2026.
-    
-    \bibitem{aws_route53}
-    Amazon Web Services, ``Amazon Route 53 Documentation,''
-    \url{https://docs.aws.amazon.com/Route53/}, Consultato: Luglio 2026.
+    % Cloud Infrastructure
+    \bibitem{aws}
+    Amazon Web Services, ``Amazon Web Services Documentation,''
+    \url{https://docs.aws.amazon.com/}, Consultato: Luglio 2026.
     
 \end{thebibliography}
-
-\clearpage
-\onecolumn
 
 \clearpage
 
@@ -753,12 +738,12 @@ In questa appendice sono raccolti il grafo del job di Flink e i grafici di telem
 
 \subsection{Topologia del Job (Flink DAG)}\label{subsec:appendix_flink_dag}
 
-La topologia logica a grafo aciclico diretto (DAG) generata a runtime da Apache Flink per l'esecuzione parallela e concorrente delle tre query analitiche è illustrata in Fig.~\ref{fig:flink_dag}.
+La topologia logica a grafo aciclico diretto generata a runtime da Apache Flink per l'esecuzione parallela e concorrente delle tre query analitiche è illustrata in Fig.~\ref{fig:flink_dag}.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{graphs/Flink-DAG}
-    \caption{Grafo Aciclico Diretto (DAG) della topologia del Job Flink.}
+    \caption{Grafo Aciclico Diretto della topologia del Job Flink.}
     \label{fig:flink_dag}
 \end{figure}
 
@@ -786,6 +771,78 @@ La topologia logica a grafo aciclico diretto (DAG) generata a runtime da Apache 
 
 \throughputChart{cluster_clean_run_fast_para6_part6}{Throughput del cluster per lo scenario a alto carico con parallelismo $P=6$.}{fig:cluster_throughput_fast_p6}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/throughput/thr_in_trans_comparison}
+    \caption{Confronto del throughput in ingresso con transitorio tra le tre configurazioni di parallelismo $P=1,3,6$.}
+    \label{fig:throughput_in_trans_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/throughput/thr_in_steady_comparison}
+    \caption{Confronto del throughput in ingresso in regime tra le tre configurazioni di parallelismo $P=1,3,6$.}
+    \label{fig:throughput_in_steady_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/throughput/thr_out_trans_comparison}
+    \caption{Confronto del throughput in uscita con transitorio tra le tre configurazioni di parallelismo $P=1,3,6$.}
+    \label{fig:throughput_out_trans_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/throughput/thr_out_steady_comparison}
+    \caption{Confronto del throughput in uscita in regime tra le tre configurazioni di parallelismo $P=1,3,6$.}
+    \label{fig:throughput_out_steady_comparison}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/query/q1_trans_comparison}
+    \caption{Confronto del throughput con transitorio tra le tre configurazioni di parallelismo $P=1,3,6$ per la Query 1.}
+    \label{fig:throughput_q1_trans_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/query/q1_steady_comparison}
+    \caption{Confronto del throughput in regime tra le tre configurazioni di parallelismo $P=1,3,6$ per la Query 1.}
+    \label{fig:throughput_q1_steady_comparison}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/query/q2_trans_comparison}
+    \caption{Confronto del throughput con transitorio tra le tre configurazioni di parallelismo $P=1,3,6$ per la Query 2.}
+    \label{fig:throughput_q2_trans_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/query/q2_steady_comparison}
+    \caption{Confronto del throughput in regime tra le tre configurazioni di parallelismo $P=1,3,6$ per la Query 2.}
+    \label{fig:throughput_q2_steady_comparison}
+\end{figure}
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/query/q3_trans_comparison}
+    \caption{Confronto del throughput con transitorio tra le tre configurazioni di parallelismo $P=1,3,6$ per la Query 3.}
+    \label{fig:throughput_q3_trans_comparison}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{../Results/charts/query/q3_steady_comparison}
+    \caption{Confronto del throughput in regime tra le tre configurazioni di parallelismo $P=1,3,6$ per la Query 3.}
+    \label{fig:throughput_q3_steady_comparison}
+\end{figure}
 
 % -------------
 %    LATENZA   
@@ -797,17 +854,17 @@ La topologia logica a grafo aciclico diretto (DAG) generata a runtime da Apache 
 
 \latencyChart{cluster_clean_run_slow_para6_part6}{Latenza end-to-end P90 per lo scenario a basso carico con parallelismo $P=6$.}{fig:cluster_latency_slow_p6}
 
-\latencyChart{cluster_clean_run_medium_para1_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=1$.}{fig:cluster_latency_medium_p90_p1}
+\latencyChart{cluster_clean_run_medium_para1_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=1$.}{fig:cluster_latency_medium_p1}
 
-\latencyChart{cluster_clean_run_medium_para3_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=3$.}{fig:cluster_latency_medium_p90_p3}
+\latencyChart{cluster_clean_run_medium_para3_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=3$.}{fig:cluster_latency_medium_p3}
 
-\latencyChart{cluster_clean_run_medium_para6_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=6$.}{fig:cluster_latency_medium_p90_p6}
+\latencyChart{cluster_clean_run_medium_para6_part6}{Latenza end-to-end P90 per lo scenario a medio carico con parallelismo $P=6$.}{fig:cluster_latency_medium_p6}
 
-\latencyChart{cluster_clean_run_fast_para1_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=1$.}{fig:cluster_latency_fast_p90_p1}
+\latencyChart{cluster_clean_run_fast_para1_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=1$.}{fig:cluster_latency_fast_p1}
 
-\latencyChart{cluster_clean_run_fast_para3_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=3$.}{fig:cluster_latency_fast_p90_p3}
+\latencyChart{cluster_clean_run_fast_para3_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=3$.}{fig:cluster_latency_fast_p3}
 
-\latencyChart{cluster_clean_run_fast_para6_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=6$.}{fig:cluster_latency_fast_p90_p6}
+\latencyChart{cluster_clean_run_fast_para6_part6}{Latenza end-to-end P90 per lo scenario a alto carico con parallelismo $P=6$.}{fig:cluster_latency_fast_p6}
 
 % -------------
 % RISORSE NODO 
@@ -819,17 +876,17 @@ La topologia logica a grafo aciclico diretto (DAG) generata a runtime da Apache 
 
 \nodeChart{node_clean_run_slow_para6_part6}{Utilizzo delle risorse per nodo a basso carico con parallelismo $P=6$.}{fig:node_slow_p6}
 
-\nodeChart{node_clean_run_fast_para1_part6}{Utilizzo risorse per nodo (medio/alto carico) con parallelismo $P=1$.}{fig:node_cpu_comparison_p1}
-
 \nodeChart{node_clean_run_medium_para1_part6}{Utilizzo delle risorse per nodo a medio carico con parallelismo $P=1$.}{fig:node_medium_p1}
 
 \nodeChart{node_clean_run_medium_para3_part6}{Utilizzo delle risorse per nodo a medio carico con parallelismo $P=3$.}{fig:node_medium_p3}
 
 \nodeChart{node_clean_run_medium_para6_part6}{Utilizzo delle risorse per nodo a medio carico con parallelismo $P=6$.}{fig:node_medium_p6}
 
+\nodeChart{node_clean_run_fast_para1_part6}{Utilizzo delle risorse per nodo ad alto carico con parallelismo $P=1$.}{fig:node_fast_p1}
+
 \nodeChart{node_clean_run_fast_para3_part6}{Utilizzo delle risorse per nodo ad alto carico con parallelismo $P=3$.}{fig:node_fast_p3}
 
-\nodeChart{node_clean_run_fast_para6_part6}{Utilizzo risorse per nodo (medio/alto carico) con parallelismo $P=6$.}{fig:node_cpu_comparison_p6}
+\nodeChart{node_clean_run_fast_para6_part6}{Utilizzo delle risorse per nodo ad alto carico con parallelismo $P=6$.}{fig:node_fast_p6}
 
 
 \subsection{Gestione del Disordine}
