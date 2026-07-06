@@ -190,6 +190,8 @@
 
 
 \begin{document}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
 
 \title{Sky Analytics Stream \\ \vspace{0.15cm} \large Architettura Distribuita per l'Analisi in Tempo Reale del Traffico Aereo}
 
@@ -364,6 +366,9 @@ Come framework di message broker è stato integrato Apache Kafka:
 \subsection{Motore di Stream Processing}\label{subsec:flink_component}
 
 Il core computazionale di \textit{Sky Analytics Stream} è realizzato in Apache Flink ed è strutturato in un singolo job distribuito. La topologia a grafo diretto aciclico è orchestrata all'interno della classe principale \texttt{FlightAnalysisJob} e prevede la condivisione a monte della sorgente dei dati e dei filtri di data quality. Questo design a sorgente condivisa riduce al minimo l'I/O ed evita la deserializzazione ridondante dello stream di ingresso.
+
+\subsubsection{Gestione dei Valori Mancanti}\label{subsubsec:flink_data_quality}
+Lo stream viene preventivamente filtrato da Flink per escludere record nulli, incompleti nei campi chiave (compagnie, aeroporti o dati temporali necessari all'avanzamento dei watermark) o logicamente inconsistenti (voli indicati sia come cancellati sia come deviati). Per i record validi, eventuali valori mancanti nel ritardo in partenza vengono impostati a zero per prevenire eccezioni a runtime dovute a tipi primitivi nulli e per assumere in modo conservativo la puntualità del volo senza inficiare il calcolo delle medie.
 
 \subsubsection{Gestione del Disordine Temporale}\label{subsubsec:flink_watermarking}
 La riproduzione dei dati può introdurre disallineamenti logici che richiedono strategie di sincronizzazione robuste per l'avanzamento del tempo logico:
