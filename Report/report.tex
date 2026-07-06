@@ -519,7 +519,7 @@ La prima campagna valuta il comportamento della pipeline al variare del parallel
 L'analisi prestazionale della pipeline al variare del parallelismo viene strutturata separando la valutazione quantitativa dei volumi di processing (tramite i grafici a barre aggregati) dallo studio della dinamica temporale dei ritardi (tramite la telemetria in tempo reale).
 
 \paragraph{Analisi del Throughput}
-I grafici mediati sulle tre run indicano un comportamento lineare e stabile del sistema tra la fase transitoria e il regime stazionario (Fig~\ref{fig:throughput_in_trans_comparison} -- Fig~\ref{fig:throughput_q3_steady_comparison}).
+I grafici mediati sulle tre run indicano un comportamento lineare e stabile del sistema tra la fase transitoria (i cui dati numerici dettagliati sono riportati in Tabella~\ref{tab:transient_stats}) e il regime stazionario (Tabella~\ref{tab:steady_stats}), come mostrato nei relativi istogrammi di confronto (Fig~\ref{fig:throughput_in_trans_comparison} -- Fig~\ref{fig:throughput_q3_steady_comparison}).
 \begin{itemize}
     \item \textbf{Scenario Slow:} Il throughput in ingresso si attesta stabilmente a $\approx 300$ eventi/s per tutti i livelli di parallelismo, con un output complessivo di $\approx 10$ record/s. $P=1$ dispone già di capacità sufficiente; lo scale-out non produce alcun beneficio.
     \item \textbf{Scenario Medium:} L'ingestion si stabilizza a $\approx 2.700$ eventi/s nel transitorio e $\approx 3.000$ eventi/s a regime, con un output totale di $\approx 100$ record/s. L'assenza di variazioni al variare di $P$ conferma che un singolo slot è ampiamente sufficiente a processare il carico senza accumulare lag.
@@ -765,11 +765,53 @@ La topologia logica a grafo aciclico diretto generata a runtime da Apache Flink 
 
 \throughputChart{cluster_clean_run_medium_para6_part6}{Throughput del cluster per lo scenario a medio carico con parallelismo $P=6$.}{fig:cluster_throughput_medium_p6}
 
-\throughputChart{cluster_clean_run_fast_para1_part6}{Throughput del cluster per lo scenario a alto carico con parallelismo $P=1$.}{fig:cluster_throughput_fast_p1}
-
 \throughputChart{cluster_clean_run_fast_para3_part6}{Throughput del cluster per lo scenario a alto carico con parallelismo $P=3$.}{fig:cluster_throughput_fast_p3}
 
-\throughputChart{cluster_clean_run_fast_para6_part6}{Throughput del cluster per lo scenario a alto carico con parallelismo $P=6$.}{fig:cluster_throughput_fast_p6}
+\begin{table}[htbp]
+\centering
+\caption{Statistiche di Throughput (rec/s) nella Fase Transitoria.}
+\label{tab:transient_stats}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{cccccc}
+\hline
+\textbf{Para} & \textbf{Thr In} & \textbf{Thr Out} & \textbf{Q1} & \textbf{Q2} & \textbf{Q3} \\
+\hline
+S1 & $306 \pm 34$ & $10,3 \pm 1,1$ & $1,34 \pm 0,10$ & $6,13 \pm 0,52$ & $2,95 \pm 0,49$ \\
+S3 & $305 \pm 35$ & $10,4 \pm 1,2$ & $1,34 \pm 0,11$ & $6,17 \pm 0,63$ & $2,94 \pm 0,48$ \\
+S6 & $205 \pm 36$ & $10,5 \pm 1,2$ & $1,34 \pm 0,10$ & $6,27 \pm 0,59$ & $2,93 \pm 0,48$ \\
+M1 & $2730 \pm 688$ & $91 \pm 23$ & $11,90 \pm 2,94$ & $54 \pm 12$ & $26,30 \pm 5,78$ \\
+M3 & $2760 \pm 646$ & $93 \pm 22$ & $12,10 \pm 2,77$ & $55 \pm 13$ & $26,40 \pm 5,85$ \\
+M6 & $2760 \pm 667$ & $94 \pm 23$ & $12,00 \pm 2,89$ & $56 \pm 13$ & $26,30 \pm 6,03$ \\
+F1 & $7000 \pm 2580$ & $193 \pm 71$ & $30,60 \pm 11,10$ & $96 \pm 36$ & $66 \pm 25$ \\
+F3 & $6860 \pm 2700$ & $197 \pm 76$ & $30,00 \pm 11,60$ & $103 \pm 39$ & $66 \pm 25$ \\
+F6 & $6850 \pm 2540$ & $223 \pm 89$ & $29,60 \pm 11,60$ & $129 \pm 52$ & $65 \pm 24$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Statistiche di Throughput (rec/s) a Regime (\textit{Steady State}).}
+\label{tab:steady_stats}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{cccccc}
+\hline
+\textbf{Para} & \textbf{Thr In} & \textbf{Thr Out} & \textbf{Q1} & \textbf{Q2} & \textbf{Q3} \\
+\hline
+S1 & $308 \pm 24$ & $10,5 \pm 0,6$ & $1,35 \pm 0,02$ & $6,18 \pm 0,33$ & $2,95 \pm 0,48$ \\
+S3 & $308 \pm 24$ & $10,5 \pm 0,7$ & $1,35 \pm 0,03$ & $6,22 \pm 0,40$ & $2,94 \pm 0,47$ \\
+S6 & $309 \pm 24$ & $10,6 \pm 0,7$ & $1,35 \pm 0,02$ & $6,33 \pm 0,40$ & $2,93 \pm 0,48$ \\
+M1 & $2970 \pm 168$ & $100 \pm 3$ & $13,00 \pm 0,14$ & $59 \pm 3$ & $28,30 \pm 1,60$ \\
+M3 & $2990 \pm 173$ & $101 \pm 3$ & $13,10 \pm 0,15$ & $60 \pm 3$ & $28,50 \pm 1,17$ \\
+M6 & $2970 \pm 242$ & $101 \pm 7$ & $13,10 \pm 0,16$ & $60 \pm 5$ & $28,30 \pm 2,00$ \\
+F1 & $8540 \pm 494$ & $236 \pm 8$ & $37,30 \pm 0,81$ & $118 \pm 5$ & $81 \pm 2$ \\
+F3 & $8550 \pm 426$ & $244 \pm 9$ & $37,20 \pm 0,85$ & $126 \pm 8$ & $81 \pm 3$ \\
+F6 & $8380 \pm 631$ & $278 \pm 14$ & $36,90 \pm 0,38$ & $165 \pm 12$ & $80 \pm 3$ \\
+\hline
+\end{tabular}
+\end{table}
 
 \begin{figure}[H]
     \centering
