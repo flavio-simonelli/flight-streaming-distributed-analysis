@@ -16,6 +16,13 @@
 \usepackage{tabularx}
 \usepackage{float}
 
+% \usepackage{enumitem}
+% \setlist[enumerate]{topsep=1pt,itemsep=0pt,parsep=1pt,partopsep=0pt}
+% \setlist[itemize]{topsep=1pt,itemsep=0pt,parsep=1pt,partopsep=0pt}
+% \setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+% \setlength{\intextsep}{6pt plus 2pt minus 2pt}
+% \setlength{\dbltextfloatsep}{6pt plus 2pt minus 2pt}
+
 % Configurazione
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
@@ -261,90 +268,35 @@ Il resto della relazione è organizzato come segue: la Sezione~\ref{sec:system_a
 
 \section{Architettura del Sistema}\label{sec:system_architecture}
 
-L'architettura di \textit{Sky Analytics Stream} è concepita come una pipeline multi-tier per lo stream processing distribuito, orientata ad alta scalabilità, robustezza e tolleranza ai guasti. Il sistema adotta un approccio a microservizi disaccoppiati in cui ciascun componente presiede a una specifica fase della pipeline: generazione, brokeraggio, elaborazione, persistenza e visualizzazione, come illustrato nello schema logico di Fig.~\ref{fig:architecture_diagram}.
+L'architettura di \textit{Sky Analytics Stream} è concepita come una pipeline multi-tier per lo stream processing distribuito ad alte prestazioni, orientata a garantire elevati standard di scalabilità orizzontale, robustezza strutturale e tolleranza ai guasti end-to-end. Il sistema adotta un approccio a microservizi fortemente disaccoppiati, orchestrati per cooperare in modo asincrono. Al fine di mappare coerentemente questa infrastruttura, la topologia viene analizzata sia sotto il profilo strutturale dello stack tecnologico coinvolto (Fig.~\ref{fig:architecture_diagram}), sia sotto quello dinamico del ciclo di vita operativo dei record (Fig.~\ref{fig:interaction_diagram}).
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.99\columnwidth]{graphs/BigDataStack.png}
-    \vspace{-0.5cm}
+    \vspace{-0.3cm}
     \caption{Rappresentazione dello stack tecnologico coinvolto.}
     \label{fig:architecture_diagram}
 \end{figure}
 
-\subsection{Stack Tecnologico}\label{subsec:big_data_stack}
+Sotto l'aspetto statico, l'infrastruttura si articola in cinque livelli logici interconnessi. L'\textit{Ingestion Layer} sfrutta le proprietà di un cluster Apache Kafka operante come buffer centralizzato, il cui scopo fondamentale è disaccoppiare la sorgente di generazione dati sia dal motore di calcolo sia dai consumatori a valle, attutendo i picchi improvvisi di traffico ed esercitando una contropressione nativa. Il core computazionale risiede nel \textit{Processing Layer}, dove Apache Flink esegue l'elaborazione stateful ed event-driven modellata come un singolo grafo diretto aciclico. La persistenza dello stato \textit{in-flight} e la resilienza del cluster sono demandate allo \textit{State Storage Layer}, che combina l'efficienza locale di RocksDB (operante su disco/memoria dei worker) con la durevolezza distribuita di HDFS o Amazon S3 per il salvataggio dei checkpoint. A valle, lo \textit{Storage Layer} si affida al time-series database InfluxDB per la storicizzazione efficiente e separata delle metriche di telemetria e dei risultati analitici, i quali vengono infine esposti nel \textit{Visualization Layer} tramite dashboard dinamiche in Grafana per garantire la completa osservabilità del sistema.
 
-La pipeline si articola in cinque livelli architetturali principali:
-
-\begin{enumerate}
-    \item \textbf{Ingestion Layer}: Il bus dei messaggi distribuito che funge da buffer; disaccoppia la sorgente di dati dal motore di elaborazione e quest'ultimo dal consumatore Telegraf, attutendo i picchi di carico e gestendo in modo trasparente la \emph{backpressure}.
-    \item \textbf{Processing Layer}: Il nucleo computazionale del sistema; esegue una topologia distribuita consumando i dati da Kafka ed eseguendo elaborazioni stateful in event-time.
-    \item \textbf{State Storage Layer}: Lo storage distribuito deputato al salvataggio dei checkpoint; RocksDB funge da backend di stato locale (in-memory/su disco locale del worker), mentre HDFS garantisce la persistenza distribuita dei backup di stato per la tolleranza ai guasti.
-    \item \textbf{Storage Layer}: InfluxDB memorizza sia i risultati analitici che le metriche di runtime di Flink.
-    \item \textbf{Visualization Layer}: Fornisce l'interfaccia utente finale per l'osservabilità delle performance del cluster e il monitoraggio degli indicatori analitici del traffico aereo.
-\end{enumerate}
-
-% La Tabella~\ref{tab:big_data_stack} riassume i componenti tecnologici impiegati e i rispettivi ruoli nel sistema.
-% 
-% \begin{table*}[t]
-% \centering
-% \caption{Lo Stack Tecnologico di Sky Analytics Stream}
-% \label{tab:big_data_stack}
-% \begin{tabularx}{\textwidth}{l l l X}
-% \toprule
-% \textbf{Layer} & \textbf{Componente} & \textbf{Tecnologia} & \textbf{Ruolo e Scopo Principale} \\
-% \midrule
-% \textbf{Ingestion} & Simulatore di Flusso & Go Application & Lettura zero-copy, ordinamento, serializzazione binaria e riproduzione accelerata con disordine % controllato. \\
-% \textbf{Message Broker} & Event Bus & Apache Kafka & Disaccoppiamento produttore-consumatore, partizionamento del flusso e storage temporaneo dei risultati. % \\
-% \textbf{Processing} & Stream Engine & Apache Flink & Consumo parallelo multi-partizione, calcolo di aggregati in event-time e scrittura su Kafka. \\
-% \textbf{State Storage} & Distributed File System & Apache HDFS & Storage durevole e centralizzato per il salvataggio dei checkpoint e savepoint di Flink. \\
-% \textbf{Data Integration} & Metrics \& Results Collector & Telegraf Agent & Ingestione automatica dei risultati analitici da Kafka verso InfluxDB. \\
-% \textbf{Persistence} & Time-Series DB & InfluxDB v2 & Storicizzazione efficiente dei risultati delle query e telemetria del cluster Flink. \\
-% \textbf{Visualization} & Dashboarding UI & Grafana & Visualizzazione real-time delle metriche di traffico aereo e monitoraggio dello stato di salute % dell'infrastruttura. \\
-% \bottomrule
-% \end{tabularx}
-% \end{table*}
-
-\subsection{Flusso dei Dati}\label{subsec:data_flow}
-
-Il ciclo di vita di un singolo evento di volo attraversa sequenzialmente l'intera pipeline (mostrata in Fig.~\ref{fig:interaction_diagram}) seguendo il flusso descritto di seguito:
-
-\begin{enumerate}
-    \item \textbf{Generazione e Replay}: Il simulatore legge i dati grezzi dal dataset compresso, gli eventi vengono ordinati, convertiti in JSON e inviati a topic. Qualora configurato, viene applicato l'algoritmo di sfasamento temporale.
-    % \item \textbf{Brokeraggio}: Kafka distribuisce i messaggi in ingresso sulle partizioni del topic \texttt{flights-stream}. La scelta di un partizionamento multiplo consente a Flink di leggere i dati in parallelo.
-    \item \textbf{Elaborazione}: I TaskManager di Apache Flink consumano lo stream di eventi. Il motore gestisce i watermark in base all'event-time inserito nei record e calcola i risultati per le tre query analitiche concorrenti. Flink emette i risultati intermedi e finali, scrivendoli in specifici topic Kafka di output.
-    \item \textbf{Fault-Tolerance}: Durante l'elaborazione, Flink esegue periodicamente checkpoint asincroni. Lo stato locale delle finestre e degli sketch viene sincronizzato su HDFS/S3. % In caso di fallimento di un TaskManager, il JobManager ripristina lo stato dall'ultimo checkpoint valido su HDFS, riavviando il consumo da Kafka dall'offset corretto.
-    \item \textbf{Raccolta e Persistenza}: Telegraf ascolta i topic di output di Kafka e converte i messaggi JSON in record pronti per InfluxDB, inserendoli nel bucket dei risultati. Parallelamente, il reporter InfluxDB integrato in Flink invia ogni secondo le metriche di telemetria ad un bucket separato in InfluxDB.
-    \item \textbf{Visualizzazione}: Grafana interroga costantemente InfluxDB, aggiornando in tempo reale le visualizzazioni grafiche delle dashboard destinate sia alle metriche applicative sia a quelle infrastrutturali.
-\end{enumerate}
-
-\begin{figure}[t]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.99\columnwidth]{graphs/InteractionDiagram}
-    \caption{Diagramma di interazione tra le componenti principali della pipeline di Sky Analytics Stream.}
+    \caption{Diagramma di interazione tra le componenti principali della pipeline.}
     \label{fig:interaction_diagram}
 \end{figure}
 
-% \subsection{Scelte Architetturali Chiave}\label{subsec:architectural_rationale}
-
-% La scelta di questa specifica configurazione architetturale risponde a precisi requisiti ingegneristici:
-
-% \begin{itemize}
-%     \item \textbf{Disaccoppiamento tramite Code di Messaggi}: L'uso di Kafka come intermediario protegge Flink da variazioni repentine del throughput di rete o della sorgente. Kafka funge da buffer persistente, consentendo a Flink di consumare i dati alla propria velocità massima stabile ed esercitando contropressione nativa se necessario.
-%     \item \textbf{Condivisione della Sorgente}: Anziché lanciare tre job Flink distinti (ognuno dei quali dovrebbe consumare lo stream da Kafka separatamente, decodificare i messaggi JSON ed emettere watermark), le tre query analitiche sono modellate all'interno di un unico DAG. In questo modo si dimezza il carico di I/O su Kafka e si condivide la fase iniziale di parsing ed estrazione del timestamp logico, ottimizzando l'uso di memoria e CPU sui worker.
-%     \item \textbf{Archiviazione Stato Ibrida}: La scelta di RocksDB come State Backend consente di gestire uno stato applicativo di dimensioni superiori alla memoria RAM disponibile dei TaskManager, riversando i dati su disco locale. L'integrazione con HDFS garantisce che tali dati siano protetti contro la perdita del singolo host tramite la replica distribuita dei file di checkpoint.
-%     \item \textbf{Canale di Output Asincrono per l'Osservabilità}: Flink scrive i risultati su Kafka anziché effettuare chiamate dirette a un database. Questo evita di bloccare i thread di calcolo di Flink con la latenza di scrittura sincrona di un DB, delegando l'inserimento batch a Telegraf e preservando le performance computazionali.
-% \end{itemize}
+La traduzione dinamica di questo stack si sviluppa lungo un flusso sequenziale che governa il ciclo di vita di ogni singolo evento di volo, come illustrato nel diagramma di Fig.~\ref{fig:interaction_diagram}. Il processo ha inizio con la fase di \textit{Generazione e Replay}, in cui il simulatore Go estrae i dati grezzi e inietta i payload JSON nei broker. Successivamente, nella fase di \textit{Elaborazione Stateful}, i TaskManager di Flink consumano lo stream parallelamente dalle partizioni di Kafka, gestiscono l'avanzamento dei watermark in event-time e computano le query analitiche concorrenti, re-instradando i risultati intermedi su topic di output dedicati. Durante la marcia ordinaria del job, la fase di \textit{Fault-Tolerance} esegue periodicamente barriere asincrone di checkpoint basate sull'algoritmo di Chandy-Lamport, sincronizzando lo stato locale delle finestre e degli sketch probabilistici su HDFS con consistenza semantica \emph{exactly-once}. Infine, le fasi di \textit{Raccolta, Persistenza e Visualizzazione} vedono l'agente Telegraf consumare asincronamente i record da Kafka per caricarli nei relativi bucket di InfluxDB, mentre il reporter integrato di Flink invia le metriche di telemetria a un canale separato, consentendo a Grafana di aggiornare le dashboard in tempo reale senza interferire con le performance computazionali dello stream engine.
 
 % ------------------------------
 
 \section{Implementazione delle Componenti}\label{sec:implementation_details}
 
 \subsection{Simulatore di Ingestione}\label{subsec:ingestion_simulator}
-L'ingestione e il replay degli eventi storici in tempo reale sono gestiti da un componente custom sviluppato in linguaggio Go. La scelta tecnologica è motivata dalla necessità di disporre di un agente di ingestione ad altissime prestazioni, caratterizzato da un consumo minimo di risorse e in grado di garantire throughput elevati senza introdurre colli di bottiglia o latenze spurie dovute alla Garbage Collection (frequenti in ecosistemi basati su JVM).
+L'ingestione e il replay in tempo reale degli eventi storici sono interamente governati da un componente custom sviluppato in linguaggio Go. Questa scelta tecnologica è motivata dalla necessità di disporre di un agente di iniezione ad altissime prestazioni caratterizzato da un footprint di memoria ridotto, capace di azzerare i colli di bottiglia computazionali e prevenire le latenze spurie indotte dai cicli di Garbage Collection tipici degli ecosistemi basati su JVM
 
-Per simulare scenari di esecuzione realistici e testare i limiti prestazionali del sistema, sono stati definiti tre scenari di carico basati su diversi fattori di accelerazione temporale, descritti nella Tabella~\ref{tab:go_acceleration_scenarios}. 
-
-Si evidenzia che l'uso dell'accelerazione temporale comporta un aumento del throughput: comprimere il tempo logico riduce drasticamente la durata reale delle finestre temporali di Flink, imponendo una frequenza di trigger e di calcolo dello stato estremamente elevata e artificiale. In uno scenario industriale, qualora si volesse studiare il comportamento del sistema sotto carichi massivi senza tale distorsione, la soluzione ottimale consisterebbe nel sintetizzare dati aggiuntivi (generando nuovi record, anche fittizi, all'interno dello stesso intervallo temporale) in modo da incrementare il throughput mantenendo la durata reale delle finestre vicina a quella reale.
+Per analizzare accuratamente la resilienza e i limiti operativi della topologia distribuita sotto sforzi differenziati, sono stati configurati tre distinti scenari di carico basati su fattori di accelerazione temporale crescenti, i cui parametri nominali e sperimentali sono dettagliati nella Tabella~\ref{tab:go_acceleration_scenarios}. L'introduzione di tali moltiplicatori comporta una compressione del tempo logico che contrae drasticamente la durata reale delle finestre temporali di Flink, imponendo frequenze di trigger e di calcolo dello stato estremamente elevate.
 
 \begin{table}[htbp]
 \centering
@@ -368,71 +320,46 @@ Si evidenzia che l'uso dell'accelerazione temporale comporta un aumento del thro
 \end{tabular}
 \end{table}
 
-In base a tali scenari di accelerazione, è possibile stimare teoricamente il throughput massimo in uscita atteso per ciascuna delle tre query analitiche, assumendo che non si verifichino scarti o ritardi tardivi tali da innescare emissioni supplementari, come mostrato in Tabella~\ref{tab:max_throughput_expected}. La stima si basa sul numero massimo di chiavi attive e sulla frequenza di chiusura o trigger delle finestre in tempo reale.
-% \begin{itemize}
-%     \item \textbf{Query 1}: Emette $4$ record (uno per ciascuna compagnia target) alla chiusura di ogni finestra logica di $1$ ora.
-%     \item \textbf{Query 2}: Consiste di tre finestre concorrenti. La finestra da $1$ ora e la finestra globale (avente trigger periodico a $1$ ora logica) emettono al massimo % $10$ record ciascuna; la finestra da $6$ ore emette $10$ record ogni $6$ ore logiche (media di $1.67$ record/ora). Il totale teorico è dunque di $21.67$ record per ora % logica.
-%     \item \textbf{Query 3}: Composta da tre finestre. Le finestre da $1$ giorno e globale (con trigger a $1$ giorno logico) emettono al massimo $96$ record ciascuna ($4$ % compagnie $\times$ $24$ ore); la finestra da $7$ giorni emette $96$ record ogni $7$ giorni logici (media di $13.71$ record/giorno). Il totale è di $205.71$ record per % giorno logico.
-% \end{itemize}
+In base alla periodicità dei trigger e al numero di chiavi attive stimate per ciascuna finestra logica, è possibile ricavare analiticamente il throughput massimo teorico e reale atteso in uscita per le tre query analitiche, come riassunto nella Tabella~\ref{tab:max_throughput_expected}. Nella realtà sperimentale, il volume effettivo di output della Query 2 può subire fluttuazioni negative a causa dei filtri stringenti sulle soglie dei ritardi severi, che escludono gli aeroporti a bassa frequenza dalla classifica Top-10. Al contrario, i throughput reali di Query 1 e Query 3 possono evidenziare picchi positivi transitori indotti dalla distributione intrinsecamente non uniforme dei voli reali sull'asse dell'event-time.
 
 \begin{table}[htbp]
 \centering
-\caption{Throughput massimo teorico e reale in uscita atteso per ciascuna query}
+\caption{Throughput massimo teorico e reale atteso in uscita}
 \label{tab:max_throughput_expected}
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
 \begin{tabular}{lccc}
 \toprule
-\textbf{Query / Pipeline} & \textbf{Sce. A (1.440x)} & \textbf{Sce. B (14.400x)} & \textbf{Sce. C (43.200x)} \\
+\textbf{Query / Pipeline} & \textbf{Sce. Basso} & \textbf{Sce. Medio} & \textbf{Sce. Alto} \\
 \midrule
 \textbf{Query 1} & 1,60 recs/s & 16,00 recs/s & 48,00 recs/s \\
-\textbf{Query 2 (1h + 6h + Global)} & 8,67 recs/s & 86,67 recs/s & 260,00 recs/s \\
-\textbf{Query 3 (1d + 7d + Global)} & 3,43 recs/s & 34,29 recs/s & 102,86 recs/s \\
+\textbf{Query 2} & 8,67 recs/s & 86,67 recs/s & 260,00 recs/s \\
+\textbf{Query 3} & 3,43 recs/s & 34,29 recs/s & 102,86 recs/s \\
 \midrule
-\textbf{Totale Max Nominale (OUT)} & \textbf{13,70 recs/s} & \textbf{136,96 recs/s} & \textbf{410,86 recs/s} \\
-\textbf{Totale Reale Atteso (OUT)} & \textbf{13,56 recs/s} & \textbf{131,48 recs/s} & \textbf{365,66 -- 373,88 recs/s} \\
+\textbf{Totale Max Nominale} & \textbf{13,70 recs/s} & \textbf{136,96 recs/s} & \textbf{410,86 recs/s} \\
+\textbf{Totale Reale Atteso} & \textbf{13,56 recs/s} & \textbf{131,48 recs/s} & \textbf{365,66 -- 373,88 recs/s} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Si osserva che nella realtà sperimentale, il throughput di Query 2 può risultare inferiore a causa della condizione sul minimo numero di voli in ritardo, che esclude molti aeroporti a bassa frequenza dall'ordinamento Top-10. Al contrario, il throughput reale di Query 3 (o Query 1) può talvolta registrare fluttuazioni positive rispetto a quello teorico a causa della distribuzione degli eventi non uniforme sull'event-time.
-
-Il simulatore implementa diverse funzionalità avanzate e ottimizzazioni ingegneristiche:
-
+Per sostenere stabilmente tali regimi di iniezione senza alterare i clock interni di simulazione, l'architettura del generatore sfrutta ottimizzazioni ingegneristiche fondamentali:
 \begin{itemize}
-    \item \textbf{Ingestione Zero-Copy}: Al primo avvio, il simulatore tenta di localizzare l'archivio compresso del dataset in una directory locale. Qualora non presente, l'applicazione lo scarica automaticamente tramite richiesta HTTP dal server del dipartimento\footnote{\url{http://www.ce.uniroma2.it/courses/sabd2526/project/project-1-data.tar.gz}}. Successivamente, viene verificata l'integrità del file confrontandone l'hash SHA-1 con quello atteso. Una volta superato il controllo, l'archivio originale viene scompattato al volo in memoria, senza la necessità di estrarre preventivamente su disco l'intero dataset in formato CSV. Questo flusso zero-copy riduce al minimo l'uso dello spazio di archiviazione ed elimina i tempi morti dovuti alle operazioni di I/O su disco.
-    
-    \item \textbf{Binary Caching}: Al fine di minimizzare i tempi di inizializzazione nelle successive esecuzioni, gli eventi letti dal file CSV vengono convertiti in una slice di strutture tipizzate. I record vengono quindi ordinati cronologicamente rispetto al loro event-time logico e serializzati in un file di cache binario locale \texttt{.gob}.
-    
-    \item \textbf{Gestione del Tempo Fisico}: Il simulatore emula la distanza temporale reale sull'event-time tra i voli applicando il fattore di compressione del tempo ed attendendo la differenza relativa riscalata rispetto all'evento precedente. Con alti fattori di accelerazione (dove le finestre temporali logiche di un'ora si contraggono in pochi millisecondi reali), le funzioni di \textit{sleep} del sistema operativo risulterebbero inadeguate a causa dell'overhead dello scheduler, del kernel e dei \textit{context switch}. Per ovviare a ciò, è stata implementata una strategia di attesa ibrida \textit{Sleep\allowbreak{}-\allowbreak{}Spinlock}: se l'attesa supera la soglia critica \textit{spin threshold} nel file di configurazione, il thread esegue una sleep rilasciando la CPU, mentre al di sotto di tale valore effettua un \textbf{spinlock}. Questo impedisce la sospensione del processo da parte del kernel nel momento critico, garantendo maggiore precisione.
-    
-    \item \textbf{Out-of-Order Injection}: Al fine di stressare e validare le strategie di Watermarking, la gestione dei dati tardivi di Apache Flink e analizzare il sistema in scenari realistici dove le sorgenti sono diversificate e poco affidabili, il simulatore implementa un decoratore basato su un algoritmo probabilistico. Con una probabilità definita $P \in [0, 1]$, un record viene selezionato e il suo istante di pubblicazione viene dislocato in avanti nel tempo di un offset casuale limitato da un valore massimo configurabile in minuti logici. La sequenza di eventi risultante viene infine ri-ordinata sul tempo di pubblicazione reale prima dell'invio, riproducendo accuratamente i tipici disallineamenti di rete di uno stream distribuito.
-    
-    % \item \textbf{Pubblicazione su Kafka}: I record sono serializzati in JSON mantenendo i nomi delle colonne e inviati al topic \texttt{flights\allowbreak{}-\allowbreak{}stream} mediante \texttt{kafka\allowbreak{}-\allowbreak{}go}. Il writer usa bilanciamento round-robin, batch fino a 100 messaggi o 100 kB, timeout di 2 ms e modalità asincrona, evitando che la conferma di ogni singolo messaggio alteri la temporizzazione del replay. In alternativa, un sink testuale consente test locali senza Kafka per sviluppo e debugging.
-    \item \textbf{Pubblicazione su Kafka}: Il writer usa bilanciamento round-robin, batch fino a 100 messaggi o 100 kB, timeout di 2 ms e modalità asincrona, evitando che la conferma di ogni singolo messaggio alteri la temporizzazione del replay.
+    \item \textbf{Ingestione Zero-Copy:} Se non presente localmente, il simulatore scarica il dataset tramite richiesta HTTP e ne valida l'integrità mediante hash SHA-1. L'archivio originale viene scompattato direttamente al volo in memoria RAM, escludendo le operazioni di I/O su disco ed eliminando i tempi morti di bootstrap.
+    \item \textbf{Binary Caching:} I record estratti dal file CSV vengono convertiti in strutture tipizzate, ordinati cronologicamente rispetto al loro event-time e serializzati in un file di cache binario locale \texttt{.gob} per minimizzare i tempi di inizializzazione delle esecuzioni successive.
+    \item \textbf{Sleep-Spinlock Ibrido:} Per ovviare all'inadeguatezza delle sleep del sistema operativo sotto alti fattori di accelerazione, dove l'overhead dello scheduler e i context switch inficerebbero la precisione del pacing, viene implementata una strategia di attesa mista. Se il delta temporale supera la soglia critica di \textit{spin threshold}, il thread rilascia la CPU; al di sotto di essa effettua un uno spinlock hardware, garantendo la massima accuratezza.
+    \item \textbf{Out-of-Order Injection:} Al fine di stressare e validare le metriche di tolleranza ai guasti, le strategie di watermarking e la gestione dei dati tardivi all'interno di Apache Flink, un decoratore probabilistico intercetta ogni record con probabilità $P \in [0, 1]$ e ne trasla l'istante di pubblicazione in avanti di un offset casuale limitato da un tetto configurabile in minuti logici, riproducendo i tipici disallineamenti di rete di uno stream reale.
+    \item \textbf{Pubblicazione Asincrona su Kafka:} Il writer adotta una politica di bilanciamento round-robin e accumula i messaggi in micro-batch (fino a 100 messaggi o 100 kB) con un timeout di 2 ms in modalità asincrona, evitando che l'attesa dei singoli ACK di rete distorca la temporizzazione del replay.
 \end{itemize}
 
 \subsection{Message Broker}\label{subsec:kafka_integration}
 
-Per disaccoppiare la sorgente dei dati dal motore di stream processing, è stato integrato Apache Kafka come message broker distribuito ad alto throughput. Kafka funge da polmone architetturale, assorbendo le fluttuazioni di carico del flusso in ingresso ed esponendo i dati in modo ordinato e persistente.
-
-\subsubsection{Organizzazione dei Topic e Partizionamento}\label{subsubsec:kafka_topics}
-Il flusso di dati in ingresso è gestito tramite il topic principale \texttt{flights-stream}, configurato con $6$ partizioni parallele. Il partizionamento consente di parallelizzare l'elaborazione su più slot di esecuzione di Flink, garantendo la scalabilità orizzontale del sistema.
-Per la storicizzazione dei risultati analitici prodotti dalle tre query concorrenti, sono stati definiti diversi topic di output dedicati per ciascuna finestra e granularità temporale. Questo disaccoppia ulteriormente Flink dai database di storage a valle, permettendo a componenti ausiliari come Telegraf di consumare i risultati in modalità asincrona.
-
-\subsubsection{Fase di Ingestione in Flink}\label{subsubsec:kafka_source}
-L'integrazione di Kafka come sorgente dati in Flink avviene tramite la classe nativa \texttt{KafkaSource}. 
-
-Per mappare i byte grezzi transitati su Kafka in oggetti Java tipizzati, è stato implementato uno schema di deserializzazione custom. Tale classe esegue le seguenti operazioni per ogni record consumato:
+Per disaccoppiare la sorgente dei dati dal motore di stream processing ed assorbire le fluttuazioni di carico, è stato integrato Apache Kafka. La componente si articola secondo le seguenti direttive:
 \begin{itemize}
-    \item \textbf{Deserializzazione JSON}: converte il messaggio Kafka in un oggetto \texttt{FlightRecord}, scartando i record non validi;
-    \item \textbf{Gestione dei timestamp}: assegna al record sia l'event-time del volo sia il tempo di ingestione nel sistema.
+    \item \textbf{Partizionamento e Topic:} Il flusso in ingresso è instradato sul topic primario \texttt{flights-stream}, configurato con 6 partizioni per consentire la scalabilità orizzontale di Flink. I flussi analitici in uscita sono distribuiti su topic dedicati per granularità temporale, disaccoppiando Flink dallo storage a valle.
+    \item \textbf{Ingestione in Flink:} Tramite la classe nativa \texttt{KafkaSource} e uno schema di deserializzazione custom, ogni record viene mappato nell'oggetto Java tipizzato \texttt{FlightRecord}, estraendo l'event-time del volo e registrando il timestamp di ingestione.
+    \item \textbf{Scrittura dei Risultati:} Avviene mediante istanze di \texttt{KafkaSink} configurate con garanzia di consegna \textit{at-least-once}, evitando l'overhead di coordinamento delle transazioni distribuite a due fasi.
 \end{itemize}
 
-\subsubsection{Fase di Scrittura dei Risultati}\label{subsubsec:kafka_sink}
-Le tre query analitiche concorrenti producono flussi di risultati che vengono re-iniettati in Kafka tramite istanze di \texttt{KafkaSink}, configurate con la garanzia di consegna \textit{at least once} per garantire la tolleranza ai guasti senza l'overhead delle transazioni a due fasi.
-
-La serializzazione da oggetti Java a payload JSON pronti per essere trasmessi in rete è delegata a schemi di serializzazione personalizzati. Ognuno di essi serializza lo stato dell'oggetto in array di byte JSON.
 
 \subsection{Motore di Stream Processing}\label{subsec:flink_component}
 
@@ -462,20 +389,21 @@ Una delle decisioni architetturali più rilevanti del progetto riguarda il disal
 \end{itemize}
 
 \subsubsection{DDSketch per i Percentili}\label{subsubsec:flink_ddsketch}
-L'algoritmo probabilistico \textbf{DDSketch} è una componente strategica dell'intera architettura, impiegato per risolvere problemi di stima quantilica a memoria costante $O(1)$:
-\begin{itemize}
-    \item \textbf{Caratteristiche dell'Algoritmo}: DDSketch mappa i valori su indici di bin logaritmici basati su una precisione relativa garantita $\alpha = 0.01$ (garantendo errore massimo dell'1\%). Come evidenziato nel paper originale di Datadog~\cite{masson2019ddsketch}:
-    \begin{quote}
-        \textit{``...in practice $m$ [the number of bins] is usually set to be a constant large enough to handle a wide range of values. As an example, for $\alpha = 0.01$, a sketch of size 2048 can handle values from 80 microseconds to 1 year, and cover all quantiles.''}
-    \end{quote}
-    % TODO: inserire solo la citazione senza riporta il testo e descrivere l'algoritmo.
-    In conformità con questa analisi teorica, tutte le implementazioni degli accumulatori DDSketch nel nostro progetto (sia analitici che di telemetria) sono state configurate impostando la dimensione massima dello store di bin a $m = 2048$ e l'accuratezza relativa a $\alpha = 0.01$.
-    \item \textbf{Dualità d'uso nel Sistema}: DDSketch è stato impiegato con successo in due contesti chiave:
-    \begin{enumerate}
-        \item \textbf{Distribuzione dei Ritardi}: All'interno dell'accumulatore relativo alla Query 3, DDSketch stima in tempo reale e senza salvare i singoli record in memoria la distribuzione dei ritardi delle compagnie per ciascuna fascia oraria su scale giornaliere, settimanali e globali.
-        \item \textbf{Metriche di Latenza Custom}: Per misurare in tempo reale l'efficienza degli operatori e la latenza end-to-end della pipeline, è stato implementato un tracciatore di performance che invia le misurazioni di latenza ad accumulatori basati su DDSketch.
-    \end{enumerate}
-\end{itemize}
+L'algoritmo probabilistico DDSketch è impiegato per risolvere problemi di stima quantilica accurata su flussi di dati continui mantenendo una complessità spaziale e temporale costante $O(1)$.
+
+\paragraph{Funzionamento dell'Algoritmo}
+DDSketch mappa i valori numerici in ingresso in indici di bin logaritmici calcolati secondo la formula:
+\begin{equation}
+    i = \lfloor \log_{\gamma}(x) \rfloor \quad \text{con} \quad \gamma = \frac{1 + \alpha}{1 - \alpha}
+\end{equation}
+dove $\alpha$ rappresenta la precisione relativa massima garantita dall'algoritmo. Questo schema di partizionamento fa sì che l'ampiezza dei bin cresca esponenzialmente all'aumentare dei valori archiviati, garantendo un errore relativo controllato $\le \alpha$ anziché un errore assoluto. Tale caratteristica rende DDSketch ottimale per monitorare metriche caratterizzate da distribuzioni fortemente asimmetriche a destra, come i ritardi dei voli o le latenze di rete. In conformità con l'analisi teorica di Datadog~\cite{masson2019ddsketch}, tutte le istanze del sistema sono state ingegnerizzate impostando un'accuratezza relativa $\alpha = 0.01$ (errore massimo dell'1\%) e una dimensione massima dello store pari a $m = 2048$ bin, un dimensionamento ampiamente sufficiente a coprire un range di valori eterogeneo (da frazioni di secondo a un anno logico).
+
+\paragraph{Dualità d'uso nel Sistema}
+L'architettura sfrutta le proprietà dello sketch in due scenari ortogonali:
+\begin{enumerate}
+    \item \textbf{Distribuzione dei Ritardi:} DDSketch funge da accumulatore all'interno dello stato delle finestre temporali di Flink, aggregando i dati di ritardo per compagnia e fascia oraria su scale giornaliere, settimanali e globali senza mantenere i singoli record in memoria RAM.
+    \item \textbf{Metriche di Latenza Custom:} Per garantire l'osservabilità interna del cluster, i tracciatori prestazionali inseriti negli operatori chiave inviano le misurazioni end-to-end a istanze DDSketch di telemetria, esportando i percentili di runtime direttamente verso InfluxDB.
+\end{enumerate}
 
 \subsubsection{Sistema di Telemetria}\label{subsubsec:flink_telemetry}
 L'osservabilità e il monitoraggio delle performance del sistema in tempo reale si basano su un set di metriche personalizzate registrate tramite la Flink Metric API. Tali metriche si dividono in tre categorie principali:
@@ -501,11 +429,12 @@ Per ovviare a ciò, il JobManager e i TaskManager di Flink sono configurati nei 
 %     \end{enumerate}
 % \end{itemize}
 
-\subsubsection{Dettagli delle Query Analitiche ed Ingegnerizzazione del DAG}\label{subsubsec:flink_queries}
+\subsubsection{Dettagli delle Query Analitiche}\label{subsubsec:flink_queries}
+La pipeline computazionale condivide a monte la sorgente dei dati e i filtri logici di data quality, dopodiché si dirama in tre sotto-DAG concorrenti:
 \begin{itemize}
-    \item \textbf{Query 1}: Filtra i record sui quattro vettori primari tramite \texttt{TargetAirlineFilter} ed effettua una proiezione a basso footprint per ridurre la dimensione dei record prima dello shuffle. Utilizza un aggregatore incrementale per aggiornare lo stato in tempo costante $O(1)$ all'interno di una finestra tumbling di 1 ora in Event-Time.
-    \item \textbf{Query 2}: Calcola la top-10 su finestre di 1 ora, 6 ore e globale. Adotta una strategia di classificazione ottimizzata in due fasi logiche: un'aggregazione locale per aeroporto in finestra, seguita da una partizione logica sul timestamp di fine della finestra. Quest'ultima raccoglie le metriche parziali in un \texttt{MapState} locale, registra un timer sul watermark e, al suo scattare, inserisce gli aeroporti idonei in un Min-Heap. Lo stato locale viene ripulito immediatamente dopo l'emissione del risultato per evitare memory leak.
-    \item \textbf{Query 3}: Raggruppa gli eventi su chiave composita (basata su \textit{airline} e \textit{hour}) per fasce orarie da 0 a 23 in finestre di 1 giorno, 7 giorni e globale, calcolando i percentili tramite il summenzionato modulo DDSketch.
+    \item \textbf{Query 1 -- Aggregazioni Compagnie:} Applica il filtro \texttt{TargetAirlineFilter} ed esegue una proiezione per ridurre l'impronta di memoria dei record prima dello shuffle di rete. Lo stream viene partizionato tramite \texttt{keyBy(FlightRecord::getAirline)} e convogliato in finestre di tipo \textit{Tumbling} della durata di 1 ora in Event-Time. Il calcolo della media dei ritardi e del tasso di cancellazione è delegato a un aggregatore incrementale derivato da \texttt{AggregateFunction}, garantendo un aggiornamento dello stato locale in tempo costante $O(1)$ ad ogni record.
+    \item \textbf{Query 2 -- Top-10 Aeroporti strutturali e volatili:} Sfrutta tre finestre concorrenti (1 ora tumbling, 6 ore tumbling e finestra globale con trigger periodico ogni ora logica). Il calcolo è ingegnerizzato in due fasi logiche distinte per ottimizzare i shuffle di rete: prima viene eseguita un'aggregazione locale per isolare il numero di ritardi severi per ciascun aeroporto tramite \texttt{keyBy(FlightRecord::getOriginAirport)}, dopodiché i flussi parziali vengono uniti e ri-partizionati sul timestamp di fine finestra. All'interno di una \texttt{KeyedProcessFunction}, i dati vengono storicizzati in un \texttt{MapState} e viene registrato un timer sul watermark; allo scattare del timer, la funzione istanzia un Min-Heap limitato a 10 elementi. Questo consente di estrarre la classifica finale riducendo la complessità temporale a $O(N \log 10)$. Lo stato locale viene interamente ripulito subito dopo l'emissione su Kafka per prevenire memory leak.
+    \item \textbf{Query 3 -- Distribuzione oraria dei Percentili:} Raggruppa gli eventi su una chiave composita formata dalla tupla identificativa \texttt{(airline, hour\_of\_day)} per isolare le 24 fasce orarie della giornata. Lo stream viene elaborato su tre finestre parallele (1 giorno tumbling, 7 giorni sliding e globale). La logica sfrutta una \texttt{ProcessWindowFunction} accoppiata al summenzionato modulo DDSketch come accumulatore di stato incrementale, emettendo i percentili storici interpolati direttamente dai bin dello sketch.
 \end{itemize}
 
 % ------------------------------
@@ -514,20 +443,20 @@ Per ovviare a ciò, il JobManager e i TaskManager di Flink sono configurati nei 
 
 La pipeline di \textit{Sky Analytics Stream} è stata progettata per supportare due modalità di esecuzione speculari ma dimensionate diversamente: un deployment locale a container multiplo per sviluppo, e un deployment distribuito multi-nodo su infrastruttura cloud per test prestazionali ed esperimenti di scalabilità.
 
-\subsection{Deployment Locale}\label{subsec:local_deployment}
-
-La configurazione locale consente di validare la correttezza logica del codice e testare il comportamento del sistema in scenari controllati. Viene realizzata tramite un file \texttt{docker-compose.yml} che orchestra undici container connessi a una rete privata bridge:
-\begin{itemize}
-    \item \textbf{Ingestion \& Broker}: Un container per il broker Kafka e un container di inizializzazione che crea i topic necessari impostandovi il rispettivo partizionamento (6 partizioni per lo stream di ingresso);
-    \item \textbf{Stream Processing}: Un container Flink JobManager e tre container TaskManager. Ogni TaskManager dispone di due slot di elaborazione, per un parallelismo massimo locale di 6;
-    \item \textbf{State Storage}: Tre container HDFS (un NameNode e due DataNodes) per supportare il salvataggio dei checkpoint in modalità distribuita locale;
-    \item \textbf{Persistence \& Telemetry}: Un container InfluxDB (versione \texttt{2.7}) per storicizzare risultati e telemetrie, accoppiato a un container Telegraf che converte i messaggi JSON consumati da Kafka nel modello dati di InfluxDB;
-    \item \textbf{Visualization}: Un container Grafana accoppiato a un container \texttt{grafana-image-renderer} (usato per esportare e catturare i grafici delle dashboard).
-\end{itemize}
-
-I parametri di configurazione (porte fisiche, credenziali di accesso ai database, token di telemetria e parametri di accelerazione) sono iniettati tramite variabili d'ambiente caricate da un file locale \texttt{.env}.
-
-\subsection{Deployment Distribuito su AWS EC2}\label{subsec:ec2_deployment}
+% \subsection{Deployment Locale}\label{subsec:local_deployment}
+% 
+% La configurazione locale consente di validare la correttezza logica del codice e testare il comportamento del sistema in scenari controllati. Viene realizzata tramite un file % \texttt{docker-compose.yml} che orchestra undici container connessi a una rete privata bridge:
+% \begin{itemize}
+%     \item \textbf{Ingestion \& Broker}: Un container per il broker Kafka e un container di inizializzazione che crea i topic necessari impostandovi il rispettivo % partizionamento (6 partizioni per lo stream di ingresso);
+%     \item \textbf{Stream Processing}: Un container Flink JobManager e tre container TaskManager. Ogni TaskManager dispone di due slot di elaborazione, per un parallelismo % massimo locale di 6;
+%     \item \textbf{State Storage}: Tre container HDFS (un NameNode e due DataNodes) per supportare il salvataggio dei checkpoint in modalità distribuita locale;
+%     \item \textbf{Persistence \& Telemetry}: Un container InfluxDB (versione \texttt{2.7}) per storicizzare risultati e telemetrie, accoppiato a un container Telegraf che % converte i messaggi JSON consumati da Kafka nel modello dati di InfluxDB;
+%     \item \textbf{Visualization}: Un container Grafana accoppiato a un container \texttt{grafana-image-renderer} (usato per esportare e catturare i grafici delle dashboard).
+% \end{itemize}
+% 
+% I parametri di configurazione (porte fisiche, credenziali di accesso ai database, token di telemetria e parametri di accelerazione) sono iniettati tramite variabili d'ambiente % caricate da un file locale \texttt{.env}.
+% 
+% \subsection{Deployment Distribuito su AWS EC2}\label{subsec:ec2_deployment}
 
 Per condurre le campagne sperimentali in condizioni di carico reale, il sistema è distribuito su un cluster multi-nodo in ambiente cloud Amazon Web Services.
 
@@ -574,6 +503,7 @@ Si consideri che la velocità di replay effettiva del simulatore Go risente del 
 \subsection{Parallelismo e Scalabilità in Assenza di Disordine}\label{subsec:perf_parallelism}
 
 La prima campagna di test valuta il comportamento della pipeline al variare del livello di parallelismo, con $P \in \{1, 3, 6\}$, in condizioni di dati ordinati all'origine (disordine aggiuntivo pari a $0$ e tolleranza al ritardo impostata a $0$). Sono confrontati tre livelli di carico riprodotti dal simulatore Go: lo scenario a \textbf{Basso Carico} (moltiplicatore $1.440\times$, throughput nominale $\approx 305$ eventi/secondo), lo scenario a \textbf{Medio Carico} (moltiplicatore $14.400\times$, throughput nominale $\approx 3.050$ eventi/secondo) e lo scenario ad \textbf{Alto Carico} (moltiplicatore $43.200\times$, throughput nominale $\approx 9.150$ eventi/secondo).
+
 \subsubsection{Analisi del Throughput e delle Latenze}\label{subsubsec:throughput_cluster}
 
 L'analisi del throughput e delle latenze a livello di cluster rivela dinamiche prestazionali importanti:
