@@ -602,11 +602,12 @@ for time.Now().Before(deadline) {
 \SectionFrame[Architettura della topologia computazionale concorrente, gestione del tempo logico, ottimizzazioni di memoria, DDSketch e dettagli delle query.]{Apache Flink}
 
 \begin{frame}{Topologia del Flusso Streaming (DAG)}
+    \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
     \centering
     \begin{adjustbox}{max width=0.98\textwidth, max height=0.82\textheight}
     \begin{tikzpicture}[
-        node distance=0.35cm and 0.45cm,
-        every node/.style={font=\tiny\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=4pt},
+        node distance=0.25cm and 0.2cm,
+        every node/.style={font=\dagfontsize\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3pt},
         source/.style={fill=violet!25, line width=1pt},
         filter/.style={fill=yellow!15},
         map/.style={fill=blue!12},
@@ -615,51 +616,51 @@ for time.Now().Before(deadline) {
         sink/.style={fill=green!25, line width=1pt}
     ]
         %% INGESTIONE E PREPROCESSING
-        \node[source] (KafkaSource) {Kafka Source\\(rawStream)};
-        \node[filter, right=of KafkaSource] (Watermark) {Watermark Assignment\\(Bounded Out-Of-Orderness)};
-        \node[filter, right=of Watermark] (Preprocessing) {Filter: LogicalInconsistencyFilter\\(preprocessingStream)};
+        \node[source] (KafkaSource) {Kafka Source};
+        \node[filter, right=of KafkaSource] (Watermark) {Watermark\\Assignment};
+        \node[filter, right=of Watermark] (Preprocessing) {Logical Inconsistency\\Data Filter};
 
         %% BRANCH QUERY 1
-        \node[filter, above right=2.3cm and 0.6cm of Preprocessing] (Q1_Filter) {Filter:\\TargetAirlineFilter};
-        \node[map, right=of Q1_Filter] (Q1_Map) {Map:\\AirlinePerformanceEvent};
-        \node[keyby, right=of Q1_Map] (Q1_KeyBy) {KeyBy:\\airline};
-        \node[window, right=of Q1_KeyBy] (Q1_WinAgg) {Window: Tumbling (1h) + Lateness\\+ Aggregate: AirlinePerformanceAggregator};
+        \node[filter, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {Airline Filter};
+        \node[map, right=of Q1_Filter] (Q1_Map) {Map to Event};
+        \node[keyby, right=of Q1_Map] (Q1_KeyBy) {KeyBy (airline)};
+        \node[window, right=of Q1_KeyBy] (Q1_WinAgg) {Tumbling Window (1h)\\+ Lateness \& Aggregation};
         \node[sink, right=of Q1_WinAgg] (Q1_Sink) {Kafka Sink:\\q1\_results};
 
         %% BRANCH QUERY 2
-        \node[filter, right=0.8cm of Preprocessing] (Q2_Filter) {Filter:\\ActiveFlightFilter};
-        \node[map, right=of Q2_Filter] (Q2_Map) {Map:\\RankAirportsEvent};
-        \node[keyby, right=of Q2_Map] (Q2_KeyBy) {KeyBy:\\originAirportId};
+        \node[filter, right=0.6cm of Preprocessing] (Q2_Filter) {Active Flight Filter};
+        \node[map, right=of Q2_Filter] (Q2_Map) {Map to Event};
+        \node[keyby, right=of Q2_Map] (Q2_KeyBy) {KeyBy (originAirport)};
 
-        \node[window, right=0.8cm of Q2_KeyBy] (Q2_WAgg6) {Window: Tumbling (6h)\\+ Aggregate (6h)};
-        \node[window, above=0.5cm of Q2_WAgg6] (Q2_WAgg1) {Window: Tumbling (1h)\\+ Aggregate (1h)};
-        \node[window, below=0.5cm of Q2_WAgg6] (Q2_WAggG) {Window: Global (Trigger: 24h)\\+ Aggregate (Global)};
+        \node[window, right=0.6cm of Q2_KeyBy] (Q2_WAgg6) {Tumbling Window (6h)\\+ Aggregation};
+        \node[window, above=0.7cm of Q2_WAgg6] (Q2_WAgg1) {Tumbling Window (1h)\\+ Aggregation};
+        \node[window, below=0.7cm of Q2_WAgg6] (Q2_WAggG) {Global Window (24h)\\+ Aggregation};
 
-        \node[keyby, right=of Q2_WAgg1] (Q2_KBy1) {KeyBy:\\windowEnd};
-        \node[filter, right=of Q2_KBy1] (Q2_Rank1) {Process: RankProcessor\\(Top 10 Airports)};
-        \node[sink, right=of Q2_Rank1] (Q2_Sink1) {Kafka Sink:\\q2\_1h};
+        \node[keyby, right=of Q2_WAgg1] (Q2_KBy1) {KeyBy (windowEnd)};
+        \node[filter, right=of Q2_KBy1] (Q2_Rank1) {RankProcessor\\(Top 10)};
+        \node[sink, right=of Q2_Rank1] (Q2_Sink1) {Kafka Sink: q2\_1h};
 
-        \node[keyby, right=of Q2_WAgg6] (Q2_KBy6) {KeyBy:\\windowEnd};
-        \node[filter, right=of Q2_KBy6] (Q2_Rank6) {Process: RankProcessor\\(Top 10 Airports)};
-        \node[sink, right=of Q2_Rank6] (Q2_Sink6) {Kafka Sink:\\q2\_6h};
+        \node[keyby, right=of Q2_WAgg6] (Q2_KBy6) {KeyBy (windowEnd)};
+        \node[filter, right=of Q2_KBy6] (Q2_Rank6) {RankProcessor\\(Top 10)};
+        \node[sink, right=of Q2_Rank6] (Q2_Sink6) {Kafka Sink: q2\_6h};
 
-        \node[keyby, right=of Q2_WAggG] (Q2_KByG) {KeyBy:\\windowEnd};
-        \node[filter, right=of Q2_KByG] (Q2_RankG) {Process: RankProcessor\\(Top 10 Airports)};
-        \node[sink, right=of Q2_RankG] (Q2_SinkG) {Kafka Sink:\\q2\_global};
+        \node[keyby, right=of Q2_WAggG] (Q2_KByG) {KeyBy (windowEnd)};
+        \node[filter, right=of Q2_KByG] (Q2_RankG) {RankProcessor\\(Top 10)};
+        \node[sink, right=of Q2_RankG] (Q2_SinkG) {Kafka Sink: q2\_glob};
 
         %% BRANCH QUERY 3
-        \node[filter, below right=2.3cm and 0.6cm of Preprocessing] (Q3_Filter1) {Filter:\\TargetAirlineFilter};
-        \node[filter, right=of Q3_Filter1] (Q3_Filter2) {Filter:\\ActiveFlightFilter};
-        \node[map, right=of Q3_Filter2] (Q3_Map) {Map:\\DelayDistributionEvent};
-        \node[keyby, right=of Q3_Map] (Q3_KeyBy) {KeyBy:\\Tuple2(airline, scheduledHour)};
+        \node[filter, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {Airline Filter};
+        \node[filter, right=of Q3_Filter1] (Q3_Filter2) {Active Flight Filter};
+        \node[map, right=of Q3_Filter2] (Q3_Map) {Map to Event};
+        \node[keyby, right=of Q3_Map] (Q3_KeyBy) {KeyBy (airline, hour)};
 
-        \node[window, right=0.8cm of Q3_KeyBy] (Q3_WAgg7d) {Window: Tumbling (7d)\\+ Aggregate (7d) [Percentiles]};
-        \node[window, above=0.5cm of Q3_WAgg7d] (Q3_WAgg1d) {Window: Tumbling (1d)\\+ Aggregate (1d) [Percentiles]};
-        \node[window, below=0.5cm of Q3_WAgg7d] (Q3_WAggG) {Window: Global (Trigger: 1d)\\+ Aggregate (Global) [Percentiles]};
+        \node[window, right=0.6cm of Q3_KeyBy] (Q3_WAgg7d) {Tumbling Window (7d)\\+ Percentile Aggregation};
+        \node[window, above=0.7cm of Q3_WAgg7d] (Q3_WAgg1d) {Tumbling Window (1d)\\+ Percentile Aggregation};
+        \node[window, below=0.7cm of Q3_WAgg7d] (Q3_WAggG) {Global Window (1d)\\+ Percentile Aggregation};
 
-        \node[sink, right=4.5cm of Q3_WAgg1d] (Q3_Sink1d) {Kafka Sink:\\q3\_1d};
-        \node[sink, right=4.5cm of Q3_WAgg7d] (Q3_Sink7d) {Kafka Sink:\\q3\_7d};
-        \node[sink, right=4.5cm of Q3_WAggG] (Q3_SinkG) {Kafka Sink:\\q3\_global};
+        \node[sink, right=3.2cm of Q3_WAgg1d] (Q3_Sink1d) {Kafka Sink: q3\_1d};
+        \node[sink, right=3.2cm of Q3_WAgg7d] (Q3_Sink7d) {Kafka Sink: q3\_7d};
+        \node[sink, right=3.2cm of Q3_WAggG] (Q3_SinkG) {Kafka Sink: q3\_glob};
 
         %% COLLEGAMENTI
         \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
@@ -667,7 +668,7 @@ for time.Now().Before(deadline) {
             \draw (Watermark) -- (Preprocessing);
 
             %% Q1
-            \draw (Preprocessing.east) -- ++(0.3,0) |- (Q1_Filter.west);
+            \draw (Preprocessing.east) -- ++(0.2,0) |- (Q1_Filter.west);
             \draw (Q1_Filter) -- (Q1_Map);
             \draw (Q1_Map) -- (Q1_KeyBy);
             \draw (Q1_KeyBy) -- (Q1_WinAgg);
@@ -677,11 +678,14 @@ for time.Now().Before(deadline) {
             \draw (Preprocessing.east) -- (Q2_Filter.west);
             \draw (Q2_Filter) -- (Q2_Map);
             \draw (Q2_Map) -- (Q2_KeyBy);
-            \draw (Q2_KeyBy.east) -- ++(0.3,0) |- (Q2_WAgg1.west);
+            \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAgg1.west);
             \draw (Q2_KeyBy.east) -- (Q2_WAgg6.west);
-            \draw (Q2_KeyBy.east) -- ++(0.3,0) |- (Q2_WAggG.west);
+            \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAggG.west);
             \draw (Q2_WAgg1) -- (Q2_KBy1);
             \draw (Q2_WAgg6) -- (Q2_KBy6);
+            \draw (Q2_WAggG) -- (Q2_KByG);
+            \draw (Q2_KBy1) -- (Q2_Rank1);
+            \draw (Q2_KBy6) -- (Q2_Rank6);
             \draw (Q2_WAggG) -- (Q2_KByG);
             \draw (Q2_KBy1) -- (Q2_Rank1);
             \draw (Q2_KBy6) -- (Q2_Rank6);
@@ -691,19 +695,518 @@ for time.Now().Before(deadline) {
             \draw (Q2_RankG) -- (Q2_SinkG);
 
             %% Q3
-            \draw (Preprocessing.east) -- ++(0.3,0) |- (Q3_Filter1.west);
+            \draw (Preprocessing.east) -- ++(0.2,0) |- (Q3_Filter1.west);
             \draw (Q3_Filter1) -- (Q3_Filter2);
             \draw (Q3_Filter2) -- (Q3_Map);
             \draw (Q3_Map) -- (Q3_KeyBy);
-            \draw (Q3_KeyBy.east) -- ++(0.3,0) |- (Q3_WAgg1d.west);
+            \draw (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAgg1d.west);
             \draw (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
-            \draw (Q3_KeyBy.east) -- ++(0.3,0) |- (Q3_WAggG.west);
+            \draw (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAggG.west);
             \draw (Q3_WAgg1d) -- (Q3_Sink1d);
             \draw (Q3_WAgg7d) -- (Q3_Sink7d);
             \draw (Q3_WAggG) -- (Q3_SinkG);
         \end{scope}
     \end{tikzpicture}
     \end{adjustbox}
+\end{frame}
+
+\begin{frame}{Topologia Flink: Ingestione e Data Quality}
+    \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
+    \begin{columns}[c]
+        \begin{column}{0.63\textwidth}
+            \centering
+            \begin{adjustbox}{max width=\linewidth, max height=0.82\textheight}
+            \begin{tikzpicture}[
+                node distance=0.25cm and 0.2cm,
+                every node/.style={font=\dagfontsize\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3pt},
+                source/.style={fill=violet!25, line width=1pt},
+                filter/.style={fill=yellow!15},
+                map/.style={fill=blue!12},
+                keyby/.style={fill=red!10},
+                window/.style={fill=green!12},
+                sink/.style={fill=green!25, line width=1pt},
+                muted/.style={fill=black!3, draw=black!12, text=black!25},
+                mutedline/.style={draw=black!10}
+            ]
+                %% INGESTIONE E PREPROCESSING (EVIDENZIATI)
+                \node[source] (KafkaSource) {Kafka Source};
+                \node[filter, right=of KafkaSource] (Watermark) {Watermark\\Assignment};
+                \node[filter, right=of Watermark] (Preprocessing) {Logical Inconsistency\\Data Filter};
+
+                %% BRANCH QUERY 1 (DISATTIVATI)
+                \node[muted, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {Airline Filter};
+                \node[muted, right=of Q1_Filter] (Q1_Map) {Map to Event};
+                \node[muted, right=of Q1_Map] (Q1_KeyBy) {KeyBy (airline)};
+                \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {Tumbling Window (1h)\\+ Lateness \& Aggregation};
+                \node[muted, right=of Q1_WinAgg] (Q1_Sink) {Kafka Sink:\\q1\_results};
+
+                %% BRANCH QUERY 2 (DISATTIVATI)
+                \node[muted, right=0.6cm of Preprocessing] (Q2_Filter) {Active Flight Filter};
+                \node[muted, right=of Q2_Filter] (Q2_Map) {Map to Event};
+                \node[muted, right=of Q2_Map] (Q2_KeyBy) {KeyBy (originAirport)};
+
+                \node[muted, right=0.6cm of Q2_KeyBy] (Q2_WAgg6) {Tumbling Window (6h)\\+ Aggregation};
+                \node[muted, above=0.7cm of Q2_WAgg6] (Q2_WAgg1) {Tumbling Window (1h)\\+ Aggregation};
+                \node[muted, below=0.7cm of Q2_WAgg6] (Q2_WAggG) {Global Window (24h)\\+ Aggregation};
+
+                \node[muted, right=of Q2_WAgg1] (Q2_KBy1) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KBy1] (Q2_Rank1) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_Rank1] (Q2_Sink1) {Kafka Sink: q2\_1h};
+
+                \node[muted, right=of Q2_WAgg6] (Q2_KBy6) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KBy6] (Q2_Rank6) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_Rank6] (Q2_Sink6) {Kafka Sink: q2\_6h};
+
+                \node[muted, right=of Q2_WAggG] (Q2_KByG) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KByG] (Q2_RankG) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_RankG] (Q2_SinkG) {Kafka Sink: q2\_glob};
+
+                %% BRANCH QUERY 3 (DISATTIVATI)
+                \node[muted, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {Airline Filter};
+                \node[muted, right=of Q3_Filter1] (Q3_Filter2) {Active Flight Filter};
+                \node[muted, right=of Q3_Filter2] (Q3_Map) {Map to Event};
+                \node[muted, right=of Q3_Map] (Q3_KeyBy) {KeyBy (airline, hour)};
+
+                \node[muted, right=0.6cm of Q3_KeyBy] (Q3_WAgg7d) {Tumbling Window (7d)\\+ Percentile Aggregation};
+                \node[muted, above=0.7cm of Q3_WAgg7d] (Q3_WAgg1d) {Tumbling Window (1d)\\+ Percentile Aggregation};
+                \node[muted, below=0.7cm of Q3_WAgg7d] (Q3_WAggG) {Global Window (1d)\\+ Percentile Aggregation};
+
+                \node[muted, right=3.2cm of Q3_WAgg1d] (Q3_Sink1d) {Kafka Sink: q3\_1d};
+                \node[muted, right=3.2cm of Q3_WAgg7d] (Q3_Sink7d) {Kafka Sink: q3\_7d};
+                \node[muted, right=3.2cm of Q3_WAggG] (Q3_SinkG) {Kafka Sink: q3\_glob};
+
+                %% COLLEGAMENTI
+                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+                    \draw (KafkaSource) -- (Watermark);
+                    \draw (Watermark) -- (Preprocessing);
+
+                    %% Q1 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q1_Filter.west);
+                    \draw[mutedline] (Q1_Filter) -- (Q1_Map);
+                    \draw[mutedline] (Q1_Map) -- (Q1_KeyBy);
+                    \draw[mutedline] (Q1_KeyBy) -- (Q1_WinAgg);
+                    \draw[mutedline] (Q1_WinAgg) -- (Q1_Sink);
+
+                    %% Q2 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- (Q2_Filter.west);
+                    \draw[mutedline] (Q2_Filter) -- (Q2_Map);
+                    \draw[mutedline] (Q2_Map) -- (Q2_KeyBy);
+                    \draw[mutedline] (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAgg1.west);
+                    \draw[mutedline] (Q2_KeyBy.east) -- (Q2_WAgg6.west);
+                    \draw[mutedline] (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAggG.west);
+                    \draw[mutedline] (Q2_WAgg1) -- (Q2_KBy1);
+                    \draw[mutedline] (Q2_WAgg6) -- (Q2_KBy6);
+                    \draw[mutedline] (Q2_WAggG) -- (Q2_KByG);
+                    \draw[mutedline] (Q2_KBy1) -- (Q2_Rank1);
+                    \draw[mutedline] (Q2_KBy6) -- (Q2_Rank6);
+                    \draw[mutedline] (Q2_KByG) -- (Q2_RankG);
+                    \draw[mutedline] (Q2_Rank1) -- (Q2_Sink1);
+                    \draw[mutedline] (Q2_Rank6) -- (Q2_Sink6);
+                    \draw[mutedline] (Q2_RankG) -- (Q2_SinkG);
+
+                    %% Q3 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q3_Filter1.west);
+                    \draw[mutedline] (Q3_Filter1) -- (Q3_Filter2);
+                    \draw[mutedline] (Q3_Filter2) -- (Q3_Map);
+                    \draw[mutedline] (Q3_Map) -- (Q3_KeyBy);
+                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAgg1d.west);
+                    \draw[mutedline] (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
+                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAggG.west);
+                    \draw[mutedline] (Q3_WAgg1d) -- (Q3_Sink1d);
+                    \draw[mutedline] (Q3_WAgg7d) -- (Q3_Sink7d);
+                    \draw[mutedline] (Q3_WAggG) -- (Q3_SinkG);
+                \end{scope}
+            \end{tikzpicture}
+            \end{adjustbox}
+        \end{column}
+        
+        \begin{column}{0.34\textwidth}
+            \begin{block}{Pipeline Comune}
+                \scriptsize
+                L'ingestione ed il preprocessing sono condivisi tra tutte le query:
+                \begin{itemize}
+                    \item \textbf{Kafka Source}: Lettura distribuita parallela dal topic \texttt{flights-stream} (parallelismo 6).
+                    \item \textbf{Watermark Assignment}: Gestione del tempo logico tramite timestamp estratti dal record con tolleranza \textbf{BoundedOutOfOrderness} (2 min).
+                    \item \textbf{Data Quality Filter}: Scarto immediato di record incompleti, con date nulle o valori di ritardo/durata negativi.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Topologia Flink: Focus Query 1}
+    \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
+    \begin{columns}[c]
+        \begin{column}{0.63\textwidth}
+            \centering
+            \begin{adjustbox}{max width=\linewidth, max height=0.82\textheight}
+            \begin{tikzpicture}[
+                node distance=0.25cm and 0.2cm,
+                every node/.style={font=\dagfontsize\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3pt},
+                source/.style={fill=violet!25, line width=1pt},
+                filter/.style={fill=yellow!15},
+                map/.style={fill=blue!12},
+                keyby/.style={fill=red!10},
+                window/.style={fill=green!12},
+                sink/.style={fill=green!25, line width=1pt},
+                muted/.style={fill=black!3, draw=black!12, text=black!25},
+                mutedline/.style={draw=black!10}
+            ]
+                %% INGESTIONE E PREPROCESSING (DISATTIVATI)
+                \node[muted] (KafkaSource) {Kafka Source};
+                \node[muted, right=of KafkaSource] (Watermark) {Watermark\\Assignment};
+                \node[muted, right=of Watermark] (Preprocessing) {Logical Inconsistency\\Data Filter};
+
+                %% BRANCH QUERY 1 (EVIDENZIATO)
+                \node[filter, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {Airline Filter};
+                \node[map, right=of Q1_Filter] (Q1_Map) {Map to Event};
+                \node[keyby, right=of Q1_Map] (Q1_KeyBy) {KeyBy (airline)};
+                \node[window, right=of Q1_KeyBy] (Q1_WinAgg) {Tumbling Window (1h)\\+ Lateness \& Aggregation};
+                \node[sink, right=of Q1_WinAgg] (Q1_Sink) {Kafka Sink:\\q1\_results};
+
+                %% BRANCH QUERY 2 (DISATTIVATI)
+                \node[muted, right=0.6cm of Preprocessing] (Q2_Filter) {Active Flight Filter};
+                \node[muted, right=of Q2_Filter] (Q2_Map) {Map to Event};
+                \node[muted, right=of Q2_Map] (Q2_KeyBy) {KeyBy (originAirport)};
+
+                \node[muted, right=0.6cm of Q2_KeyBy] (Q2_WAgg6) {Tumbling Window (6h)\\+ Aggregation};
+                \node[muted, above=0.7cm of Q2_WAgg6] (Q2_WAgg1) {Tumbling Window (1h)\\+ Aggregation};
+                \node[muted, below=0.7cm of Q2_WAgg6] (Q2_WAggG) {Global Window (24h)\\+ Aggregation};
+
+                \node[muted, right=of Q2_WAgg1] (Q2_KBy1) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KBy1] (Q2_Rank1) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_Rank1] (Q2_Sink1) {Kafka Sink: q2\_1h};
+
+                \node[muted, right=of Q2_WAgg6] (Q2_KBy6) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KBy6] (Q2_Rank6) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_Rank6] (Q2_Sink6) {Kafka Sink: q2\_6h};
+
+                \node[muted, right=of Q2_WAggG] (Q2_KByG) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KByG] (Q2_RankG) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_RankG] (Q2_SinkG) {Kafka Sink: q2\_glob};
+
+                %% BRANCH QUERY 3 (DISATTIVATI)
+                \node[muted, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {Airline Filter};
+                \node[muted, right=of Q3_Filter1] (Q3_Filter2) {Active Flight Filter};
+                \node[muted, right=of Q3_Filter2] (Q3_Map) {Map to Event};
+                \node[muted, right=of Q3_Map] (Q3_KeyBy) {KeyBy (airline, hour)};
+
+                \node[muted, right=0.6cm of Q3_KeyBy] (Q3_WAgg7d) {Tumbling Window (7d)\\+ Percentile Aggregation};
+                \node[muted, above=0.7cm of Q3_WAgg7d] (Q3_WAgg1d) {Tumbling Window (1d)\\+ Percentile Aggregation};
+                \node[muted, below=0.7cm of Q3_WAgg7d] (Q3_WAggG) {Global Window (1d)\\+ Percentile Aggregation};
+
+                \node[muted, right=3.2cm of Q3_WAgg1d] (Q3_Sink1d) {Kafka Sink: q3\_1d};
+                \node[muted, right=3.2cm of Q3_WAgg7d] (Q3_Sink7d) {Kafka Sink: q3\_7d};
+                \node[muted, right=3.2cm of Q3_WAggG] (Q3_SinkG) {Kafka Sink: q3\_glob};
+
+                %% COLLEGAMENTI
+                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+                    \draw[mutedline] (KafkaSource) -- (Watermark);
+                    \draw[mutedline] (Watermark) -- (Preprocessing);
+
+                    %% Q1 (EVIDENZIATO)
+                    \draw (Preprocessing.east) -- ++(0.2,0) |- (Q1_Filter.west);
+                    \draw (Q1_Filter) -- (Q1_Map);
+                    \draw (Q1_Map) -- (Q1_KeyBy);
+                    \draw (Q1_KeyBy) -- (Q1_WinAgg);
+                    \draw (Q1_WinAgg) -- (Q1_Sink);
+
+                    %% Q2 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- (Q2_Filter.west);
+                    \draw[mutedline] (Q2_Filter) -- (Q2_Map);
+                    \draw[mutedline] (Q2_Map) -- (Q2_KeyBy);
+                    \draw[mutedline] (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAgg1.west);
+                    \draw[mutedline] (Q2_KeyBy.east) -- (Q2_WAgg6.west);
+                    \draw[mutedline] (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAggG.west);
+                    \draw[mutedline] (Q2_WAgg1) -- (Q2_KBy1);
+                    \draw[mutedline] (Q2_WAgg6) -- (Q2_KBy6);
+                    \draw[mutedline] (Q2_WAggG) -- (Q2_KByG);
+                    \draw[mutedline] (Q2_KBy1) -- (Q2_Rank1);
+                    \draw[mutedline] (Q2_KBy6) -- (Q2_Rank6);
+                    \draw[mutedline] (Q2_KByG) -- (Q2_RankG);
+                    \draw[mutedline] (Q2_Rank1) -- (Q2_Sink1);
+                    \draw[mutedline] (Q2_Rank6) -- (Q2_Sink6);
+                    \draw[mutedline] (Q2_RankG) -- (Q2_SinkG);
+
+                    %% Q3 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q3_Filter1.west);
+                    \draw[mutedline] (Q3_Filter1) -- (Q3_Filter2);
+                    \draw[mutedline] (Q3_Filter2) -- (Q3_Map);
+                    \draw[mutedline] (Q3_Map) -- (Q3_KeyBy);
+                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAgg1d.west);
+                    \draw[mutedline] (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
+                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAggG.west);
+                    \draw[mutedline] (Q3_WAgg1d) -- (Q3_Sink1d);
+                    \draw[mutedline] (Q3_WAgg7d) -- (Q3_Sink7d);
+                    \draw[mutedline] (Q3_WAggG) -- (Q3_SinkG);
+                \end{scope}
+            \end{tikzpicture}
+            \end{adjustbox}
+        \end{column}
+        
+        \begin{column}{0.34\textwidth}
+            \begin{block}{Query 1: Airline Performance}
+                \scriptsize
+                Calcolo della media oraria dei ritardi all'arrivo per le sole compagnie target:
+                \begin{itemize}
+                    \item \textbf{Filtro Compagnie}: Taglio selettivo per considerare solo le compagnie target indicate.
+                    \item \textbf{Partizionamento per Chiave}: Operatore \texttt{keyBy} sul codice \texttt{airline}.
+                    \item \textbf{Tumbling Window (1h)}: Finestra temporale ad eventi con tolleranza \textbf{Allowed Lateness} per gestire dati in ritardo, evitando scarti.
+                    \item \textbf{Aggregazione}: Implementazione incrementale con \texttt{AggregateFunction} per massimizzare la scalabilità.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Topologia Flink: Focus Query 2}
+    \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
+    \begin{columns}[c]
+        \begin{column}{0.63\textwidth}
+            \centering
+            \begin{adjustbox}{max width=\linewidth, max height=0.82\textheight}
+            \begin{tikzpicture}[
+                node distance=0.25cm and 0.2cm,
+                every node/.style={font=\dagfontsize\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3pt},
+                source/.style={fill=violet!25, line width=1pt},
+                filter/.style={fill=yellow!15},
+                map/.style={fill=blue!12},
+                keyby/.style={fill=red!10},
+                window/.style={fill=green!12},
+                sink/.style={fill=green!25, line width=1pt},
+                muted/.style={fill=black!3, draw=black!12, text=black!25},
+                mutedline/.style={draw=black!10}
+            ]
+                %% INGESTIONE E PREPROCESSING (DISATTIVATI)
+                \node[muted] (KafkaSource) {Kafka Source};
+                \node[muted, right=of KafkaSource] (Watermark) {Watermark\\Assignment};
+                \node[muted, right=of Watermark] (Preprocessing) {Logical Inconsistency\\Data Filter};
+
+                %% BRANCH QUERY 1 (DISATTIVATI)
+                \node[muted, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {Airline Filter};
+                \node[muted, right=of Q1_Filter] (Q1_Map) {Map to Event};
+                \node[muted, right=of Q1_Map] (Q1_KeyBy) {KeyBy (airline)};
+                \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {Tumbling Window (1h)\\+ Lateness \& Aggregation};
+                \node[muted, right=of Q1_WinAgg] (Q1_Sink) {Kafka Sink:\\q1\_results};
+
+                %% BRANCH QUERY 2 (EVIDENZIATO)
+                \node[filter, right=0.6cm of Preprocessing] (Q2_Filter) {Active Flight Filter};
+                \node[map, right=of Q2_Filter] (Q2_Map) {Map to Event};
+                \node[keyby, right=of Q2_Map] (Q2_KeyBy) {KeyBy (originAirport)};
+
+                \node[window, right=0.6cm of Q2_KeyBy] (Q2_WAgg6) {Tumbling Window (6h)\\+ Aggregation};
+                \node[window, above=0.7cm of Q2_WAgg6] (Q2_WAgg1) {Tumbling Window (1h)\\+ Aggregation};
+                \node[window, below=0.7cm of Q2_WAgg6] (Q2_WAggG) {Global Window (24h)\\+ Aggregation};
+
+                \node[keyby, right=of Q2_WAgg1] (Q2_KBy1) {KeyBy (windowEnd)};
+                \node[filter, right=of Q2_KBy1] (Q2_Rank1) {RankProcessor\\(Top 10)};
+                \node[sink, right=of Q2_Rank1] (Q2_Sink1) {Kafka Sink: q2\_1h};
+
+                \node[keyby, right=of Q2_WAgg6] (Q2_KBy6) {KeyBy (windowEnd)};
+                \node[filter, right=of Q2_KBy6] (Q2_Rank6) {RankProcessor\\(Top 10)};
+                \node[sink, right=of Q2_Rank6] (Q2_Sink6) {Kafka Sink: q2\_6h};
+
+                \node[keyby, right=of Q2_WAggG] (Q2_KByG) {KeyBy (windowEnd)};
+                \node[filter, right=of Q2_KByG] (Q2_RankG) {RankProcessor\\(Top 10)};
+                \node[sink, right=of Q2_RankG] (Q2_SinkG) {Kafka Sink: q2\_glob};
+
+                %% BRANCH QUERY 3 (DISATTIVATI)
+                \node[muted, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {Airline Filter};
+                \node[muted, right=of Q3_Filter1] (Q3_Filter2) {Active Flight Filter};
+                \node[muted, right=of Q3_Filter2] (Q3_Map) {Map to Event};
+                \node[muted, right=of Q3_Map] (Q3_KeyBy) {KeyBy (airline, hour)};
+
+                \node[muted, right=0.6cm of Q3_KeyBy] (Q3_WAgg7d) {Tumbling Window (7d)\\+ Percentile Aggregation};
+                \node[muted, above=0.7cm of Q3_WAgg7d] (Q3_WAgg1d) {Tumbling Window (1d)\\+ Percentile Aggregation};
+                \node[muted, below=0.7cm of Q3_WAgg7d] (Q3_WAggG) {Global Window (1d)\\+ Percentile Aggregation};
+
+                \node[muted, right=3.2cm of Q3_WAgg1d] (Q3_Sink1d) {Kafka Sink: q3\_1d};
+                \node[muted, right=3.2cm of Q3_WAgg7d] (Q3_Sink7d) {Kafka Sink: q3\_7d};
+                \node[muted, right=3.2cm of Q3_WAggG] (Q3_SinkG) {Kafka Sink: q3\_glob};
+
+                %% COLLEGAMENTI
+                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+                    \draw[mutedline] (KafkaSource) -- (Watermark);
+                    \draw[mutedline] (Watermark) -- (Preprocessing);
+
+                    %% Q1 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q1_Filter.west);
+                    \draw[mutedline] (Q1_Filter) -- (Q1_Map);
+                    \draw[mutedline] (Q1_Map) -- (Q1_KeyBy);
+                    \draw[mutedline] (Q1_KeyBy) -- (Q1_WinAgg);
+                    \draw[mutedline] (Q1_WinAgg) -- (Q1_Sink);
+
+                    %% Q2 (EVIDENZIATO)
+                    \draw (Preprocessing.east) -- (Q2_Filter.west);
+                    \draw (Q2_Filter) -- (Q2_Map);
+                    \draw (Q2_Map) -- (Q2_KeyBy);
+                    \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAgg1.west);
+                    \draw (Q2_KeyBy.east) -- (Q2_WAgg6.west);
+                    \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAggG.west);
+                    \draw (Q2_WAgg1) -- (Q2_KBy1);
+                    \draw (Q2_WAgg6) -- (Q2_KBy6);
+                    \draw (Q2_WAggG) -- (Q2_KByG);
+                    \draw (Q2_KBy1) -- (Q2_Rank1);
+                    \draw (Q2_KBy6) -- (Q2_Rank6);
+                    \draw (Q2_KByG) -- (Q2_RankG);
+                    \draw (Q2_Rank1) -- (Q2_Sink1);
+                    \draw (Q2_Rank6) -- (Q2_Sink6);
+                    \draw (Q2_RankG) -- (Q2_SinkG);
+
+                    %% Q3 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q3_Filter1.west);
+                    \draw[mutedline] (Q3_Filter1) -- (Q3_Filter2);
+                    \draw[mutedline] (Q3_Filter2) -- (Q3_Map);
+                    \draw[mutedline] (Q3_Map) -- (Q3_KeyBy);
+                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAgg1d.west);
+                    \draw[mutedline] (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
+                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAggG.west);
+                    \draw[mutedline] (Q3_WAgg1d) -- (Q3_Sink1d);
+                    \draw[mutedline] (Q3_WAgg7d) -- (Q3_Sink7d);
+                    \draw[mutedline] (Q3_WAggG) -- (Q3_SinkG);
+                \end{scope}
+            \end{tikzpicture}
+            \end{adjustbox}
+        \end{column}
+        
+        \begin{column}{0.34\textwidth}
+            \begin{block}{Query 2: Airport Ranking}
+                \scriptsize
+                Identificazione oraria dei primi 10 aeroporti per puntualità delle partenze:
+                \begin{itemize}
+                    \item \textbf{Filtro Voli}: Inclusione dei soli voli attivi (esclusi voli cancellati o deviati).
+                    \item \textbf{Multirisoluzione}: Calcolo parallelo su 3 finestre: Tumbling 1h, Tumbling 6h e Global 24h con trigger custom.
+                    \item \textbf{RankProcessor}: Calcolo efficiente del ranking locale basato sul conteggio dei voli puntuali (\texttt{depDelay} $\le$ 15 min) diviso per i voli totali.
+                    \item \textbf{Output}: Inviato a tre diversi topic di destinazione.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Topologia Flink: Focus Query 3}
+    \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
+    \begin{columns}[c]
+        \begin{column}{0.63\textwidth}
+            \centering
+            \begin{adjustbox}{max width=\linewidth, max height=0.82\textheight}
+            \begin{tikzpicture}[
+                node distance=0.25cm and 0.2cm,
+                every node/.style={font=\dagfontsize\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3pt},
+                source/.style={fill=violet!25, line width=1pt},
+                filter/.style={fill=yellow!15},
+                map/.style={fill=blue!12},
+                keyby/.style={fill=red!10},
+                window/.style={fill=green!12},
+                sink/.style={fill=green!25, line width=1pt},
+                muted/.style={fill=black!3, draw=black!12, text=black!25},
+                mutedline/.style={draw=black!10}
+            ]
+                %% INGESTIONE E PREPROCESSING (DISATTIVATI)
+                \node[muted] (KafkaSource) {Kafka Source};
+                \node[muted, right=of KafkaSource] (Watermark) {Watermark\\Assignment};
+                \node[muted, right=of Watermark] (Preprocessing) {Logical Inconsistency\\Data Filter};
+
+                %% BRANCH QUERY 1 (DISATTIVATI)
+                \node[muted, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {Airline Filter};
+                \node[muted, right=of Q1_Filter] (Q1_Map) {Map to Event};
+                \node[muted, right=of Q1_Map] (Q1_KeyBy) {KeyBy (airline)};
+                \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {Tumbling Window (1h)\\+ Lateness \& Aggregation};
+                \node[muted, right=of Q1_WinAgg] (Q1_Sink) {Kafka Sink:\\q1\_results};
+
+                %% BRANCH QUERY 2 (DISATTIVATI)
+                \node[muted, right=0.6cm of Preprocessing] (Q2_Filter) {Active Flight Filter};
+                \node[muted, right=of Q2_Filter] (Q2_Map) {Map to Event};
+                \node[muted, right=of Q2_Map] (Q2_KeyBy) {KeyBy (originAirport)};
+
+                \node[muted, right=0.6cm of Q2_KeyBy] (Q2_WAgg6) {Tumbling Window (6h)\\+ Aggregation};
+                \node[muted, above=0.7cm of Q2_WAgg6] (Q2_WAgg1) {Tumbling Window (1h)\\+ Aggregation};
+                \node[muted, below=0.7cm of Q2_WAgg6] (Q2_WAggG) {Global Window (24h)\\+ Aggregation};
+
+                \node[muted, right=of Q2_WAgg1] (Q2_KBy1) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KBy1] (Q2_Rank1) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_Rank1] (Q2_Sink1) {Kafka Sink: q2\_1h};
+
+                \node[muted, right=of Q2_WAgg6] (Q2_KBy6) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KBy6] (Q2_Rank6) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_Rank6] (Q2_Sink6) {Kafka Sink: q2\_6h};
+
+                \node[muted, right=of Q2_WAggG] (Q2_KByG) {KeyBy (windowEnd)};
+                \node[muted, right=of Q2_KByG] (Q2_RankG) {RankProcessor\\(Top 10)};
+                \node[muted, right=of Q2_RankG] (Q2_SinkG) {Kafka Sink: q2\_glob};
+
+                %% BRANCH QUERY 3 (EVIDENZIATO)
+                \node[filter, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {Airline Filter};
+                \node[filter, right=of Q3_Filter1] (Q3_Filter2) {Active Flight Filter};
+                \node[map, right=of Q3_Filter2] (Q3_Map) {Map to Event};
+                \node[keyby, right=of Q3_Map] (Q3_KeyBy) {KeyBy (airline, hour)};
+
+                \node[window, right=0.6cm of Q3_KeyBy] (Q3_WAgg7d) {Tumbling Window (7d)\\+ Percentile Aggregation};
+                \node[window, above=0.7cm of Q3_WAgg7d] (Q3_WAgg1d) {Tumbling Window (1d)\\+ Percentile Aggregation};
+                \node[window, below=0.7cm of Q3_WAgg7d] (Q3_WAggG) {Global Window (1d)\\+ Percentile Aggregation};
+
+                \node[sink, right=3.2cm of Q3_WAgg1d] (Q3_Sink1d) {Kafka Sink: q3\_1d};
+                \node[sink, right=3.2cm of Q3_WAgg7d] (Q3_Sink7d) {Kafka Sink: q3\_7d};
+                \node[sink, right=3.2cm of Q3_WAggG] (Q3_SinkG) {Kafka Sink: q3\_glob};
+
+                %% COLLEGAMENTI
+                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+                    \draw[mutedline] (KafkaSource) -- (Watermark);
+                    \draw[mutedline] (Watermark) -- (Preprocessing);
+
+                    %% Q1 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q1_Filter.west);
+                    \draw[mutedline] (Q1_Filter) -- (Q1_Map);
+                    \draw[mutedline] (Q1_Map) -- (Q1_KeyBy);
+                    \draw[mutedline] (Q1_KeyBy) -- (Q1_WinAgg);
+                    \draw[mutedline] (Q1_WinAgg) -- (Q1_Sink);
+
+                    %% Q2 (MUTED)
+                    \draw[mutedline] (Preprocessing.east) -- (Q2_Filter.west);
+                    \draw[mutedline] (Q2_Filter) -- (Q2_Map);
+                    \draw[mutedline] (Q2_Map) -- (Q2_KeyBy);
+                    \draw[mutedline] (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAgg1.west);
+                    \draw[mutedline] (Q2_KeyBy.east) -- (Q2_WAgg6.west);
+                    \draw[mutedline] (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAggG.west);
+                    \draw[mutedline] (Q2_WAgg1) -- (Q2_KBy1);
+                    \draw[mutedline] (Q2_WAgg6) -- (Q2_KBy6);
+                    \draw[mutedline] (Q2_WAggG) -- (Q2_KByG);
+                    \draw[mutedline] (Q2_KBy1) -- (Q2_Rank1);
+                    \draw[mutedline] (Q2_KBy6) -- (Q2_Rank6);
+                    \draw[mutedline] (Q2_KByG) -- (Q2_RankG);
+                    \draw[mutedline] (Q2_Rank1) -- (Q2_Sink1);
+                    \draw[mutedline] (Q2_Rank6) -- (Q2_Sink6);
+                    \draw[mutedline] (Q2_RankG) -- (Q2_SinkG);
+
+                    %% Q3 (EVIDENZIATO)
+                    \draw (Preprocessing.east) -- ++(0.2,0) |- (Q3_Filter1.west);
+                    \draw (Q3_Filter1) -- (Q3_Filter2);
+                    \draw (Q3_Filter2) -- (Q3_Map);
+                    \draw (Q3_Map) -- (Q3_KeyBy);
+                    \draw (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAgg1d.west);
+                    \draw (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
+                    \draw (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAggG.west);
+                    \draw (Q3_WAgg1d) -- (Q3_Sink1d);
+                    \draw (Q3_WAgg7d) -- (Q3_Sink7d);
+                    \draw (Q3_WAggG) -- (Q3_SinkG);
+                \end{scope}
+            \end{tikzpicture}
+            \end{adjustbox}
+        \end{column}
+        
+        \begin{column}{0.34\textwidth}
+            \begin{block}{Query 3: Delay Distribution}
+                \scriptsize
+                Calcolo dei percentili di ritardo per le partenze negli aeroporti e fasce orarie target:
+                \begin{itemize}
+                    \item \textbf{Filtri Combinati}: Selezione aeroporti di partenza target e voli attivi.
+                    \item \textbf{Chiave Composita}: Partizionamento su \texttt{Tuple2(airline, scheduledHour)}.
+                    \item \textbf{Finestre Parallele}: Calcolo contemporaneo su Tumbling 1 giorno, Tumbling 7 giorni e Global Window.
+                    \item \textbf{DDSketch e Quantili}: Struttura probabilistica in memoria per calcolare la distribuzione e stimare i percentili ($25^\circ, 50^\circ, 75^\circ$) in tempo lineare.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Configurazione Job e Ottimizzazione POJO}
