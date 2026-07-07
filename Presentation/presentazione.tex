@@ -22,6 +22,8 @@
 \tcbuselibrary{listings}
 \usepackage{mathtools}
 \usepackage{adjustbox}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric}
 
 % --- CONFIGURAZIONE COLORI CODICE ---
 \definecolor{pyKeyword}{RGB}{0,90,180}
@@ -308,25 +310,105 @@
 
 \begin{frame}{Big Data Stack e Flow Diagram}
     \begin{columns}[c]
-        \begin{column}{0.48\textwidth}
+        \begin{column}{0.30\textwidth}
             \centering
-            \includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{../Report/graphs/BigDataStack.png}
+            \includegraphics[width=\linewidth,height=0.52\textheight,keepaspectratio]{../Report/graphs/BigDataStack.png}
             \vskip 0.2cm
-            \small Componenti del Big Data Stack
+            \small Big Data Stack
         \end{column}
 
-        \begin{column}{0.48\textwidth}
+        \begin{column}{0.66\textwidth}
             \centering
-            \includegraphics[width=\linewidth,height=0.68\textheight,keepaspectratio]{../Report/graphs/InteractionDiagram.png}
+            \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{../Report/graphs/InteractionDiagram.png}
             \vskip 0.2cm
-            \small Diagramma di interazione e flussi dati
+            \small Flow Diagram
         \end{column}
     \end{columns}
 \end{frame}
 
 % --- SEZIONE 2 ---
 \section{Ingestion e Broker Layer}\label{sec:ingestion_and_broker_layer}
-\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su partizionamento Kafka.]{Ingestion e Broker Layer}
+\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su partizionamento Kafka.]{Ingestion e Broker Layer}\begin{frame}{Flusso di Funzionamento del Simulatore Go}
+    \centering
+    \begin{adjustbox}{max width=0.95\textwidth, max height=0.82\textheight}
+    \begin{tikzpicture}[
+        node distance=0.4cm and 0.6cm,
+        every node/.style={font=\tiny\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=4pt},
+        init/.style={fill=violet!25, line width=1pt},
+        process/.style={fill=blue!12},
+        decision/.style={shape=diamond, aspect=2.2, fill=orange!12, inner sep=2pt, font=\fontsize{5pt}{6.5pt}\selectfont},
+        sink/.style={fill=green!25, line width=1pt}
+    ]
+        %% NODI
+        \node[init] (Start) {Start: Avvio Simulatore\\(Carica Configurazione, Inizializza Sink)};
+        
+        \node[decision, below=0.4cm of Start] (CheckTar) {Archivio .tar.gz\\locale presente?};
+        \node[process, left=0.8cm of CheckTar] (DownloadTar) {Download Dataset remoto\\\& Verifica SHA1};
+        \node[decision, below=0.4cm of CheckTar] (CheckSHA1) {Verifica SHA1\\dell'archivio valida?};
+        
+        \node[decision, below=0.4cm of CheckSHA1] (CheckCache) {Cache binaria GOB\\presente?};
+        \node[process, below=0.4cm of CheckCache] (Load) {Lettura Record da Cache\\(pre-ordinati)};
+        \node[process, right=0.8cm of Load] (ParseTar) {Parsing CSV da Tar.gz\\Ordinamento per Event-Time\\Salvataggio Cache GOB};
+        
+        \node[process, below=0.4cm of Load] (Schedule) {Calcolo Tempo di Invio (PublishAt)\\e Iniezione Disordine Casuale (OOO)};
+        \node[process, below=0.4cm of Schedule] (Sort) {Ordinamento Stabile dei Record\\rispetto a PublishAt};
+        
+        \node[decision, below=0.4cm of Sort] (LoopCheck) {Record rimasti\\in coda?};
+        \node[init, left=1.2cm of LoopCheck] (End) {End: Terminato\\(Chiusura Sink \& Exit)};
+        
+        \node[decision, below=0.4cm of LoopCheck] (CheckCancel) {Simulazione\\interrotta / annullata?};
+        
+        \node[process, below=0.4cm of CheckCancel] (CalcWait) {Calcolo attesa residua rispetto a prec.\\(targetWait / SpeedupFactor)};
+        
+        \node[decision, below=0.5cm of CalcWait] (CheckWait) {Attesa residua\\(targetWait) > 0?};
+        \node[process, right=0.8cm of CheckWait] (Wait) {Attesa Temporizzata Ibrida\\(Sleep per attese lunghe,\\Busy Wait per precisione ms)};
+        
+        \node[sink, below=0.5cm of CheckWait] (Write) {Scrittura Record nel Sink\\(Topic Kafka / Terminal Console)};
+        
+        \node[process, below=0.4cm of Write] (Update) {Aggiorna contatori e riferimenti\\temporali per il record successivo};
+
+        %% COLLEGAMENTI
+        \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+            \draw (Start) -- (CheckTar);
+            
+            \draw (CheckTar) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckSHA1);
+            \draw (CheckTar) -- node[above, font=\tiny\sffamily, draw=none] {No} (DownloadTar);
+            
+            \draw (CheckSHA1.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (DownloadTar.south);
+            \draw (CheckSHA1) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckCache);
+            
+            \draw (DownloadTar.west) -- ++(-0.3,0) |- (CheckCache.west);
+            
+            \draw (CheckCache) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (Load);
+            \draw (CheckCache.east) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (ParseTar.north);
+            
+            \draw (Load) -- (Schedule);
+            \draw (ParseTar.south) |- (Schedule.east);
+            
+            \draw (Schedule) -- (Sort);
+            \draw (Sort) -- (LoopCheck);
+            
+            \draw (LoopCheck) -- node[above, font=\tiny\sffamily, draw=none] {No} (End);
+            \draw (LoopCheck) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckCancel);
+            
+            \draw (CheckCancel.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {Sì} (End.south);
+            \draw (CheckCancel) -- node[left, font=\tiny\sffamily, draw=none] {No} (CalcWait);
+            
+            \draw (CalcWait) -- (CheckWait);
+            
+            \draw (CheckWait) -- node[above, font=\tiny\sffamily, draw=none] {Sì} (Wait);
+            \draw (CheckWait) -- node[left, font=\tiny\sffamily, draw=none] {No} (Write);
+            
+            \draw (Wait.south) |- (Write.east);
+            
+            \draw (Write) -- (Update);
+            
+            %% Loopback a LoopCheck
+            \draw (Update.east) -- ++(3.5,0) |- (LoopCheck.east);
+        \end{scope}
+    \end{tikzpicture}
+    \end{adjustbox}
+\end{frame}
 
 \begin{frame}[fragile]{Ingestione: Il Simulatore Custom in Go}
     \begin{columns}[c]
@@ -405,7 +487,112 @@ kafka-topics.sh --create --bootstrap-server kafka:9092 \
 
 % --- SEZIONE 3 ---
 \section{Stream Processing Core (Apache Flink)}\label{sec:stream_processing_core}
-\SectionFrame[Architettura della topologia computazionale concorrente, gestione del tempo logico, ottimizzazioni di memoria, DDSketch e dettagli delle query.]{Stream Processing con Apache Flink}
+\SectionFrame[Architettura della topologia computazionale concorrente, gestione del tempo logico, ottimizzazioni di memoria, DDSketch e dettagli delle query.]{Apache Flink}
+
+\begin{frame}{Topologia del Flusso Streaming (DAG)}
+    \centering
+    \begin{adjustbox}{max width=0.98\textwidth, max height=0.82\textheight}
+    \begin{tikzpicture}[
+        node distance=0.35cm and 0.45cm,
+        every node/.style={font=\tiny\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=4pt},
+        source/.style={fill=violet!25, line width=1pt},
+        filter/.style={fill=yellow!15},
+        map/.style={fill=blue!12},
+        keyby/.style={fill=red!10},
+        window/.style={fill=green!12},
+        sink/.style={fill=green!25, line width=1pt}
+    ]
+        %% INGESTIONE E PREPROCESSING
+        \node[source] (KafkaSource) {Kafka Source\\(rawStream)};
+        \node[filter, right=of KafkaSource] (Watermark) {Watermark Assignment\\(Bounded Out-Of-Orderness)};
+        \node[filter, right=of Watermark] (Preprocessing) {Filter: LogicalInconsistencyFilter\\(preprocessingStream)};
+
+        %% BRANCH QUERY 1
+        \node[filter, above right=2.3cm and 0.6cm of Preprocessing] (Q1_Filter) {Filter:\\TargetAirlineFilter};
+        \node[map, right=of Q1_Filter] (Q1_Map) {Map:\\AirlinePerformanceEvent};
+        \node[keyby, right=of Q1_Map] (Q1_KeyBy) {KeyBy:\\airline};
+        \node[window, right=of Q1_KeyBy] (Q1_WinAgg) {Window: Tumbling (1h) + Lateness\\+ Aggregate: AirlinePerformanceAggregator};
+        \node[sink, right=of Q1_WinAgg] (Q1_Sink) {Kafka Sink:\\q1\_results};
+
+        %% BRANCH QUERY 2
+        \node[filter, right=0.8cm of Preprocessing] (Q2_Filter) {Filter:\\ActiveFlightFilter};
+        \node[map, right=of Q2_Filter] (Q2_Map) {Map:\\RankAirportsEvent};
+        \node[keyby, right=of Q2_Map] (Q2_KeyBy) {KeyBy:\\originAirportId};
+
+        \node[window, right=0.8cm of Q2_KeyBy] (Q2_WAgg6) {Window: Tumbling (6h)\\+ Aggregate (6h)};
+        \node[window, above=0.5cm of Q2_WAgg6] (Q2_WAgg1) {Window: Tumbling (1h)\\+ Aggregate (1h)};
+        \node[window, below=0.5cm of Q2_WAgg6] (Q2_WAggG) {Window: Global (Trigger: 24h)\\+ Aggregate (Global)};
+
+        \node[keyby, right=of Q2_WAgg1] (Q2_KBy1) {KeyBy:\\windowEnd};
+        \node[filter, right=of Q2_KBy1] (Q2_Rank1) {Process: RankProcessor\\(Top 10 Airports)};
+        \node[sink, right=of Q2_Rank1] (Q2_Sink1) {Kafka Sink:\\q2\_1h};
+
+        \node[keyby, right=of Q2_WAgg6] (Q2_KBy6) {KeyBy:\\windowEnd};
+        \node[filter, right=of Q2_KBy6] (Q2_Rank6) {Process: RankProcessor\\(Top 10 Airports)};
+        \node[sink, right=of Q2_Rank6] (Q2_Sink6) {Kafka Sink:\\q2\_6h};
+
+        \node[keyby, right=of Q2_WAggG] (Q2_KByG) {KeyBy:\\windowEnd};
+        \node[filter, right=of Q2_KByG] (Q2_RankG) {Process: RankProcessor\\(Top 10 Airports)};
+        \node[sink, right=of Q2_RankG] (Q2_SinkG) {Kafka Sink:\\q2\_global};
+
+        %% BRANCH QUERY 3
+        \node[filter, below right=2.3cm and 0.6cm of Preprocessing] (Q3_Filter1) {Filter:\\TargetAirlineFilter};
+        \node[filter, right=of Q3_Filter1] (Q3_Filter2) {Filter:\\ActiveFlightFilter};
+        \node[map, right=of Q3_Filter2] (Q3_Map) {Map:\\DelayDistributionEvent};
+        \node[keyby, right=of Q3_Map] (Q3_KeyBy) {KeyBy:\\Tuple2(airline, scheduledHour)};
+
+        \node[window, right=0.8cm of Q3_KeyBy] (Q3_WAgg7d) {Window: Tumbling (7d)\\+ Aggregate (7d) [Percentiles]};
+        \node[window, above=0.5cm of Q3_WAgg7d] (Q3_WAgg1d) {Window: Tumbling (1d)\\+ Aggregate (1d) [Percentiles]};
+        \node[window, below=0.5cm of Q3_WAgg7d] (Q3_WAggG) {Window: Global (Trigger: 1d)\\+ Aggregate (Global) [Percentiles]};
+
+        \node[sink, right=4.5cm of Q3_WAgg1d] (Q3_Sink1d) {Kafka Sink:\\q3\_1d};
+        \node[sink, right=4.5cm of Q3_WAgg7d] (Q3_Sink7d) {Kafka Sink:\\q3\_7d};
+        \node[sink, right=4.5cm of Q3_WAggG] (Q3_SinkG) {Kafka Sink:\\q3\_global};
+
+        %% COLLEGAMENTI
+        \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+            \draw (KafkaSource) -- (Watermark);
+            \draw (Watermark) -- (Preprocessing);
+
+            %% Q1
+            \draw (Preprocessing.east) -- ++(0.3,0) |- (Q1_Filter.west);
+            \draw (Q1_Filter) -- (Q1_Map);
+            \draw (Q1_Map) -- (Q1_KeyBy);
+            \draw (Q1_KeyBy) -- (Q1_WinAgg);
+            \draw (Q1_WinAgg) -- (Q1_Sink);
+
+            %% Q2
+            \draw (Preprocessing.east) -- (Q2_Filter.west);
+            \draw (Q2_Filter) -- (Q2_Map);
+            \draw (Q2_Map) -- (Q2_KeyBy);
+            \draw (Q2_KeyBy.east) -- ++(0.3,0) |- (Q2_WAgg1.west);
+            \draw (Q2_KeyBy.east) -- (Q2_WAgg6.west);
+            \draw (Q2_KeyBy.east) -- ++(0.3,0) |- (Q2_WAggG.west);
+            \draw (Q2_WAgg1) -- (Q2_KBy1);
+            \draw (Q2_WAgg6) -- (Q2_KBy6);
+            \draw (Q2_WAggG) -- (Q2_KByG);
+            \draw (Q2_KBy1) -- (Q2_Rank1);
+            \draw (Q2_KBy6) -- (Q2_Rank6);
+            \draw (Q2_KByG) -- (Q2_RankG);
+            \draw (Q2_Rank1) -- (Q2_Sink1);
+            \draw (Q2_Rank6) -- (Q2_Sink6);
+            \draw (Q2_RankG) -- (Q2_SinkG);
+
+            %% Q3
+            \draw (Preprocessing.east) -- ++(0.3,0) |- (Q3_Filter1.west);
+            \draw (Q3_Filter1) -- (Q3_Filter2);
+            \draw (Q3_Filter2) -- (Q3_Map);
+            \draw (Q3_Map) -- (Q3_KeyBy);
+            \draw (Q3_KeyBy.east) -- ++(0.3,0) |- (Q3_WAgg1d.west);
+            \draw (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
+            \draw (Q3_KeyBy.east) -- ++(0.3,0) |- (Q3_WAggG.west);
+            \draw (Q3_WAgg1d) -- (Q3_Sink1d);
+            \draw (Q3_WAgg7d) -- (Q3_Sink7d);
+            \draw (Q3_WAggG) -- (Q3_SinkG);
+        \end{scope}
+    \end{tikzpicture}
+    \end{adjustbox}
+\end{frame}
 
 \begin{frame}[fragile]{Configurazione Job e Ottimizzazione POJO}
     \begin{columns}[c]
