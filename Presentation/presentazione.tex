@@ -863,69 +863,78 @@ public class TelemetryMapper extends RichMapFunction<...> {
 \section{Infrastruttura di Deployment}\label{sec:deployment_infrastructure}
 \SectionFrame[Architettura multi-container locale ed automazione cloud del cluster distribuito su AWS EC2 tramite CloudFormation e Route 53.]{Infrastruttura di Deployment}
 
-\begin{frame}{Deployment Locale vs AWS Cloud}
+\begin{frame}{Deploy: Topologia dell'architettura}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \centering
-            \textbf{Locale (Docker Compose)}
+            \textbf{Deployment su AWS}
+        
             \begin{itemize}
-                \item Rete private bridge per l'interconnessione di 11 container.
-                \item 1 broker Kafka + container init.
-                \item Flink JobManager + 3 TaskManager (2 slot ciascuno $\rightarrow$ parallelismo max 6).
-                \item 3 container HDFS (1 NameNode, 2 DataNode) per checkpointing simulato.
-                \item Telegraf + InfluxDB + Grafana per persistenza e visualizzazione.
-                \item Configurazione iniettata via file \texttt{.env}.
+                \item Provisioning automatizzato dell'infrastruttura tramite template AWS CloudFormation.
+                \item Creazione di una VPC dedicata, security group e Private Hosted Zone Route 53 per la risoluzione DNS interna.
+                \item Distribuzione delle build e delle configurazioni tramite bucket Amazon S3 privato.
+                \item Avvio automatico delle istanze EC2 con bootstrap di Docker, download degli artefatti e deploy dei container locali.
+                \item La risoluzione DNS interna evita di dipendere da indirizzi IP variabili delle istanze EC2.
             \end{itemize}
         \end{column}
 
         \begin{column}{0.48\textwidth}
             \centering
-            \textbf{AWS Distributed Cloud}
-            \begin{itemize}
-                \item Provisioning automatizzato tramite stack AWS CloudFormation.
-                \item VPC dedicata con Private Hosted Zone su Amazon Route 53 (\texttt{flight-analysis.local}) per risoluzione DNS interna senza IP fissi.
-                \item Bootstrap automatico delle istanze EC2 all'avvio: installazione Docker, download delle build da S3 e deploy.
-            \end{itemize}
-            \vfill
-            \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../Report/graphs/DeploymentView-EC2.png}
-        \end{column}
-    \end{columns}
-\end{frame}
+            \includegraphics[width=0.85\linewidth]{../Report/graphs/DeploymentView-EC2.png}
 
-\begin{frame}{Dimensionamento delle Istanze EC2}
-    \begin{columns}[c]
-        \begin{column}{0.54\textwidth}
-            \textbf{Scelta delle Famiglie EC2}
-            \begin{itemize}
-                \item Per i nodi computazionali di Flink sono state evitate istanze burstable (famiglia \texttt{t3}) per eliminare il rischio di CPU throttling sotto carico da esaurimento crediti.
-                \item Scelta ricaduta sulle istanze compute-optimized della famiglia \textbf{\texttt{c6i}}.
-            \end{itemize}
-            \textbf{Topologia del Cluster AWS}
-            \begin{itemize}
-                \item \textbf{Flink JobManager}: 1 x \texttt{c6i.large} (2 vCPU, 4 GiB RAM).
-                \item \textbf{Flink TaskManager}: 3 x \texttt{c6i.large} (2 vCPU, 4 GiB RAM, 2 slot ciascuno).
-                \item \textbf{Kafka Cluster}: 1 x \texttt{t3.large} (broker master e generatore simulatore) + 2 x \texttt{t3.medium} (repliche).
-                \item \textbf{Persistenza e Grafica}: 2 x \texttt{t3.small} (Telegraf/InfluxDB, Grafana).
-            \end{itemize}
-        \end{column}
+            \vspace{-0.15cm}
 
-        \begin{column}{0.44\textwidth}
-            \begin{block}{\scriptsize Risoluzione DNS Interna}
+            \begin{block}{\scriptsize DNS Interno Route 53}
                 \centering
                 \scriptsize
                 \begin{tabular}{ll}
                     \hline
-                    \textbf{Hostname DNS} & \textbf{Ruolo} \\
+                    \textbf{Hostname} & \textbf{Ruolo} \\
                     \hline
-                    \texttt{kafka1.flight-analysis.local} & Kafka Master \\
-                    \texttt{kafka2.flight-analysis.local} & Kafka Repl 1 \\
+                    \texttt{kafka-N.flight-analysis.local} & Kafka broker \\
                     \texttt{jobmanager.flight-analysis.local} & Flink JM \\
-                    \texttt{taskmanager1.flight-analysis.local} & Flink TM 1 \\
-                    \texttt{influxdb.flight-analysis.local} & InfluxDB \\
+                    \texttt{flink-worker-N.flight-analysis.local} & Flink TM \\
+                    \texttt{influxdb.flight-analysis.local} & Database \\
+                    \texttt{metrics.flight-analysis.local} & Dashboarding \\
                     \hline
                 \end{tabular}
             \end{block}
         \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Deploy: Dimensionamento delle EC2}
+    \begin{columns}[c]
+
+        \begin{column}{0.50\textwidth}
+            \textbf{Criteri di Dimensionamento}
+
+            \begin{itemize}
+                \item Il cluster AWS è stato dimensionato bilanciando costo e stabilità delle risorse.
+                \item Per Apache Flink sono state scelte istanze compute-optimized \textbf{\texttt{c6i}}, evitando nodi burstable \texttt{t3}.
+                \item Questa scelta riduce il rischio di CPU throttling durante carichi prolungati, dovuto all'esaurimento dei crediti CPU.
+                \item Le istanze \texttt{t3} sono state invece mantenute per Kafka, monitoring e dashboarding, dove il carico è meno CPU-bound.
+            \end{itemize}
+        \end{column}
+
+        \begin{column}{0.48\textwidth}
+            \begin{block}{\scriptsize Tipologia delle Istanze}
+                \centering
+                \scriptsize
+                \begin{tabular}{llll}
+                    \hline
+                    \textbf{Componente} & \textbf{N.} & \textbf{Tipo} & \textbf{Risorse} \\
+                    \hline
+                    Kafka Broker 1 & 1 & \texttt{t3.large} & 2 vCPU, 8 GiB \\
+                    Kafka Broker 2--3 & 2 & \texttt{t3.medium} & 2 vCPU, 4 GiB \\
+                    Flink JobManager & 1 & \texttt{c6i.large} & 2 vCPU, 4 GiB \\
+                    Flink TaskManager & 3 & \texttt{c6i.large} & 2 vCPU, 4 GiB \\
+                    InfluxDB/Telegraf & 1 & \texttt{t3.small} & 2 vCPU, 2 GiB \\
+                    Grafana & 1 & \texttt{t3.small} & 2 vCPU, 2 GiB \\
+                    \hline
+                \end{tabular}
+            \end{block}
+        \end{column}
+
     \end{columns}
 \end{frame}
 
@@ -937,11 +946,23 @@ public class TelemetryMapper extends RichMapFunction<...> {
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
             \centering
-            \textbf{Scenario Fast: Transitorio}
-            \vskip 0.1cm
-            \CropThroughput{cluster_clean_run_fast_para3_part6.png}
-            \vskip 0.1cm
-            {\tiny Throughput scenario Fast con parallelismo P=3}
+        
+            \begin{minipage}[t][0.43\textheight][t]{\linewidth}
+                \centering
+                \CropThroughput{cluster_clean_run_fast_para3_part6.png}
+                \vspace{0.05cm}
+                {\tiny Throughput scenario Fast con parallelismo P=3}
+            \end{minipage}
+        
+            \vspace{-0.55cm}
+        
+            \begin{minipage}[t][0.43\textheight][t]{\linewidth}
+                \centering
+                \includegraphics[width=\linewidth]{../Results/charts/throughput/thr_out_trans_comparison}
+                \vspace{0.05cm}
+                {\tiny Comparazione tra throughput in uscita per i tre scenari}
+            \end{minipage}
+        
         \end{column}
 
         \begin{column}{0.48\textwidth}
