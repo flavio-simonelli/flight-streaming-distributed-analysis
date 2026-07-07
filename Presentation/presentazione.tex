@@ -493,36 +493,106 @@ for time.Now().Before(deadline) {
 
 \begin{frame}[fragile]{Message Broker: Apache Kafka}
     \begin{columns}[c]
-        \begin{column}{0.50\textwidth}
-            \textbf{Partizionamento e Parallelismo}
-            \begin{itemize}
-                \item Topic primario \texttt{flights-stream} configurato con 6 partizioni.
-                \item Permette uno scale-out lineare di Flink (mapping 1:1 ottimale tra partizioni e consumer subtask).
-            \end{itemize}
-
-            \textbf{Scrittura bilanciata in Ingress}
-            \begin{itemize}
-                \item Scrittura in \textit{Round-Robin} (chiave nulla) dal simulatore.
-                \item Distribuzione uniforme del carico: previene la formazione di *idle partitions* (che arresterebbero l'avanzamento dei watermark in Flink) o *hot partitions*.
-            \end{itemize}
-
-            \textbf{Instradamento dell'Output}
-            \begin{itemize}
-                \item Topic dedicati per query e finestre.
-                \item Scrittura partizionata per chiave (`airline` o `origin\_airport\_id`) per consentire letture cronologiche parziali a valle.
-            \end{itemize}
+        \begin{column}{0.44\textwidth}
+            \begin{block}{\footnotesize Ingestion \& Ingress Buffering}
+                \scriptsize
+                \begin{itemize}
+                    \item \textbf{Topic \texttt{flights-stream}}: 6 partizioni per scalare linearmente con il parallelismo di Flink (mapping 1:1).
+                    \item \textbf{Scrittura in Ingress}: Scrittura con chiave nulla (\texttt{Key: nil}) in \textbf{Round-Robin} per distribuire uniformemente il carico ed evitare partizioni inattive.
+                \end{itemize}
+            \end{block}
+            \vskip 0.1cm
+            \begin{block}{\footnotesize Instradamento Output}
+                \scriptsize
+                \begin{itemize}
+                    \item \textbf{Topic Dedicati}: Un topic per ciascuna query e finestra temporale.
+                    \item \textbf{Partizionamento per Chiave}:
+                        \begin{itemize}
+                            \item \textbf{Q1} su \texttt{airline} per ordinamento cronologico locale.
+                            \item \textbf{Q2} su \texttt{origin\_airport\_id}.
+                            \item \textbf{Q3} con chiave nulla (round-robin).
+                        \end{itemize}
+                \end{itemize}
+            \end{block}
         \end{column}
 
-        \begin{column}{0.48\textwidth}
-            \begin{terminalbox}{Terminale - Creazione Topic Kafka}
-kafka-topics.sh --create --bootstrap-server kafka:9092 \
-    --partitions 6 --replication-factor 3 \
-    --topic flights-stream
+        \begin{column}{0.54\textwidth}
+            \centering
+            \begin{adjustbox}{max width=\linewidth, max height=0.82\textheight}
+            \begin{tikzpicture}[
+                node distance=0.4cm and 0.4cm,
+                every node/.style={font=\tiny\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3pt},
+                component/.style={fill=blue!12, line width=1pt},
+                topic/.style={fill=orange!12, font=\fontsize{4.2pt}{5.2pt}\selectfont, inner sep=2pt},
+                sink/.style={fill=green!12, line width=1pt}
+            ]
+                %% BOUNDING BOX KAFKA INGRESS
+                \draw[dashed, orange!50, fill=orange!2, line width=0.8pt, rounded corners=5pt] (1.1, -0.1) rectangle (3.3, 1.7);
+                \node[draw=none, fill=white, inner sep=2pt] at (2.2, 1.7) {\includegraphics[height=0.22cm]{logos/kafka.png}\ \textbf{Kafka Ingress}};
 
-kafka-topics.sh --create --bootstrap-server kafka:9092 \
-    --partitions 3 --replication-factor 3 \
-    --topic flights-q1-results
-            \end{terminalbox}
+                %% BOUNDING BOX KAFKA EGRESS
+                \draw[dashed, orange!50, fill=orange!2, line width=0.8pt, rounded corners=5pt] (5.4, -1.4) rectangle (8.6, 3.2);
+                \node[draw=none, fill=white, inner sep=2pt] at (7.0, 3.2) {\includegraphics[height=0.22cm]{logos/kafka.png}\ \textbf{Kafka Egress}};
+
+                %% SOTTO-BOX QUERY 1
+                \draw[densely dotted, black!40, rounded corners=3pt] (5.5, 2.3) rectangle (8.5, 3.0);
+                \node[draw=none, fill=white, inner sep=1.5pt, anchor=west, font=\fontsize{3.5pt}{4.5pt}\selectfont] at (5.6, 3.0) {\textbf{Query 1} (Key: airline)};
+
+                %% SOTTO-BOX QUERY 2
+                \draw[densely dotted, black!40, rounded corners=3pt] (5.5, 0.5) rectangle (8.5, 2.2);
+                \node[draw=none, fill=white, inner sep=1.5pt, anchor=west, font=\fontsize{3.5pt}{4.5pt}\selectfont] at (5.6, 2.2) {\textbf{Query 2} (Key: origin\_airport\_id)};
+
+                %% SOTTO-BOX QUERY 3
+                \draw[densely dotted, black!40, rounded corners=3pt] (5.5, -1.3) rectangle (8.5, 0.4);
+                \node[draw=none, fill=white, inner sep=1.5pt, anchor=west, font=\fontsize{3.5pt}{4.5pt}\selectfont] at (5.6, 0.4) {\textbf{Query 3} (Key: null)};
+
+                %% NODI LOGHI APPLICAZIONE (SENZA CONTORNO / SCRITTA / SFONDO)
+                \node[draw=none, fill=none] (Sim) at (0, 0.8) {\includegraphics[height=0.6cm]{logos/go.png}};
+                \node[draw=none, fill=none] (Flink) at (4.4, 0.8) {\includegraphics[height=0.55cm]{logos/flink.png}};
+                \node[draw=none, fill=none] (Telegraf) at (10.0, 0.8) {\includegraphics[height=0.55cm]{logos/telegraf.png}\ \includegraphics[height=0.55cm]{logos/influxdb.png}};
+                
+                %% TOPIC DI INGRESSO (IN KAFKA)
+                \node[topic] (TopicIn) at (2.2, 0.8) {\textbf{flights-stream}\\(6 partizioni)};
+                
+                %% TOPIC DI USCITA (IN KAFKA)
+                \node[topic] (Q1) at (7.0, 2.6) {\texttt{flights-q1-results}};
+                
+                \node[topic] (Q2a) at (7.0, 1.8) {\texttt{flights-q2-1h-results}};
+                \node[topic] (Q2b) at (7.0, 1.3) {\texttt{flights-q2-6h-results}};
+                \node[topic] (Q2c) at (7.0, 0.8) {\texttt{flights-q2-global-results}};
+                
+                \node[topic] (Q3a) at (7.0, 0.0) {\texttt{flights-q3-1d-results}};
+                \node[topic] (Q3b) at (7.0, -0.5) {\texttt{flights-q3-7d-results}};
+                \node[topic] (Q3c) at (7.0, -1.0) {\texttt{flights-q3-global-results}};
+                
+                %% FLUSSI DI COMUNICAZIONE (FRECCE)
+                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+                    % Scrittura da simulatore a TopicIn
+                    \draw (Sim.east) -- node[above, font=\fontsize{4pt}{5pt}\selectfont, draw=none] {Round-Robin} (TopicIn.west);
+                    
+                    % Lettura da Flink da TopicIn
+                    \draw (TopicIn.east) -- node[above, font=\fontsize{4pt}{5pt}\selectfont, draw=none] {Parallelismo 6} (Flink.west);
+                    
+                    % Scrittura da Flink a output topics
+                    \draw (Flink.east) -- ++(0.2,0) |- (Q1.west);
+                    \draw (Flink.east) -- ++(0.2,0) |- (Q2a.west);
+                    \draw (Flink.east) -- ++(0.2,0) |- (Q2b.west);
+                    \draw (Flink.east) -- (Q2c.west);
+                    \draw (Flink.east) -- ++(0.2,0) |- (Q3a.west);
+                    \draw (Flink.east) -- ++(0.2,0) |- (Q3b.west);
+                    \draw (Flink.east) -- ++(0.2,0) |- (Q3c.west);
+                    
+                    % Consumo da output topics a Telegraf
+                    \draw (Q1.east) -- ++(0.2,0) |- (Telegraf.west);
+                    \draw (Q2a.east) -- ++(0.2,0) |- (Telegraf.west);
+                    \draw (Q2b.east) -- ++(0.2,0) |- (Telegraf.west);
+                    \draw (Q2c.east) -- (Telegraf.west);
+                    \draw (Q3a.east) -- ++(0.2,0) |- (Telegraf.west);
+                    \draw (Q3b.east) -- ++(0.2,0) |- (Telegraf.west);
+                    \draw (Q3c.east) -- ++(0.2,0) |- (Telegraf.west);
+                \end{scope}
+            \end{tikzpicture}
+            \end{adjustbox}
         \end{column}
     \end{columns}
 \end{frame}
