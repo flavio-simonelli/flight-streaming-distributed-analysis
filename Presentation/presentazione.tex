@@ -309,7 +309,7 @@
 \SectionFrame[Panoramica del sistema streaming ed interazione asincrona tra il generatore di carico, il message broker, Flink e lo stack di persistenza e visualizzazione.]{Architettura e Flusso}
 
 \begin{frame}{Big Data Stack e Flow Diagram}
-    \begin{columns}[c]
+    \begin{columns}[b]
         \begin{column}{0.30\textwidth}
             \centering
             \includegraphics[width=\linewidth,height=0.52\textheight,keepaspectratio]{../Report/graphs/BigDataStack.png}
@@ -327,100 +327,9 @@
 \end{frame}
 
 % --- SEZIONE 2 ---
-\section{Ingestion e Broker Layer}\label{sec:ingestion_and_broker_layer}
-\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su partizionamento Kafka.]{Ingestion e Broker Layer}\begin{frame}{Flusso di Funzionamento del Simulatore Go}
-    \centering
-    \begin{adjustbox}{max width=0.95\textwidth, max height=0.82\textheight}
-    \begin{tikzpicture}[
-        node distance=0.4cm and 0.6cm,
-        every node/.style={font=\tiny\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=4pt},
-        init/.style={fill=violet!25, line width=1pt},
-        process/.style={fill=blue!12},
-        decision/.style={shape=diamond, aspect=2.2, fill=orange!12, inner sep=2pt, font=\fontsize{5pt}{6.5pt}\selectfont},
-        sink/.style={fill=green!25, line width=1pt}
-    ]
-        %% NODI
-        \node[init] (Start) {Start: Avvio Simulatore\\(Carica Configurazione, Inizializza Sink)};
-        
-        \node[decision, below=0.4cm of Start] (CheckTar) {Archivio .tar.gz\\locale presente?};
-        \node[process, left=0.8cm of CheckTar] (DownloadTar) {Download Dataset remoto\\\& Verifica SHA1};
-        \node[decision, below=0.4cm of CheckTar] (CheckSHA1) {Verifica SHA1\\dell'archivio valida?};
-        
-        \node[decision, below=0.4cm of CheckSHA1] (CheckCache) {Cache binaria GOB\\presente?};
-        \node[process, below=0.4cm of CheckCache] (Load) {Lettura Record da Cache\\(pre-ordinati)};
-        \node[process, right=0.8cm of Load] (ParseTar) {Parsing CSV da Tar.gz\\Ordinamento per Event-Time\\Salvataggio Cache GOB};
-        
-        \node[process, below=0.4cm of Load] (Schedule) {Calcolo Tempo di Invio (PublishAt)\\e Iniezione Disordine Casuale (OOO)};
-        \node[process, below=0.4cm of Schedule] (Sort) {Ordinamento Stabile dei Record\\rispetto a PublishAt};
-        
-        \node[decision, below=0.4cm of Sort] (LoopCheck) {Record rimasti\\in coda?};
-        \node[init, left=1.2cm of LoopCheck] (End) {End: Terminato\\(Chiusura Sink \& Exit)};
-        
-        \node[decision, below=0.4cm of LoopCheck] (CheckCancel) {Simulazione\\interrotta / annullata?};
-        
-        \node[process, below=0.4cm of CheckCancel] (CalcWait) {Calcolo attesa residua rispetto a prec.\\(targetWait / SpeedupFactor)};
-        
-        \node[decision, below=0.5cm of CalcWait] (CheckWait) {Attesa residua\\(targetWait) > 0?};
-        \node[process, right=0.8cm of CheckWait] (Wait) {Attesa Temporizzata Ibrida\\(Sleep per attese lunghe,\\Busy Wait per precisione ms)};
-        
-        \node[sink, below=0.5cm of CheckWait] (Write) {Scrittura Record nel Sink\\(Topic Kafka / Terminal Console)};
-        
-        \node[process, below=0.4cm of Write] (Update) {Aggiorna contatori e riferimenti\\temporali per il record successivo};
-
-        %% COLLEGAMENTI
-        \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
-            \draw (Start) -- (CheckTar);
-            
-            \draw (CheckTar) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckSHA1);
-            \draw (CheckTar) -- node[above, font=\tiny\sffamily, draw=none] {No} (DownloadTar);
-            
-            \draw (CheckSHA1.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (DownloadTar.south);
-            \draw (CheckSHA1) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckCache);
-            
-            \draw (DownloadTar.west) -- ++(-0.3,0) |- (CheckCache.west);
-            
-            \draw (CheckCache) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (Load);
-            \draw (CheckCache.east) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (ParseTar.north);
-            
-            \draw (Load) -- (Schedule);
-            \draw (ParseTar.south) |- (Schedule.east);
-            
-            \draw (Schedule) -- (Sort);
-            \draw (Sort) -- (LoopCheck);
-            
-            \draw (LoopCheck) -- node[above, font=\tiny\sffamily, draw=none] {No} (End);
-            \draw (LoopCheck) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckCancel);
-            
-            \draw (CheckCancel.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {Sì} (End.south);
-            \draw (CheckCancel) -- node[left, font=\tiny\sffamily, draw=none] {No} (CalcWait);
-            
-            \draw (CalcWait) -- (CheckWait);
-            
-            \draw (CheckWait) -- node[above, font=\tiny\sffamily, draw=none] {Sì} (Wait);
-            \draw (CheckWait) -- node[left, font=\tiny\sffamily, draw=none] {No} (Write);
-            
-            \draw (Wait.south) |- (Write.east);
-            
-            \draw (Write) -- (Update);
-            
-            %% Loopback a LoopCheck
-            \draw (Update.east) -- ++(3.5,0) |- (LoopCheck.east);
-        \end{scope}
-    \end{tikzpicture}
-    \end{adjustbox}
-\end{frame}
-
-\begin{frame}[fragile]{Ingestione: Il Simulatore Custom in Go}
+\section{Ingestion e Broker Layer}\label{sec:ingestion_and_broker_layer}\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su partizionamento Kafka.]{Ingestion e Broker Layer}
+\begin{frame}[fragile]{Flusso del Simulatore Go: Fase 1 (Preparazione)}
     \begin{columns}[c]
-        \begin{column}{0.54\textwidth}
-            \begin{itemize}
-                \item \textbf{Razionale delle performance}: Scritto in Go per azzerare l'impatto del Garbage Collector e massimizzare il throughput.
-                \item \textbf{Ottimizzazioni startup}: Decompressione automatica e ordinamento in event-time archiviati in cache binaria \texttt{.gob}.
-                \item \textbf{Temporizzazione Ibrida}: CPU rilasciata per lunghe attese, attesa attiva (*busy wait*) per precisione a livello di millisecondo sui flussi accelerati.
-                \item \textbf{Disordine Controllato}: Iniezione casuale controllata di ritardi per testare la tolleranza ai dati fuori ordine.
-            \end{itemize}
-        \end{column}
-
         \begin{column}{0.44\textwidth}
             \begin{block}{\scriptsize Scenari di Accelerazione}
                 \centering
@@ -437,7 +346,7 @@
                     \hline
                 \end{tabular}
             \end{block}
-            \vfill
+            \vskip 0.1cm
             \begin{gocodebox}{Go - Iniezione Disordine (Pseudo)}
 if rand.Float64() < p.oooProb {
     offset := rand.Int64n(p.maxDelayMin)
@@ -445,6 +354,137 @@ if rand.Float64() < p.oooProb {
 }
 // Ordinamento per tempo reale di invio
             \end{gocodebox}
+        \end{column}
+
+        \begin{column}{0.54\textwidth}
+            \centering
+            \begin{adjustbox}{max width=\linewidth, max height=0.82\textheight}
+            \begin{tikzpicture}[
+                node distance=0.45cm and 0.5cm,
+                every node/.style={font=\tiny\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3.5pt},
+                init/.style={fill=violet!25, line width=1pt},
+                process/.style={fill=blue!12},
+                decision/.style={shape=diamond, aspect=2.2, fill=orange!12, inner sep=2pt, font=\fontsize{5pt}{6.5pt}\selectfont},
+                sink/.style={fill=green!25, line width=1pt}
+            ]
+                %% NODI
+                \node[init] (Start) {Start: Avvio Simulatore\\(Carica Configurazione, Inizializza Sink)};
+                
+                \node[decision, below=0.45cm of Start] (CheckTar) {Archivio .tar.gz\\locale presente?};
+                \node[process, left=0.6cm of CheckTar] (DownloadTar) {Download Dataset\\\& Verifica SHA1};
+                \node[decision, below=0.45cm of CheckTar] (CheckSHA1) {Verifica SHA1\\valida?};
+                
+                \node[decision, below=0.45cm of CheckSHA1] (CheckCache) {Cache binaria GOB\\presente?};
+                \node[process, below=0.45cm of CheckCache] (Load) {Lettura Cache\\(pre-ordinati)};
+                \node[process, right=0.6cm of Load] (ParseTar) {Parsing CSV da Tar.gz\\Ordinamento Event-Time\\Salvataggio Cache GOB};
+                
+                \node[process, below=0.45cm of Load] (Schedule) {Calcolo Tempo di Invio (PublishAt)\\e Iniezione Disordine (OOO)};
+                \node[process, below=0.4cm of Schedule] (Sort) {Ordinamento Stabile dei Record\\rispetto a PublishAt};
+                
+                \node[draw=none, fill=none, below=0.4cm of Sort] (DotsOut) {$\dots$};
+
+                %% COLLEGAMENTI
+                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+                    \draw (Start) -- (CheckTar);
+                    
+                    \draw (CheckTar) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckSHA1);
+                    \draw (CheckTar) -- node[above, font=\tiny\sffamily, draw=none] {No} (DownloadTar);
+                    
+                    \draw (CheckSHA1.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (DownloadTar.south);
+                    \draw (CheckSHA1) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckCache);
+                    
+                    \draw (DownloadTar.west) -- ++(-0.3,0) |- (CheckCache.west);
+                    
+                    \draw (CheckCache) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (Load);
+                    \draw (CheckCache.east) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (ParseTar.north);
+                    
+                    \draw (Load) -- (Schedule);
+                    \draw (ParseTar.south) |- (Schedule.east);
+                    
+                    \draw (Schedule) -- (Sort);
+                    \draw (Sort) -- (DotsOut);
+                \end{scope}
+            \end{tikzpicture}
+            \end{adjustbox}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Flusso del Simulatore Go: Fase 2 (Replay Loop)}
+    \begin{columns}[c]
+        \begin{column}{0.44\textwidth}
+            \begin{gocodebox}{Go - Attesa Ibrida (Wait)}
+// Rilascio CPU per attese lunghe
+if d > spinThreshold {
+    time.Sleep(d - spinThreshold)
+}
+// Busy Wait finale per massima precisione ms
+for time.Now().Before(deadline) {}
+            \end{gocodebox}
+            \vskip 0.1cm
+            \begin{block}{\scriptsize Pubblicazione su Apache Kafka}
+                \fontsize{5.5pt}{7.2pt}\selectfont
+                \begin{itemize}
+                    \item \textbf{Serializzazione JSON}: Ciascun record viene convertito in JSON prima della trasmissione.
+                    \item \textbf{Bilanciamento Round-Robin}: Messaggi inviati con chiave nulla (\texttt{Key: nil}) per distribuire uniformemente il carico tra le partizioni del topic.
+                    \item \textbf{Batching Ottimizzato}: Dimensione batch a 100 record e \texttt{BatchTimeout} a 2ms per massimizzare il throughput senza ritardare l'invio.
+                    \item \textbf{Scrittura Asincrona}: Il writer opera asincronamente per evitare di bloccare il loop di temporizzazione millesimale del simulatore.
+                \end{itemize}
+            \end{block}
+        \end{column}
+
+        \begin{column}{0.54\textwidth}
+            \centering
+            \begin{adjustbox}{max width=\linewidth, max height=0.82\textheight}
+            \begin{tikzpicture}[
+                node distance=0.45cm and 0.5cm,
+                every node/.style={font=\tiny\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3.5pt},
+                init/.style={fill=violet!25, line width=1pt},
+                process/.style={fill=blue!12},
+                decision/.style={shape=diamond, aspect=2.2, fill=orange!12, inner sep=2pt, font=\fontsize{5pt}{6.5pt}\selectfont},
+                sink/.style={fill=green!25, line width=1pt}
+            ]
+                %% NODI
+                \node[draw=none, fill=none] (DotsIn) {$\dots$};
+                
+                \node[decision, below=0.45cm of DotsIn] (LoopCheck) {Record rimasti\\in coda?};
+                \node[init, left=0.8cm of LoopCheck] (End) {End: Terminato\\(Chiusura Sink)};
+                
+                \node[decision, below=0.45cm of LoopCheck] (CheckCancel) {Simulazione\\annullata?};
+                
+                \node[process, below=0.45cm of CheckCancel] (CalcWait) {Calcolo attesa residua rispetto a prec.\\(targetWait / SpeedupFactor)};
+                
+                \node[decision, below=0.5cm of CalcWait] (CheckWait) {Attesa residua\\(targetWait) $>$ 0?};
+                \node[process, right=0.6cm of CheckWait] (Wait) {Attesa Ibrida\\(Sleep / Busy Wait)};
+                
+                \node[sink, below=0.5cm of CheckWait] (Write) {Scrittura Record nel Sink\\(Topic Kafka / Console)};
+                
+                \node[process, below=0.45cm of Write] (Update) {Aggiorna contatori e riferimenti\\temporali per il record successivo};
+
+                %% COLLEGAMENTI
+                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+                    \draw (DotsIn) -- (LoopCheck);
+                    
+                    \draw (LoopCheck) -- node[above, font=\tiny\sffamily, draw=none] {No} (End);
+                    \draw (LoopCheck) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckCancel);
+                    
+                    \draw (CheckCancel.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {Sì} (End.south);
+                    \draw (CheckCancel) -- node[left, font=\tiny\sffamily, draw=none] {No} (CalcWait);
+                    
+                    \draw (CalcWait) -- (CheckWait);
+                    
+                    \draw (CheckWait) -- node[above, font=\tiny\sffamily, draw=none] {Sì} (Wait);
+                    \draw (CheckWait) -- node[left, font=\tiny\sffamily, draw=none] {No} (Write);
+                    
+                    \draw (Wait.south) |- (Write.east);
+                    
+                    \draw (Write) -- (Update);
+                    
+                    %% Loopback a LoopCheck
+                    \draw (Update.east) -- ++(2.8,0) |- (LoopCheck.east);
+                \end{scope}
+            \end{tikzpicture}
+            \end{adjustbox}
         \end{column}
     \end{columns}
 \end{frame}
@@ -728,7 +768,7 @@ DataStream<Query1Result> q1 = stream
 \end{frame}
 
 \begin{frame}[fragile, t]{Query 2: Top-10 Aeroporti con Ritardi Severi}
-    \queryobjective{Classifica in tempo reale dei 10 aeroporti con il maggior numero di ritardi gravi (delay > 15 minuti) su tre finestre temporali parallele: 1 ora tumbling, 6 ore tumbling e finestra globale ad aggiornamento orario.}
+    \queryobjective{Classifica in tempo reale dei 10 aeroporti con il maggior numero di ritardi gravi (delay $>$ 15 minuti) su tre finestre temporali parallele: 1 ora tumbling, 6 ore tumbling e finestra globale ad aggiornamento orario.}
     
     \begin{flinkcodebox}{Query 2: Pattern Local-Global Aggregation \& Min-Heap}
 // Fase 1: Aggregazione Locale per Aeroporto
