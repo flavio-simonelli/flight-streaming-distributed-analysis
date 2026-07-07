@@ -331,9 +331,9 @@
 \begin{frame}[fragile]{Flusso del Simulatore Go: Fase 1 (Preparazione)}
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
-            \begin{block}{\scriptsize Scenari di Accelerazione}
+            \begin{block}{\footnotesize Scenari di Accelerazione}
                 \centering
-                \fontsize{5.5pt}{7pt}\selectfont
+                \tiny
                 \begin{tabular}{lccc}
                     \hline
                     \textbf{Parametro} & \textbf{Lento} & \textbf{Medio} & \textbf{Alto} \\
@@ -347,12 +347,12 @@
                 \end{tabular}
             \end{block}
             \vskip 0.1cm
-            \begin{gocodebox}{Go - Iniezione Disordine (Pseudo)}
-if rand.Float64() < p.oooProb {
-    offset := rand.Int64n(p.maxDelayMin)
-    eventTime = eventTime.Add(-offset)
+            \begin{gocodebox}{Go - Iniezione Disordine (OOO)}
+// Se applicabile, inietta ritardo per disordine
+if rand.Float64() < s.factor {
+    delay := 1 + rand.Intn(s.maxDelay)
+    publishAt = base.Add(time.Duration(delay) * time.Minute)
 }
-// Ordinamento per tempo reale di invio
             \end{gocodebox}
         \end{column}
 
@@ -414,16 +414,18 @@ if rand.Float64() < p.oooProb {
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
             \begin{gocodebox}{Go - Attesa Ibrida (Wait)}
-// Rilascio CPU per attese lunghe
-if d > spinThreshold {
-    time.Sleep(d - spinThreshold)
+// Sleep per la gran parte della durata
+if d > w.spinThreshold {
+    <-time.After(d - w.spinThreshold)
 }
-// Busy Wait finale per massima precisione ms
-for time.Now().Before(deadline) {}
+// Busy wait finale per massima precisione
+for time.Now().Before(deadline) {
+    if ctx.Err() != nil { return ctx.Err() }
+}
             \end{gocodebox}
-            \vskip 0.1cm
+            \vskip 0.02cm
             \begin{block}{\scriptsize Pubblicazione su Apache Kafka}
-                \fontsize{5.5pt}{7.2pt}\selectfont
+                \scriptsize
                 \begin{itemize}
                     \item \textbf{Serializzazione JSON}: Ciascun record viene convertito in JSON prima della trasmissione.
                     \item \textbf{Bilanciamento Round-Robin}: Messaggi inviati con chiave nulla (\texttt{Key: nil}) per distribuire uniformemente il carico tra le partizioni del topic.
