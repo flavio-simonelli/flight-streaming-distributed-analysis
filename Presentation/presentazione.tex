@@ -1090,13 +1090,22 @@ for time.Now().Before(deadline) {
     \end{adjustbox}
 \end{frame}
 
-\begin{frame}{Topologia Flink: Focus Query 2}
+\begin{frame}[fragile]{Topologia Flink: Focus Query 2}
     \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
     \centering
+
+    % DAG di sfondo
     \begin{adjustbox}{max width=0.98\textwidth, max height=0.82\textheight}
     \begin{tikzpicture}[
         node distance=0.25cm and 0.2cm,
-        every node/.style={font=\dagfontsize\sffamily, align=center, rounded corners=3pt, line width=0.5pt, draw=black!70, inner sep=3pt},
+        every node/.style={
+            font=\dagfontsize\sffamily,
+            align=center,
+            rounded corners=3pt,
+            line width=0.5pt,
+            draw=black!70,
+            inner sep=3pt
+        },
         source/.style={fill=violet!25, line width=1pt},
         filter/.style={fill=yellow!15},
         map/.style={fill=blue!12},
@@ -1104,107 +1113,116 @@ for time.Now().Before(deadline) {
         window/.style={fill=green!12},
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
-        mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=7.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
+        mutedline/.style={draw=black!10}
     ]
-                %% INGESTIONE E PREPROCESSING (DISATTIVATI)
-                \node[muted] (KafkaSource) {\lblKafkaSource};
-                \node[muted, right=of KafkaSource] (Watermark) {\lblWatermark};
-                \node[muted, right=of Watermark] (Preprocessing) {\lblPreprocessing};
+        %% INGESTIONE E PREPROCESSING (DISATTIVATI)
+        \node[muted] (KafkaSource) {\lblKafkaSource};
+        \node[muted, right=of KafkaSource] (Watermark) {\lblWatermark};
+        \node[muted, right=of Watermark] (Preprocessing) {\lblPreprocessing};
 
-                %% BRANCH QUERY 1 (DISATTIVATI)
-                \node[muted, above right=6.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
-                \node[muted, right=of Q1_Filter] (Q1_Map) {\lblQOneMap};
-                \node[muted, right=of Q1_Map] (Q1_KeyBy) {\lblQOneKeyBy};
-                \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {\lblQOneWinAgg};
-                \node[muted, right=of Q1_WinAgg] (Q1_Sink) {\lblQOneSink};
+        %% BRANCH QUERY 1 (DISATTIVATI)
+        \node[muted, above right=6.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
+        \node[muted, right=of Q1_Filter] (Q1_Map) {\lblQOneMap};
+        \node[muted, right=of Q1_Map] (Q1_KeyBy) {\lblQOneKeyBy};
+        \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {\lblQOneWinAgg};
+        \node[muted, right=of Q1_WinAgg] (Q1_Sink) {\lblQOneSink};
 
-                %% BRANCH QUERY 2 (EVIDENZIATO)
-                \node[filter, right=0.6cm of Preprocessing] (Q2_Filter) {\lblQTwoFilter};
-                \node[map, right=of Q2_Filter] (Q2_Map) {\lblQTwoMap};
-                \node[keyby, right=of Q2_Map] (Q2_KeyBy) {\lblQTwoKeyBy};
+        %% BRANCH QUERY 2 (EVIDENZIATO)
+        \node[filter, right=0.6cm of Preprocessing] (Q2_Filter) {\lblQTwoFilter};
+        \node[map, right=of Q2_Filter] (Q2_Map) {\lblQTwoMap};
+        \node[keyby, right=of Q2_Map] (Q2_KeyBy) {\lblQTwoKeyBy};
 
-                \node[window, right=0.6cm of Q2_KeyBy] (Q2_WAgg6) {\lblQTwoWAggSix};
-                \node[window, above=0.7cm of Q2_WAgg6] (Q2_WAgg1) {\lblQTwoWAggOne};
-                \node[window, below=0.7cm of Q2_WAgg6] (Q2_WAggG) {\lblQTwoWAggGlob};
+        \node[window, right=0.6cm of Q2_KeyBy] (Q2_WAgg6) {\lblQTwoWAggSix};
+        \node[window, above=0.7cm of Q2_WAgg6] (Q2_WAgg1) {\lblQTwoWAggOne};
+        \node[window, below=0.7cm of Q2_WAgg6] (Q2_WAggG) {\lblQTwoWAggGlob};
 
-                \node[keyby, right=of Q2_WAgg1] (Q2_KBy1) {\lblQTwoKByOne};
-                \node[filter, right=of Q2_KBy1] (Q2_Rank1) {\lblQTwoRank};
-                \node[sink, right=of Q2_Rank1] (Q2_Sink1) {\lblQTwoSinkOne};
+        \node[keyby, right=of Q2_WAgg1] (Q2_KBy1) {\lblQTwoKByOne};
+        \node[filter, right=of Q2_KBy1] (Q2_Rank1) {\lblQTwoRank};
+        \node[sink, right=of Q2_Rank1] (Q2_Sink1) {\lblQTwoSinkOne};
 
-                \node[keyby, right=of Q2_WAgg6] (Q2_KBy6) {\lblQTwoKBySix};
-                \node[filter, right=of Q2_KBy6] (Q2_Rank6) {\lblQTwoRank};
-                \node[sink, right=of Q2_Rank6] (Q2_Sink6) {\lblQTwoSinkSix};
+        \node[keyby, right=of Q2_WAgg6] (Q2_KBy6) {\lblQTwoKBySix};
+        \node[filter, right=of Q2_KBy6] (Q2_Rank6) {\lblQTwoRank};
+        \node[sink, right=of Q2_Rank6] (Q2_Sink6) {\lblQTwoSinkSix};
 
-                \node[keyby, right=of Q2_WAggG] (Q2_KByG) {\lblQTwoKByGlob};
-                \node[filter, right=of Q2_KByG] (Q2_RankG) {\lblQTwoRank};
-                \node[sink, right=of Q2_RankG] (Q2_SinkG) {\lblQTwoSinkGlob};
+        \node[keyby, right=of Q2_WAggG] (Q2_KByG) {\lblQTwoKByGlob};
+        \node[filter, right=of Q2_KByG] (Q2_RankG) {\lblQTwoRank};
+        \node[sink, right=of Q2_RankG] (Q2_SinkG) {\lblQTwoSinkGlob};
 
-                %% BRANCH QUERY 3 (DISATTIVATI)
-                \node[muted, below right=6.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
-                \node[muted, right=of Q3_Filter1] (Q3_Filter2) {\lblQThreeFilterTwo};
-                \node[muted, right=of Q3_Filter2] (Q3_Map) {\lblQThreeMap};
-                \node[muted, right=of Q3_Map] (Q3_KeyBy) {\lblQThreeKeyBy};
+        %% BRANCH QUERY 3 (DISATTIVATI)
+        \node[muted, below right=6.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
+        \node[muted, right=of Q3_Filter1] (Q3_Filter2) {\lblQThreeFilterTwo};
+        \node[muted, right=of Q3_Filter2] (Q3_Map) {\lblQThreeMap};
+        \node[muted, right=of Q3_Map] (Q3_KeyBy) {\lblQThreeKeyBy};
 
-                \node[muted, right=0.6cm of Q3_KeyBy] (Q3_WAgg7d) {\lblQThreeWAggSevenD};
-                \node[muted, above=0.7cm of Q3_WAgg7d] (Q3_WAgg1d) {\lblQThreeWAggOneD};
-                \node[muted, below=0.7cm of Q3_WAgg7d] (Q3_WAggG) {\lblQThreeWAggGlob};
+        \node[muted, right=0.6cm of Q3_KeyBy] (Q3_WAgg7d) {\lblQThreeWAggSevenD};
+        \node[muted, above=0.7cm of Q3_WAgg7d] (Q3_WAgg1d) {\lblQThreeWAggOneD};
+        \node[muted, below=0.7cm of Q3_WAgg7d] (Q3_WAggG) {\lblQThreeWAggGlob};
 
-                \node[muted, right=3.2cm of Q3_WAgg1d] (Q3_Sink1d) {\lblQThreeSinkOneD};
-                \node[muted, right=3.2cm of Q3_WAgg7d] (Q3_Sink7d) {\lblQThreeSinkSevenD};
-                \node[muted, right=3.2cm of Q3_WAggG] (Q3_SinkG) {\lblQThreeSinkGlob};
+        \node[muted, right=3.2cm of Q3_WAgg1d] (Q3_Sink1d) {\lblQThreeSinkOneD};
+        \node[muted, right=3.2cm of Q3_WAgg7d] (Q3_Sink7d) {\lblQThreeSinkSevenD};
+        \node[muted, right=3.2cm of Q3_WAggG] (Q3_SinkG) {\lblQThreeSinkGlob};
 
-                %% COLLEGAMENTI
-                \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
-                    \draw[mutedline] (KafkaSource) -- (Watermark);
-                    \draw[mutedline] (Watermark) -- (Preprocessing);
+        %% COLLEGAMENTI
+        \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
+            \draw[mutedline] (KafkaSource) -- (Watermark);
+            \draw[mutedline] (Watermark) -- (Preprocessing);
 
-                    %% Q1 (MUTED)
-                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q1_Filter.west);
-                    \draw[mutedline] (Q1_Filter) -- (Q1_Map);
-                    \draw[mutedline] (Q1_Map) -- (Q1_KeyBy);
-                    \draw[mutedline] (Q1_KeyBy) -- (Q1_WinAgg);
-                    \draw[mutedline] (Q1_WinAgg) -- (Q1_Sink);
+            %% Q1 (MUTED)
+            \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q1_Filter.west);
+            \draw[mutedline] (Q1_Filter) -- (Q1_Map);
+            \draw[mutedline] (Q1_Map) -- (Q1_KeyBy);
+            \draw[mutedline] (Q1_KeyBy) -- (Q1_WinAgg);
+            \draw[mutedline] (Q1_WinAgg) -- (Q1_Sink);
 
-                    %% Q2 (EVIDENZIATO)
-                    \draw (Preprocessing.east) -- (Q2_Filter.west);
-                    \draw (Q2_Filter) -- (Q2_Map);
-                    \draw (Q2_Map) -- (Q2_KeyBy);
-                    \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAgg1.west);
-                    \draw (Q2_KeyBy.east) -- (Q2_WAgg6.west);
-                    \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAggG.west);
-                    \draw (Q2_WAgg1) -- (Q2_KBy1);
-                    \draw (Q2_WAgg6) -- (Q2_KBy6);
-                    \draw (Q2_WAggG) -- (Q2_KByG);
-                    \draw (Q2_KBy1) -- (Q2_Rank1);
-                    \draw (Q2_KBy6) -- (Q2_Rank6);
-                    \draw (Q2_KByG) -- (Q2_RankG);
-                    \draw (Q2_Rank1) -- (Q2_Sink1);
-                    \draw (Q2_Rank6) -- (Q2_Sink6);
-                    \draw (Q2_RankG) -- (Q2_SinkG);
+            %% Q2 (EVIDENZIATO)
+            \draw (Preprocessing.east) -- (Q2_Filter.west);
+            \draw (Q2_Filter) -- (Q2_Map);
+            \draw (Q2_Map) -- (Q2_KeyBy);
+            \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAgg1.west);
+            \draw (Q2_KeyBy.east) -- (Q2_WAgg6.west);
+            \draw (Q2_KeyBy.east) -- ++(0.2,0) |- (Q2_WAggG.west);
+            \draw (Q2_WAgg1) -- (Q2_KBy1);
+            \draw (Q2_WAgg6) -- (Q2_KBy6);
+            \draw (Q2_WAggG) -- (Q2_KByG);
+            \draw (Q2_KBy1) -- (Q2_Rank1);
+            \draw (Q2_KBy6) -- (Q2_Rank6);
+            \draw (Q2_KByG) -- (Q2_RankG);
+            \draw (Q2_Rank1) -- (Q2_Sink1);
+            \draw (Q2_Rank6) -- (Q2_Sink6);
+            \draw (Q2_RankG) -- (Q2_SinkG);
 
-                    %% Q3 (MUTED)
-                    \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q3_Filter1.west);
-                    \draw[mutedline] (Q3_Filter1) -- (Q3_Filter2);
-                    \draw[mutedline] (Q3_Filter2) -- (Q3_Map);
-                    \draw[mutedline] (Q3_Map) -- (Q3_KeyBy);
-                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAgg1d.west);
-                    \draw[mutedline] (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
-                    \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAggG.west);
-                    \draw[mutedline] (Q3_WAgg1d) -- (Q3_Sink1d);
-                    \draw[mutedline] (Q3_WAgg7d) -- (Q3_Sink7d);
-                    \draw[mutedline] (Q3_WAggG) -- (Q3_SinkG);
-                \end{scope}
-        
-        %% FLOATING CARD
-        \node[card] at (0, 0) {
-            \textbf{Query 2: Airport Ranking}\\[0.15cm]
-            \textbullet\ \textbf{Filtro Voli}: Inclusione dei soli voli attivi (esclusi voli cancellati o deviati).\\[0.1cm]
-            \textbullet\ \textbf{Multirisoluzione}: Calcolo parallelo su 3 finestre: Tumbling 1h, Tumbling 6h e Global 24h con trigger custom.\\[0.1cm]
-            \textbullet\ \textbf{RankProcessor}: Calcolo del ranking locale basato sul conteggio dei voli puntuali diviso per i voli totali.
-        };
+            %% Q3 (MUTED)
+            \draw[mutedline] (Preprocessing.east) -- ++(0.2,0) |- (Q3_Filter1.west);
+            \draw[mutedline] (Q3_Filter1) -- (Q3_Filter2);
+            \draw[mutedline] (Q3_Filter2) -- (Q3_Map);
+            \draw[mutedline] (Q3_Map) -- (Q3_KeyBy);
+            \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAgg1d.west);
+            \draw[mutedline] (Q3_KeyBy.east) -- (Q3_WAgg7d.west);
+            \draw[mutedline] (Q3_KeyBy.east) -- ++(0.2,0) |- (Q3_WAggG.west);
+            \draw[mutedline] (Q3_WAgg1d) -- (Q3_Sink1d);
+            \draw[mutedline] (Q3_WAgg7d) -- (Q3_Sink7d);
+            \draw[mutedline] (Q3_WAggG) -- (Q3_SinkG);
+        \end{scope}
     \end{tikzpicture}
     \end{adjustbox}
+
+    % Listing in sovraimpressione
+    \vspace*{-3cm}
+    \hspace*{-6cm}
+    \begin{minipage}{0.56\textwidth}
+        \begin{flinkcodebox}{Query 2: Local-Global Aggregation \& Min-Heap}
+DataStream<AirportDelayCount> localCounts = stream
+    .filter(r -> r.getArrDelay() > 15)
+    .keyBy(FlightRecord::getOriginAirport)
+    .window(TumblingEventTimeWindows.of(Time.hours(1)))
+    .sum("delayCount");
+
+DataStream<Top10Airports> globalTop10 = localCounts
+    .keyBy(AirportDelayCount::getWindowEnd)
+    .process(new Top10ProcessFunction());
+        \end{flinkcodebox}
+    \end{minipage}
+
 \end{frame}
 
 \begin{frame}{Topologia Flink: Focus Query 3}
