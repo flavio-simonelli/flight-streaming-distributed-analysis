@@ -54,7 +54,8 @@
 
 % --- CROP MACROS PER GRAFICI DI TELEMETRIA (GRAFANA SCREENSHOTS) ---
 \newcommand{\CropThroughput}[1]{%
-    \adjustbox{trim={0.01\width} {0.805\height} {0.00\width} {0.04\height}, clip}{%
+    % trim={<sinistra> <basso> <destra> <alto>}
+    \adjustbox{trim={0.01\width} {0.805\height} {0.00\width} {0.035\height}, clip}{%
         \includegraphics[width=\linewidth]{../Results/charts/#1}%
     }%
 }
@@ -63,14 +64,14 @@
         \includegraphics[width=\linewidth]{../Results/charts/#1}%
     }%
 }
-\newcommand{\CropCheckpoint}[1]{%
-    \adjustbox{trim={0.01\width} {0.348\height} {0.00\width} {0.55\height}, clip}{%
-        \includegraphics[width=\linewidth]{../Results/charts/#1}%
+\newcommand{\CropDiscardedRecords}[1]{%
+    \adjustbox{trim={0.01\width} {0.244\height} {0.450\width} {0.657\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/charts/#1}%
     }%
 }
-\newcommand{\CropOutOfOrder}[1]{%
-    \adjustbox{trim={0.01\width} {0.01\height} {0.00\width} {0.650\height}, clip}{%
-        \includegraphics[width=\linewidth]{../Results/charts/#1}%
+\newcommand{\CropDelayDistribution}[1]{%
+    \adjustbox{trim={0.545\width} {0.01\height} {0.005\width} {0.755\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/charts/#1}%
     }%
 }
 \newcommand{\CropNode}[1]{%
@@ -1495,18 +1496,15 @@ public class TelemetryMapper extends RichMapFunction<...> {
         
             \begin{minipage}[t][0.43\textheight][t]{\linewidth}
                 \centering
-                \CropThroughput{cluster_clean_run_fast_para3_part6.png}
-                \vspace{0.05cm}
-                {\tiny Throughput scenario Fast con parallelismo P=3}
-            \end{minipage}
-        
-            \vspace{-0.55cm}
-        
+                \includegraphics[width=\linewidth]{../Results/charts/throughput/thr_in_steady_comparison}
+                % \vspace{0.05cm}
+                % {\tiny Comparazione throughput in ingresso per i tre scenari}
+            \end{minipage}        
             \begin{minipage}[t][0.43\textheight][t]{\linewidth}
                 \centering
-                \includegraphics[width=\linewidth]{../Results/charts/throughput/thr_out_trans_comparison}
-                \vspace{0.05cm}
-                {\tiny Comparazione tra throughput in uscita per i tre scenari}
+                \includegraphics[width=\linewidth]{../Results/charts/throughput/thr_out_steady_comparison}
+                % \vspace{0.05cm}
+                % {\tiny Comparazione throughput in uscita per i tre scenari}
             \end{minipage}
         
         \end{column}
@@ -1523,99 +1521,100 @@ public class TelemetryMapper extends RichMapFunction<...> {
                     \item $P=1$: $\approx 236$ record/s.
                     \item $P=6$: $\approx 280\text{--}288$ record/s.
                 \end{itemize}
-                \item \textbf{Razionale}: In uno stream accelerato, finestre logiche molto dense vengono compresse in pochi millisecondi reali; la presenza di slot paralleli ottimizza lo svuotamento simultaneo delle finestre abbattendo i picchi di emissione.
+                \item In uno stream accelerato, finestre logiche molto dense vengono compresse in pochi millisecondi reali; la presenza di slot paralleli ottimizza lo svuotamento simultaneo delle finestre abbattendo i picchi di emissione.
             \end{itemize}
         \end{column}
     \end{columns}
 \end{frame}
 
 \begin{frame}{Parallelismo e Scalabilità: Analisi delle Latenze}
-    \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \centering
-            \textbf{Watermark Drift ad Alto Parallelismo ($P=6$)}
-            \vskip 0.1cm
-            \CropLatency{cluster_clean_run_medium_para6_part6.png}
-            \vskip 0.1cm
-            {\tiny Latenza E2E P90 scenario Medium con parallelismo P=6}
-        \end{column}
+    \centering
+    \begin{minipage}{0.75\textwidth}
+        \CropLatency{cluster_clean_run_medium_para6_part6.png}
+    \end{minipage}
+    \vskip 0.02cm
+    {\tiny Latenza E2E P90 scenario Medium con parallelismo P=6}
 
-        \begin{column}{0.48\textwidth}
-            \textbf{Analisi del Watermark Drift}
+    \vskip 0.08cm
+    \begin{columns}[T,totalwidth=0.94\textwidth]
+        \begin{column}{0.46\textwidth}
             \begin{itemize}
                 \footnotesize
-                \item \textbf{Parallelismo $P=1$ e $P=3$}: Curve piatte e stabili durante l'intera run. La latenza P90 si attesta a $\approx 2.25$ secondi reali nello scenario Fast.
-                \item \textbf{Parallelismo $P=6$}: Presenza di picchi impulsivi transitori sia nello scenario Medium (fino a $18.5$ secondi per la Q3 7d e $12.5$s per la Q3 Global) sia in quello Fast ($6.5$ secondi).
-                \item \textbf{Causa logica}: La frammentazione dello stream su 6 slot paralleli accentua il disallineamento temporaneo dei watermark tra i subtask (*watermark drift*). Il coordinamento richiede la sincronizzazione sul watermark più lento; questo introduce ritardi transitori che si risolvono autonomamente non appena i watermark convergono, escludendo fenomeni di lag cumulativo permanente.
+                \setlength\itemsep{0.03cm}
+                \setlength\topsep{0pt}
+                \item \textbf{Slow}: latenze interne e \textit{Newest P90} stabili, senza crescita progressiva o accumulo.
+                \item \textbf{Medium, $P=6$}: picchi transitori fino a $18.5$s per Q3 7d e $12.5$s per Q3 Global.
             \end{itemize}
+        \end{column}
+
+        \begin{column}{0.46\textwidth}
+            \footnotesize
+            La causa è il \textit{watermark drift}: con 6 slot paralleli il flusso si frammenta e la chiusura delle finestre resta vincolata al watermark più lento.
+
+            \vskip 0.08cm
+            Nel Fast le curve restano intorno a $2$--$2.5$s, con un solo picco a $6.5$s: oscillazioni di coordinamento, non lag cumulativo.
         \end{column}
     \end{columns}
 \end{frame}
 
 \begin{frame}{Gestione del Disordine Temporale}
-    \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \centering
-            \textbf{Out-of-orderness e Latenza}
-            \vskip 0.1cm
-            \CropOutOfOrder{cluster_delay_run_d30_l0.png}
-            \vskip 0.1cm
-            {\tiny Statistiche di out-of-orderness con D=30 min e L=0}
-        \end{column}
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[anchor=north west] at ([xshift=0.38cm,yshift=-1.28cm]current page.north west) {%
+            \begin{minipage}{0.48\textwidth}
+                \CropDelayDistribution{cluster_delay_run_d10_l0.png}
+            \end{minipage}
+        };
 
-        \begin{column}{0.48\textwidth}
-            \textbf{Trade-off: Completezza vs Latenza}
+        \node[anchor=north east] at ([xshift=-0.36cm,yshift=-1.28cm]current page.north east) {%
+            \begin{minipage}{0.58\textwidth}
+                \CropDiscardedRecords{cluster_delay_run_d10_l0.png}
+            \end{minipage}
+        };
+
+        \node[anchor=south east,text width=0.56\textwidth,align=left] at ([xshift=-0.58cm,yshift=0.76cm]current page.south east) {%
             \begin{itemize}
                 \footnotesize
-                \item \textbf{Aggressivo ($D=10$ min, $L=0$ min)}:
-                \begin{itemize}
-                    \scriptsize
-                    \item Finestre chiuse rapidamente (bassa latenza).
-                    \item Elevata percentuale di record scartati perché giunti oltre la tolleranza.
-                \end{itemize}
-                \item \textbf{Ibrido ($D=5$ min, $L=25$ min)}:
-                \begin{itemize}
-                    \scriptsize
-                    \item Chiusura rapida delle finestre ma stato mantenuto in memoria per ulteriori 25 minuti.
-                    \item Emette aggiornamenti tardivi incrementali salvando la completezza analitica.
-                \end{itemize}
-                \item \textbf{Conservativo ($D=30$ min, $L=0$ min)}:
-                \begin{itemize}
-                    \scriptsize
-                    \item Garanzia di massima completezza senza scarti.
-                    \item Pagamento di una penalità fissa sulla latenza di emissione: le finestre rimangono aperte 30 minuti logici in più.
-                \end{itemize}
+                \setlength\itemsep{0.05cm}
+                \item \textbf{Conservativa e ibrida}: zero scarti; $D=30$ attende il disordine massimo, $D=5,L=25$ conserva la finestra.
+                \item \textbf{Aggressiva}: riduce lo stato, ma scarta eventi oltre soglia ($\approx 970$ Q2 1h, $\approx 590$ Q1, $\approx 250$ Q2 6h).
+                \item \textbf{Trade-off}: prima emissione più rapida con $D=5$, ma maggiore I/O e ricalcoli rispetto al risultato consolidato.
             \end{itemize}
-        \end{column}
-    \end{columns}
+        };
+    \end{tikzpicture}
 \end{frame}
 
 \begin{frame}{Impatto del Checkpointing e Resilienza}
-    \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \centering
-            \textbf{Test di Failover e Ripristino dello Stato}
-            \vskip 0.1cm
-            \CropThroughput{cluster_chk_hashmap_run_int5_fail1.png}
-            \vskip 0.1cm
-            {\tiny Throughput durante failover (checkpoint 5 min, 1 crash)}
-        \end{column}
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[anchor=north west] at ([xshift=0.38cm,yshift=-1.15cm]current page.north west) {%
+            \begin{minipage}{0.64\textwidth}
+                \CropThroughput{cluster_chk_hashmap_run_int5_fail1.png}
+            \end{minipage}
+        };
 
-        \begin{column}{0.48\textwidth}
-            \textbf{Overhead e Dinamiche di Recovery}
+        \node[anchor=south east] at ([xshift=-0.34cm,yshift=0.20cm]current page.south east) {%
+            \begin{minipage}{0.64\textwidth}
+                \CropLatency{cluster_chk_hashmap_run_int5_fail1.png}
+            \end{minipage}
+        };
+
+        \node[anchor=north east,text width=0.31\textwidth,align=left] at ([xshift=-0.45cm,yshift=-1.45cm]current page.north east) {%
             \begin{itemize}
                 \footnotesize
-                \item \textbf{Overhead di Scrittura}: Il checkpointing frequente (30s vs 5m) introduce una riduzione impercettibile del throughput stazionario e mantiene stabili le latenze P90.
-                \item \textbf{Dinamica di Crash/Restore}:
-                \begin{itemize}
-                    \scriptsize
-                    \item \textbf{Crash}: Al minuto 6:30 viene terminato forzatamente un TaskManager. Il throughput crolla a zero e Kafka accumula lag in ingresso.
-                    \item \textbf{Recovery}: Flink rivale il crash, riavvia il task e ripristina lo stato dall'ultimo checkpoint valido.
-                    \item \textbf{Catch-up}: Flink consuma il backlog accumulato su Kafka lavorando ad altissimo throughput ($\approx 8.000$ ev/s) fino a riallinearsi all'event-time reale, tornando stazionario in meno di 2 minuti.
-                \end{itemize}
+                \setlength\itemsep{0.05cm}
+                \item Test con checkpoint ogni $5$ minuti e kill controllato di un TaskManager.
+                \item Failover di circa $15$s: throughput a zero e rollback all'ultimo checkpoint valido.
             \end{itemize}
-        \end{column}
-    \end{columns}
+        };
+
+        \node[anchor=south west,text width=0.30\textwidth,align=left] at ([xshift=0.55cm,yshift=0.88cm]current page.south west) {%
+            \begin{itemize}
+                \footnotesize
+                \setlength\itemsep{0.05cm}
+                \item Catch-up del backlog Kafka, con picco temporaneo di throughput e latenza.
+                \item Ritorno al baseline senza perdite osservate nei risultati.
+            \end{itemize}
+        };
+    \end{tikzpicture}
 \end{frame}
 
 % --- SEZIONE 6 ---
