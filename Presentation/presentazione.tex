@@ -1434,56 +1434,6 @@ env.getCheckpointConfig()
     \end{columns}
 \end{frame}
 
-\begin{frame}[fragile, t]{Query 1: Analisi Performance Compagnie}
-    \queryobjective{Calcolare per ciascuna compagnia aerea, su finestre temporali di 1 ora, la media oraria dei ritardi in partenza ed il tasso di cancellazione dei voli.}
-    
-    \begin{flinkcodebox}{Query 1 implementation: AggregateFunction}
-DataStream<Query1Result> q1 = stream
-    .keyBy(FlightRecord::getAirline)
-    .window(TumblingEventTimeWindows.of(Time.hours(1)))
-    .aggregate(new Q1Aggregator(), new Q1WindowProcessor());
-
-// Q1Aggregator implements AggregateFunction<FlightRecord, Q1Accumulator, Q1Output>
-// Q1Accumulator mantiene: totalFlights, cancelledFlights, sumDelay.
-// Complessita spaziale e computazionale: O(1) ad inserimento, aggregazione incrementale nello stato
-    \end{flinkcodebox}
-    \vfill
-    \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{\scriptsize Accumulatore locale (O(1))}
-                Ad ogni record: \texttt{acc.total++}. Se cancellato: \texttt{acc.cancelled++}. Altrimenti: \texttt{acc.sumDelay += r.getDepDelay()}.
-            \end{block}
-        \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{block}{\scriptsize Processamento di finestra}
-                Calcola al trigger: \texttt{avgDelay = sumDelay / (total - cancelled)} e \texttt{cancelRate = (cancelled / total) * 100}.
-            \end{block}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}[fragile, t]{Query 2: Top-10 Aeroporti con Ritardi Severi}
-    \queryobjective{Classifica in tempo reale dei 10 aeroporti con il maggior numero di ritardi gravi (delay $>$ 15 minuti) su tre finestre temporali parallele: 1 ora tumbling, 6 ore tumbling e finestra globale ad aggiornamento orario.}
-    
-    \begin{flinkcodebox}{Query 2: Pattern Local-Global Aggregation \& Min-Heap}
-// Fase 1: Aggregazione Locale per Aeroporto
-DataStream<AirportDelayCount> localCounts = stream
-    .filter(r -> r.getArrDelay() > 15)
-    .keyBy(FlightRecord::getOriginAirport)
-    .window(TumblingEventTimeWindows.of(Time.hours(1)))
-    .sum("delayCount"); // Calcolo incrementale locale
-
-// Fase 2: Classifica Globale con KeyedProcessFunction
-DataStream<Top10Airports> globalTop10 = localCounts
-    .keyBy(AirportDelayCount::getWindowEnd)
-    .process(new Top10ProcessFunction()); 
-
-// Top10ProcessFunction colleziona i conteggi in MapState. All'attivazione del timer su watermark:
-// 1. Estrae i record ed inserisce in un Min-Heap prioritario limitato a 10 elementi: O(N log 10)
-// 2. Emette la classifica ordinata decrescente e svuota MapState per liberare la memoria dello stato
-    \end{flinkcodebox}
-\end{frame}
-
 \begin{frame}[fragile, t]{Query 3: Percentili dei Ritardi e DDSketch}
     \queryobjective{Calcolo dei percentili (25-esimo, 50-esimo, 75-esimo, 90-esimo) dei ritardi in partenza per compagnia e fascia oraria su tre finestre temporali: 24 ore tumbling, 7 giorni tumbling e globale ad aggiornamento giornaliero.}
     
