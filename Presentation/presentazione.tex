@@ -960,12 +960,12 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (28, 0) {
+        \node[card, fill=teal!4, draw=teal, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (28, 0) {
             \textbf{Logical Inconsistency Filter}\\[0.15cm]
             Pipeline di filtraggio sequenziale a 4 stadi:\\[0.05cm]
             \quad -- \textbf{Null Safety}: Elimina i record nulli per prevenire \texttt{NullPointerException}.\\[0.05cm]
             \quad -- \textbf{Schema Completeness}: Verifica presenza dei campi chiave/temporali essenziali.\\[0.05cm]
-            \quad -- \textbf{Temporal Parse}: Scarta record con event-time non valido (\texttt{Long.MIN\_VALUE}) o ora \texttt{< 0}.\\[0.05cm]
+            \quad -- \textbf{Temporal Parse}: Scarta record con event-time non valido o ora \texttt{< 0}.\\[0.05cm]
             \quad -- \textbf{Logical Consistency}: Scarta record contemporaneamente \texttt{cancelled} e \texttt{diverted}.
         };
     \end{tikzpicture}
