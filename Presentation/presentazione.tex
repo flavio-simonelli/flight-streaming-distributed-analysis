@@ -77,9 +77,54 @@
         \includegraphics{../Results/charts/#1}%
     }%
 }
-\newcommand{\CropNode}[1]{%
-    \adjustbox{trim={0.01\width} {0.31\height} {0.00\width} {0.08\height}, clip}{%
-        \includegraphics[width=\linewidth]{../Results/charts/#1}%
+\newcommand{\CropQOneDashboard}[1]{%
+    \adjustbox{trim={0.005\width} {0.445\height} {0.005\width} {0.075\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQOneDelayTrend}[1]{%
+    \adjustbox{trim={0.005\width} {0.675\height} {0.125\width} {0.075\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQOneCancellationTrend}[1]{%
+    \adjustbox{trim={0.005\width} {0.405\height} {0.125\width} {0.365\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQTwoOneHourRank}[1]{%
+    \adjustbox{trim={0.018\width} {0.668\height} {0.655\width} {0.098\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQTwoOneHourMean}[1]{%
+    \adjustbox{trim={0.342\width} {0.668\height} {0.33\width} {0.098\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQTwoOneHourMax}[1]{%
+    \adjustbox{trim={0.668\width} {0.668\height} {0.005\width} {0.098\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQTwoGlobalRank}[1]{%
+    \adjustbox{trim={0.018\width} {0.165\height} {0.655\width} {0.60\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQTwoGlobalMean}[1]{%
+    \adjustbox{trim={0.342\width} {0.165\height} {0.332\width} {0.60\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQTwoGlobalMax}[1]{%
+    \adjustbox{trim={0.668\width} {0.165\height} {0.005\width} {0.60\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
+    }%
+}
+\newcommand{\CropQThreeSevenDayPercentiles}[1]{%
+    \adjustbox{trim={0.015\width} {0.325\height} {0.4925\width} {0.372\height}, clip, width=\linewidth}{%
+        \includegraphics{../Results/plots/#1}%
     }%
 }
 
@@ -1505,9 +1550,9 @@ public class TelemetryMapper extends RichMapFunction<...> {
 
 % --- SEZIONE 4 ---
 \section{Infrastruttura di Deployment}\label{sec:deployment_infrastructure}
-\SectionFrame[Architettura multi-container locale ed automazione cloud del cluster distribuito su AWS EC2 tramite CloudFormation e Route 53.]{Infrastruttura di Deployment}
+\SectionFrame[Architettura multi-container locale e automazione cloud del cluster distribuito su AWS EC2 tramite CloudFormation e Route 53.]{Infrastruttura di Deployment}
 
-\begin{frame}{Deploy: Topologia dell'architettura}
+\begin{frame}{Deployment: Topologia architetturale}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
             \textbf{Deployment su AWS}
@@ -1546,7 +1591,7 @@ public class TelemetryMapper extends RichMapFunction<...> {
     \end{columns}
 \end{frame}
 
-\begin{frame}{Deploy: Dimensionamento delle EC2}
+\begin{frame}{Deployment: Dimensionamento EC2}
     \begin{columns}[c]
 
         \begin{column}{0.50\textwidth}
@@ -1584,9 +1629,9 @@ public class TelemetryMapper extends RichMapFunction<...> {
 
 % --- SEZIONE 5 ---
 \section{Valutazione Sperimentale}\label{sec:experimental_evaluation}
-\SectionFrame[Campagne sperimentali condotte sul cluster cloud AWS: analisi di parallelismo e scalabilità, impatto del disordine temporale ed overhead del checkpointing.]{Valutazione Sperimentale}
+\SectionFrame[Campagne sperimentali condotte sul cluster cloud AWS: analisi di parallelismo e scalabilità, impatto del disordine temporale e overhead del checkpointing.]{Valutazione Sperimentale}
 
-\begin{frame}{Parallelismo e Scalabilità: Analisi del Throughput}
+\begin{frame}{Valutazione: Throughput e parallelismo}
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
             \centering
@@ -1624,7 +1669,7 @@ public class TelemetryMapper extends RichMapFunction<...> {
     \end{columns}
 \end{frame}
 
-\begin{frame}{Parallelismo e Scalabilità: Analisi delle Latenze}
+\begin{frame}{Valutazione: Latenze e parallelismo}
     \centering
     \begin{minipage}{0.75\textwidth}
         \CropLatency{cluster_clean_run_medium_para6_part6.png}
@@ -1654,7 +1699,7 @@ public class TelemetryMapper extends RichMapFunction<...> {
     \end{columns}
 \end{frame}
 
-\begin{frame}{Gestione del Disordine Temporale}
+\begin{frame}{Valutazione: Disordine temporale}
     \begin{tikzpicture}[remember picture,overlay]
         \node[anchor=north west] at ([xshift=0.38cm,yshift=-1.28cm]current page.north west) {%
             \begin{minipage}{0.48\textwidth}
@@ -1680,7 +1725,7 @@ public class TelemetryMapper extends RichMapFunction<...> {
     \end{tikzpicture}
 \end{frame}
 
-\begin{frame}{Impatto del Checkpointing e Resilienza}
+\begin{frame}{Valutazione: Checkpointing e resilienza}
     \begin{tikzpicture}[remember picture,overlay]
         \node[anchor=north west] at ([xshift=0.38cm,yshift=-1.15cm]current page.north west) {%
             \begin{minipage}{0.64\textwidth}
@@ -1716,9 +1761,10 @@ public class TelemetryMapper extends RichMapFunction<...> {
 
 % --- SEZIONE 6 ---
 \section{Risultati Analitici}\label{sec:analytical_results}
-\SectionFrame[Analisi dei risultati di business: andamenti orari dei ritardi, granularità temporale delle classifiche di aeroporti ed impatto della perdita dati.]{Risultati Analitici}
+\SectionFrame[Analisi dei risultati di business: andamenti orari dei ritardi, granularità temporale delle classifiche aeroportuali e impatto della perdita dati.]{Risultati Analitici}
 
-\begin{frame}{Risultati Analitici: Query 1 e Query 3}
+\iffalse
+\begin{frame}{Risultati: Query 1 e Query 3}
     \begin{columns}[c]
         \begin{column}{0.48\textwidth}
             \centering
@@ -1749,7 +1795,7 @@ public class TelemetryMapper extends RichMapFunction<...> {
     \end{columns}
 \end{frame}
 
-\begin{frame}{Risultati Analitici: Query 2 e Granularità}
+\begin{frame}{Risultati: Query 2 e granularità}
     \begin{columns}[c]
         \begin{column}{0.48\textwidth}
             \centering
@@ -1818,22 +1864,134 @@ public class TelemetryMapper extends RichMapFunction<...> {
     \end{columns}
 \end{frame}
 
+\fi
+
+\begin{frame}{Risultati: Query 1}
+    \begin{columns}[c]
+        \begin{column}{0.68\textwidth}
+            \CropQOneDashboard{Q1_AA_l0.png}
+            \vspace{0.18cm}
+            \CropQOneDashboard{Q1_DL_l0.png}
+        \end{column}
+
+        \begin{column}{0.29\textwidth}
+            \textbf{Ritardi e cancellazioni}
+            \begin{itemize}
+                \footnotesize
+                \setlength\itemsep{0.08cm}
+                \item Le serie orarie alternano lunghi periodi ordinari e picchi localizzati di ritardo medio.
+                \item Il tasso di cancellazione è intermittente: resta spesso vicino allo zero, ma presenta episodi concentrati.
+                \item Il confronto tra compagnie mostra profili diversi; i picchi principali restano riconoscibili anche nello scenario con perdita.
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Risultati: Query 2}
+    \begin{columns}[T]
+        \begin{column}{0.32\textwidth}
+            \CropQTwoOneHourRank{Q2_l0.png}
+        \end{column}
+        \begin{column}{0.32\textwidth}
+            \CropQTwoOneHourMean{Q2_l0.png}
+        \end{column}
+        \begin{column}{0.32\textwidth}
+            \CropQTwoOneHourMax{Q2_l0.png}
+        \end{column}
+    \end{columns}
+    \vspace{0.12cm}
+    \begin{columns}[T]
+        \begin{column}{0.32\textwidth}
+            \CropQTwoGlobalRank{Q2_l0.png}
+        \end{column}
+        \begin{column}{0.32\textwidth}
+            \CropQTwoGlobalMean{Q2_l0.png}
+        \end{column}
+        \begin{column}{0.32\textwidth}
+            \CropQTwoGlobalMax{Q2_l0.png}
+        \end{column}
+    \end{columns}
+
+    \vspace{0.22cm}
+    {\scriptsize Le finestre brevi sono più reattive ma più sensibili alla casualità campionaria; media e massimo chiariscono rispettivamente l'effetto medio e i casi estremi, mentre la finestra globale identifica con maggiore affidabilità gli hub strutturalmente critici.}
+\end{frame}
+
+\begin{frame}{Risultati: Query 3}
+    \begin{columns}[c]
+        \begin{column}{0.68\textwidth}
+            \CropQThreeSevenDayPercentiles{Q3_AA_l0.png}
+        \end{column}
+
+        \begin{column}{0.29\textwidth}
+            \textbf{Percentili dei ritardi}
+            \begin{itemize}
+                \footnotesize
+                \setlength\itemsep{0.08cm}
+                \item La distribuzione dei ritardi è fortemente asimmetrica a destra: mediana vicina allo zero e code estreme.
+                \item La distanza tra mediana e $p90$ evidenzia che pochi eventi estremi spiegano gran parte della variabilità.
+                \item La finestra a 7 giorni attenua il rumore giornaliero senza eliminare i picchi principali.
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Risultati: Impatto della perdita dati}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.45\textwidth}
+            \CropQOneDashboard{Q1_AA_l10.png}
+        \end{column}
+        \begin{column}{0.53\textwidth}
+            \begin{minipage}[t]{0.49\linewidth}
+                \CropQTwoGlobalMean{Q2_l10.png}
+            \end{minipage}\hfill
+            \begin{minipage}[t]{0.49\linewidth}
+                \CropQTwoGlobalMax{Q2_l10.png}
+            \end{minipage}
+        \end{column}
+    \end{columns}
+
+    \vspace{0.06cm}
+    \begin{center}
+        \begin{minipage}{0.50\textwidth}
+            \CropQThreeSevenDayPercentiles{Q3_AA_l10.png}
+        \end{minipage}
+    \end{center}
+
+    \vspace{0.02cm}
+    \begin{center}
+        \begin{tcolorbox}[
+            colback=black!3,
+            colframe=black!25,
+            boxrule=0.35pt,
+            arc=1mm,
+            width=0.92\textwidth,
+            left=1mm,
+            right=1mm,
+            top=0.6mm,
+            bottom=0.6mm
+        ]
+            {\scriptsize \textbf{Nota metodologica}. Il confronto visuale mostra trend, picchi principali, ordinamento degli aeroporti e profili dei percentili molto simili. La perdita casuale riduce la numerosità e può modificare marginalmente conteggi o posizioni ravvicinate, ma non introduce scostamenti sistematici evidenti nelle metriche normalizzate; una perdita correlata a compagnia, aeroporto, fascia oraria o severità del ritardo potrebbe invece introdurre bias.}
+        \end{tcolorbox}
+    \end{center}
+\end{frame}
+
 % --- CONCLUSIONI ---
-\begin{frame}{Conclusioni e Sviluppi Futuri}
+\begin{frame}{Conclusioni: Sintesi e sviluppi futuri}
     \textbf{Conclusioni}
     \begin{itemize}
-        \item \textbf{Ecosistema Streaming Scalabile}: La pipeline in tempo reale sostiene carichi elevati (oltre 8.000 eventi/s) in event-time garantendo consistenza logica e latenze stabili.
-        \item \textbf{Infrastruttura di Stato efficiente}: Il bilanciamento tra local-global aggregation e l'uso di DDSketch limita l'impronta di memoria e massimizza l'efficienza degli shuffle di rete.
-        \item \textbf{Resilienza e Consistenza}: L'exactly-once interno di Flink combinato con l'idempotenza di InfluxDB fornisce garanzie end-to-end senza pagare l'overhead delle transazioni distribuite su Kafka.
+        \item \textbf{Scalabilità}: la pipeline sostiene carichi elevati in event-time con latenze stabili e throughput crescente al parallelismo.
+        \item \textbf{Disordine temporale}: watermark e allowed lateness vanno dimensionati insieme; configurazioni conservative preservano completezza, quella aggressiva riduce stato ma scarta eventi.
+        \item \textbf{Resilienza}: con checkpointing il sistema recupera dal guasto, assorbe il backlog Kafka e torna al regime ordinario senza perdite osservate.
+        \item \textbf{Risultati analitici}: ritardi e cancellazioni sono concentrati temporalmente; le distribuzioni dei ritardi hanno code destre pronunciate.
     \end{itemize}
 
     \vspace{0.3cm}
 
     \textbf{Sviluppi Futuri}
     \begin{itemize}
-        \item \textbf{Watermark Adattivi}: Sviluppo di politiche dinamiche di watermarking che si adattino alla latenza di rete rilevata real-time.
-        \item \textbf{Stress Testing}: Campagne di test volte a saturare fisicamente Flink per misurare il comportamento in presenza di *backpressure*.
-        \item \textbf{Transactional Kafka}: Integrazione del protocollo a due fasi (2PC) per transazioni atomiche native a livello di sink.
+        \item \textbf{Perdita dati}: ripetere la valutazione con esperimenti statistici per stimare confidenza e sensibilità al bias.
+        \item \textbf{Stress testing}: saturare effettivamente Flink per misurare backpressure e limiti operativi.
+        \item \textbf{Watermark adattivi}: confrontare politiche dinamiche capaci di reagire al disordine osservato nello stream.
     \end{itemize}
 \end{frame}
 
