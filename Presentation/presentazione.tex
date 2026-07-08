@@ -586,8 +586,8 @@ for time.Now().Before(deadline) {
             \begin{block}{Ingestion \& Ingress Buffering}
                 \footnotesize
                 \begin{itemize}
-                    \item \textbf{Topic \texttt{flights-stream}}: 6 partizioni per scalare linearmente con il parallelismo di Flink (mapping 1:1).
-                    \item \textbf{Scrittura in Ingress}: Scrittura con chiave nulla (\texttt{Key: nil}) in \textbf{Round-Robin} per distribuire uniformemente il carico ed evitare partizioni inattive.
+                    \item \textbf{Topic \texttt{flights-stream}}: 6 partizioni (mapping 1:1 con il parallelismo di Flink).
+                    \item \textbf{Scrittura Ingress}: Chiave nulla (\texttt{Key: nil}) in \textbf{Round-Robin} per distribuire uniformemente il carico.
                 \end{itemize}
             \end{block}
         \end{column}
@@ -596,12 +596,12 @@ for time.Now().Before(deadline) {
             \begin{block}{Instradamento Output}
                 \footnotesize
                 \begin{itemize}
-                    \item \textbf{Topic Dedicati}: Un topic per ciascuna query e finestra temporale.
-                    \item \textbf{Partizionamento per Chiave}:
+                    \item \textbf{Topic Dedicati}: Un topic per query e finestra temporale.
+                    \item \textbf{Partizionamento}:
                         \begin{itemize}\footnotesize
-                            \item \textbf{Q1} su \texttt{airline} per ordinamento cronologico locale.
-                            \item \textbf{Q2} su \texttt{origin\_airport\_id}.
-                            \item \textbf{Q3} con chiave nulla (round-robin).
+                            \item \textbf{Q1}: su \texttt{airline} (ordinamento locale).
+                            \item \textbf{Q2}: su \texttt{origin\_airport\_id}.
+                            \item \textbf{Q3}: chiave nulla (round-robin).
                         \end{itemize}
                 \end{itemize}
             \end{block}
