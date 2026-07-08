@@ -1399,6 +1399,37 @@ DataStream<Query3Result> q3 = stream
     \end{tikzpicture}
 \end{frame}
 
+\begin{frame}{Stima dei Percentili: Algoritmo DDSketch}
+    \begin{columns}[t]
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Principio di Funzionamento}
+                \footnotesize
+                DDSketch è un algoritmo probabilistico per la stima dei quantili su flussi di dati continui:
+                \begin{itemize}
+                    \item \textbf{Errore Relativo Garantito}: Garantisce che l'errore relativo sul valore stimato sia limitato da $\alpha$:
+                    \[ \left| \frac{x_q - \tilde{x}_q}{x_q} \right| \le \alpha \]
+                    A differenza di KLL (errore sul rango), mantiene alta precisione sulle code di distribuzioni asimmetriche.
+                    \item \textbf{Mappatura dei Bin}: I valori $x$ sono inseriti in indici di bin logaritmici $i = \lceil \log_{\gamma}(x) \rceil$, dove $\gamma = \frac{1 + \alpha}{1 - \alpha}$.
+                    \item \textbf{Mergeability}: Due sketch possono essere uniti in tempo $O(1)$, ideale per aggregare finestre temporali concorrenti.
+                \end{itemize}
+            \end{block}
+        \end{column}
+
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Parametri Usati \& Rationale}
+                \footnotesize
+                Nel sistema è stato configurato con:
+                \begin{itemize}
+                    \item \textbf{Parametri}: $\alpha = 0.01$ (errore rel. massimo $\le 1\%$) e $m = 2048$ bin massimi tramite \texttt{CollapsingLowestDenseStore}.
+                    \item \textbf{Footprint Costante ($O(1)$)}: La struttura non memorizza i singoli valori, assicurando che lo stato su Flink non cresca all'aumentare dei record. Previene rischi di heap exhaustion.
+                    \item \textbf{Risoluzione Elevata}: Con 2048 bin si copre un range dinamico da $80\,\mu\text{s}$ a oltre un anno logico, sufficiente per qualsiasi ritardo aereo.
+                    \item \textbf{Efficienza del Checkpoint}: Uno sketch compatto riduce le dimensioni dei checkpoint di Flink su HDFS/S3.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
 \begin{frame}[fragile]{Gestione del Disordine e Qualità del Dato}
     \begin{columns}[c]
         \begin{column}{0.52\textwidth}
@@ -1466,35 +1497,6 @@ env.getCheckpointConfig()
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
   );
                 \end{flinkcodebox}
-            \end{block}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}[fragile, t]{Query 3: Percentili dei Ritardi e DDSketch}
-    \queryobjective{Calcolo dei percentili (25-esimo, 50-esimo, 75-esimo, 90-esimo) dei ritardi in partenza per compagnia e fascia oraria su tre finestre temporali: 24 ore tumbling, 7 giorni tumbling e globale ad aggiornamento giornaliero.}
-    
-    \begin{flinkcodebox}{Query 3: DDSketch Integration in State}
-DataStream<Query3Result> q3 = stream
-    .keyBy(r -> Tuple2.of(r.getAirline(), r.getHourOfDay()))
-    .window(TumblingEventTimeWindows.of(Time.days(1)))
-    .process(new Q3DDSketchProcessFunction());
-
-// Q3DDSketchProcessFunction mappa i ritardi in bin logaritmici: i = ceil( log_gamma(x) )
-// gamma = (1 + alpha) / (1 - alpha), con alpha = 0.01 (errore relativo garantito 1%)
-// Stima quantile q nel bin i: x_q = ( 2 * gamma^i ) / (gamma + 1)
-// DDSketch memorizza solo le frequenze dei bin (dimensione massima m = 2048 bin): footprint memoria costante e O(1) mergeability
-    \end{flinkcodebox}
-    \vfill
-    \begin{columns}[T, onlytextwidth]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{\scriptsize Vantaggio Computazionale}
-                Accuratezza eccellente sulle code di distribuzioni asimmetriche con costi spaziali limitati rispetto a KLL o UDDSketch.
-            \end{block}
-        \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{block}{\scriptsize Tolleranza all'Errore}
-                Un errore dell'1\% equivale a $\approx 36$ secondi su 1 ora di ritardo: trascurabile per l'analisi del traffico aereo.
             \end{block}
         \end{column}
     \end{columns}
