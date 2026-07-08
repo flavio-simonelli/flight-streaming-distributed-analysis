@@ -1941,42 +1941,36 @@ public class TelemetryMapper extends RichMapFunction<...> {
 
 \begin{frame}{Risultati: Impatto della perdita dati}
     \begin{columns}[T,onlytextwidth]
-        \begin{column}{0.45\textwidth}
+        \begin{column}{0.46\textwidth}
+            \begin{itemize}
+                \setlength\itemsep{0.10cm}
+                \item Trend principali e profili dei percentili restano molto simili.
+                \item La perdita casuale riduce la numerosità disponibile e può alterare leggermente conteggi o posizioni ravvicinate.
+                \item Non emergono scostamenti sistematici evidenti nelle metriche normalizzate.
+                \item Il risultato resta valido assumendo perdita uniforme e indipendente dal ritardo.
+            \end{itemize}
+
+            \vspace{0.20cm}
+
             \CropQOneDashboard{Q1_AA_l10.png}
+
         \end{column}
-        \begin{column}{0.53\textwidth}
-            \begin{minipage}[t]{0.49\linewidth}
-                \CropQTwoGlobalMean{Q2_l10.png}
-            \end{minipage}\hfill
-            \begin{minipage}[t]{0.49\linewidth}
-                \CropQTwoGlobalMax{Q2_l10.png}
-            \end{minipage}
+
+        \begin{column}{0.52\textwidth}
+            \CropQThreeSevenDayPercentiles{Q3_AA_l10.png}
+
+            \vspace{0.12cm}
+
+            \begin{columns}[T,onlytextwidth]
+                \begin{column}{0.49\textwidth}
+                    \CropQTwoGlobalMean{Q2_l10.png}
+                \end{column}
+                \begin{column}{0.49\textwidth}
+                    \CropQTwoGlobalMax{Q2_l10.png}
+                \end{column}
+            \end{columns}
         \end{column}
     \end{columns}
-
-    \vspace{0.06cm}
-    \begin{center}
-        \begin{minipage}{0.50\textwidth}
-            \CropQThreeSevenDayPercentiles{Q3_AA_l10.png}
-        \end{minipage}
-    \end{center}
-
-    \vspace{0.02cm}
-    \begin{center}
-        \begin{tcolorbox}[
-            colback=black!3,
-            colframe=black!25,
-            boxrule=0.35pt,
-            arc=1mm,
-            width=0.92\textwidth,
-            left=1mm,
-            right=1mm,
-            top=0.6mm,
-            bottom=0.6mm
-        ]
-            {\scriptsize \textbf{Nota metodologica}. Il confronto visuale mostra trend, picchi principali, ordinamento degli aeroporti e profili dei percentili molto simili. La perdita casuale riduce la numerosità e può modificare marginalmente conteggi o posizioni ravvicinate, ma non introduce scostamenti sistematici evidenti nelle metriche normalizzate; una perdita correlata a compagnia, aeroporto, fascia oraria o severità del ritardo potrebbe invece introdurre bias.}
-        \end{tcolorbox}
-    \end{center}
 \end{frame}
 
 % --- CONCLUSIONI ---
