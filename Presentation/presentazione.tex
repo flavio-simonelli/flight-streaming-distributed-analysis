@@ -987,7 +987,7 @@ for time.Now().Before(deadline) {
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
         mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=7.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
+        card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=20cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (DISATTIVATI)
                 \node[muted] (KafkaSource) {\lblKafkaSource};
@@ -1079,14 +1079,17 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        %\node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (28, 5) {
-        %    \textbf{Query 1: Airline Performance}\\[0.15cm]
-        %    Caratteristiche principali della pipeline:\\[0.05cm]
-        %    \quad -- \textbf{Filtro Compagnie}: Inclusione selettiva delle sole compagnie target.\\[0.05cm]
-        %    \quad -- \textbf{Partizionamento per Chiave}: Operatore \texttt{keyBy} sul campo \texttt{airline}.\\[0.05cm]
-        %    \quad -- \textbf{Tumbling Window (1h)}: Finestra temporale ad eventi con \texttt{Allowed Lateness}.\\[0.05cm]
-        %    \quad -- \textbf{Aggregazione}: Calcolo orario incrementale per ottimizzare la memoria.
-        %};
+        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (33, -5) {
+            \textbf{Query 1: Airline Performance}\\[0.15cm]
+            Dettagli delle operazioni nello stato:\\[0.05cm]
+            \quad -- \textbf{Accumulatore Locale} (\texttt{Q1Aggregator}):\\
+            \quad\quad \textbullet\ \texttt{acc.total++}\\
+            \quad\quad \textbullet\ Se cancellato: \texttt{acc.cancelled++}\\
+            \quad\quad \textbullet\ Altrimenti: \texttt{acc.sumDelay += r.getDepDelay()}\\[0.05cm]
+            \quad -- \textbf{Processamento Finestra} (\texttt{Q1WindowProcessor}):\\
+            \quad\quad \textbullet\ \texttt{avgDelay = sumDelay / (total - cancelled)}\\
+            \quad\quad \textbullet\ \texttt{cancelRate = (cancelled / total) * 100}
+        };
     \end{tikzpicture}
     \end{adjustbox}
 
@@ -1357,39 +1360,6 @@ DataStream<Top10Airports> globalTop10 = localCounts
         };
     \end{tikzpicture}
     \end{adjustbox}
-\end{frame}
-
-\begin{frame}[fragile]{Configurazione Job e Ottimizzazione POJO}
-    \begin{columns}[c]
-        \begin{column}{0.54\textwidth}
-            \textbf{Topologia a Sorgente Condivisa}
-            \begin{itemize}
-                \item Unica istanza di `KafkaSource` condivisa tra le tre query.
-                \item I filtri di data quality (scarto record nulli, logicamente incoerenti) vengono eseguiti una sola volta a monte, azzerando l'I/O e la deserializzazione ridondante.
-            \end{itemize}
-
-            \textbf{Modellazione a POJO e PojoSerializer}
-            \begin{itemize}
-                \item Classe `FlightRecord` implementata rigorosamente come POJO (costruttore vuoto pubblico, attributi non-final, getter/setter).
-                \item Flink evita la costosa serializzazione basata su Kryo.
-                \item Generazione automatica di `PojoSerializer`: posizionamento fisso dei byte che riduce lo stato in RocksDB e velocizza lo shuffle di rete.
-            \end{itemize}
-        \end{column}
-
-        \begin{column}{0.44\textwidth}
-            \begin{flinkcodebox}{Flink Job Configuration (Java)}
-StreamExecutionEnvironment env = 
-    StreamExecutionEnvironment.getExecutionEnvironment();
-
-env.getConfig().enableForceAvro(); // Disabilita Kryo
-env.getConfig().enableGenericTypes();
-
-DataStream<FlightRecord> stream = env
-    .fromSource(kafkaSource, WatermarkStrategy.noWatermarks(), ...)
-    .filter(new DataQualityFilter());
-            \end{flinkcodebox}
-        \end{column}
-    \end{columns}
 \end{frame}
 
 \begin{frame}[fragile]{Gestione del Disordine e Qualità del Dato}
