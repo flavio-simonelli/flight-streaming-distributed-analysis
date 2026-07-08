@@ -972,7 +972,7 @@ for time.Now().Before(deadline) {
     \end{adjustbox}
 \end{frame}
 
-\begin{frame}{Topologia Flink: Focus Query 1}
+\begin{frame}[fragile]{Topologia Flink: Focus Query 1}
     \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
     \centering
     \begin{adjustbox}{max width=0.98\textwidth, max height=0.82\textheight}
@@ -1079,15 +1079,31 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (0, 0) {
-            \textbf{Query 1: Airline Performance}\\[0.15cm]
-            \textbullet\ \textbf{Filtro Compagnie}: Taglio selettivo per considerare solo le compagnie target indicate.\\[0.1cm]
-            \textbullet\ \textbf{Partizionamento per Chiave}: Operatore \texttt{keyBy} sul codice compagnia (\texttt{airline}).\\[0.1cm]
-            \textbullet\ \textbf{Tumbling Window (1h)}: Finestra temporale ad eventi con tolleranza \textbf{Allowed Lateness}.\\[0.1cm]
-            \textbullet\ \textbf{Aggregazione}: Calcolo incrementale della media per ridurre l'uso di memoria.
-        };
+        %\node[card, fill=teal!4, draw=teal, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (28, 5) {
+        %    \textbf{Query 1: Airline Performance}\\[0.15cm]
+        %    Caratteristiche principali della pipeline:\\[0.05cm]
+        %    \quad -- \textbf{Filtro Compagnie}: Inclusione selettiva delle sole compagnie target.\\[0.05cm]
+        %    \quad -- \textbf{Partizionamento per Chiave}: Operatore \texttt{keyBy} sul campo \texttt{airline}.\\[0.05cm]
+        %    \quad -- \textbf{Tumbling Window (1h)}: Finestra temporale ad eventi con \texttt{Allowed Lateness}.\\[0.05cm]
+        %    \quad -- \textbf{Aggregazione}: Calcolo orario incrementale per ottimizzare la memoria.
+        %};
     \end{tikzpicture}
     \end{adjustbox}
+
+    % Listing in sovraimpressione
+    \vspace*{-2.9cm}
+    \hspace*{-0.2cm}
+    \begin{minipage}{0.50\textwidth}
+        \begin{flinkcodebox}{Query 1 implementation: AggregateFunction}
+DataStream<Query1Result> q1 = stream
+    .keyBy(FlightRecord::getAirline)
+    .window(TumblingEventTimeWindows.of(Time.hours(1)))
+    .aggregate(
+        new Q1Aggregator(), 
+        new Q1WindowProcessor()
+    );
+        \end{flinkcodebox}
+    \end{minipage}
 \end{frame}
 
 \begin{frame}[fragile]{Topologia Flink: Focus Query 2}
