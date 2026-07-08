@@ -915,7 +915,7 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (25.2, 0.8) {
+        \node[card] at (25, 0) {
             \textbf{Pipeline Ingestione \& Data Quality}\\[0.15cm]
             \textbullet\ \textbf{Kafka Source}: Lettura parallela distribuita dal topic \texttt{flights-stream} (parallelismo 6).\\[0.1cm]
             \textbullet\ \textbf{Watermark}: Assegnazione timestamp logico ad eventi con tolleranza \textbf{OutOfOrderness} (2 min).\\[0.1cm]
@@ -940,7 +940,7 @@ for time.Now().Before(deadline) {
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
         mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=6.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=6pt, align=left}
+        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=7.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (DISATTIVATI)
                 \node[muted] (KafkaSource) {\lblKafkaSource};
@@ -1032,7 +1032,7 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (9.2, -1.2) {
+        \node[card] at (0, 0) {
             \textbf{Query 1: Airline Performance}\\[0.15cm]
             \textbullet\ \textbf{Filtro Compagnie}: Taglio selettivo per considerare solo le compagnie target indicate.\\[0.1cm]
             \textbullet\ \textbf{Partizionamento per Chiave}: Operatore \texttt{keyBy} sul codice compagnia (\texttt{airline}).\\[0.1cm]
@@ -1058,7 +1058,7 @@ for time.Now().Before(deadline) {
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
         mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=6.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=6pt, align=left}
+        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=7.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (DISATTIVATI)
                 \node[muted] (KafkaSource) {\lblKafkaSource};
@@ -1066,7 +1066,7 @@ for time.Now().Before(deadline) {
                 \node[muted, right=of Watermark] (Preprocessing) {\lblPreprocessing};
 
                 %% BRANCH QUERY 1 (DISATTIVATI)
-                \node[muted, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
+                \node[muted, above right=6.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
                 \node[muted, right=of Q1_Filter] (Q1_Map) {\lblQOneMap};
                 \node[muted, right=of Q1_Map] (Q1_KeyBy) {\lblQOneKeyBy};
                 \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {\lblQOneWinAgg};
@@ -1094,7 +1094,7 @@ for time.Now().Before(deadline) {
                 \node[sink, right=of Q2_RankG] (Q2_SinkG) {\lblQTwoSinkGlob};
 
                 %% BRANCH QUERY 3 (DISATTIVATI)
-                \node[muted, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
+                \node[muted, below right=6.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
                 \node[muted, right=of Q3_Filter1] (Q3_Filter2) {\lblQThreeFilterTwo};
                 \node[muted, right=of Q3_Filter2] (Q3_Map) {\lblQThreeMap};
                 \node[muted, right=of Q3_Map] (Q3_KeyBy) {\lblQThreeKeyBy};
@@ -1150,7 +1150,7 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (9.2, -2.5) {
+        \node[card] at (0, 0) {
             \textbf{Query 2: Airport Ranking}\\[0.15cm]
             \textbullet\ \textbf{Filtro Voli}: Inclusione dei soli voli attivi (esclusi voli cancellati o deviati).\\[0.1cm]
             \textbullet\ \textbf{Multirisoluzione}: Calcolo parallelo su 3 finestre: Tumbling 1h, Tumbling 6h e Global 24h con trigger custom.\\[0.1cm]
@@ -1175,7 +1175,7 @@ for time.Now().Before(deadline) {
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
         mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=6.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=6pt, align=left}
+        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=7.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (DISATTIVATI)
                 \node[muted] (KafkaSource) {\lblKafkaSource};
@@ -1183,7 +1183,7 @@ for time.Now().Before(deadline) {
                 \node[muted, right=of Watermark] (Preprocessing) {\lblPreprocessing};
 
                 %% BRANCH QUERY 1 (DISATTIVATI)
-                \node[muted, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
+                \node[muted, above right=6.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
                 \node[muted, right=of Q1_Filter] (Q1_Map) {\lblQOneMap};
                 \node[muted, right=of Q1_Map] (Q1_KeyBy) {\lblQOneKeyBy};
                 \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {\lblQOneWinAgg};
@@ -1211,7 +1211,7 @@ for time.Now().Before(deadline) {
                 \node[muted, right=of Q2_RankG] (Q2_SinkG) {\lblQTwoSinkGlob};
 
                 %% BRANCH QUERY 3 (EVIDENZIATO)
-                \node[filter, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
+                \node[filter, below right=6.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
                 \node[filter, right=of Q3_Filter1] (Q3_Filter2) {\lblQThreeFilterTwo};
                 \node[map, right=of Q3_Filter2] (Q3_Map) {\lblQThreeMap};
                 \node[keyby, right=of Q3_Map] (Q3_KeyBy) {\lblQThreeKeyBy};
@@ -1267,7 +1267,7 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (9.2, 2.3) {
+        \node[card] at (0, 0) {
             \textbf{Query 3: Delay Distribution}\\[0.15cm]
             \textbullet\ \textbf{Filtri Combinati}: Selezione aeroporti di partenza target e voli attivi.\\[0.1cm]
             \textbullet\ \textbf{Chiave Composita}: Partizionamento su \texttt{Tuple2(airline, scheduledHour)}.\\[0.1cm]
