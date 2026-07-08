@@ -694,47 +694,60 @@ for time.Now().Before(deadline) {
 \end{frame}
 
 \begin{frame}[fragile]{Persistenza e Ingest: Telegraf \& InfluxDB}
+    % Diagramma del flusso visivo in alto
+    \centering
+    \begin{tikzpicture}[
+        node distance=2.2cm,
+        box/.style={draw=structure, fill=teal!4, rounded corners=4pt, line width=1pt, font=\bfseries\footnotesize\sffamily, inner sep=6pt, minimum height=0.8cm, align=center, minimum width=2.4cm},
+        arrow/.style={-Stealth, line width=1.2pt, draw=structure}
+    ]
+        \node[box] (kafka) {\includegraphics[height=0.45cm]{logos/kafka.png}\\ Kafka};
+        \node[box, right=of kafka] (telegraf) {\includegraphics[height=0.45cm]{logos/telegraf.png}\\ Telegraf \\ \fontsize{5pt}{6pt}\selectfont(Starlark Script)};
+        \node[box, right=of telegraf] (influx) {\includegraphics[height=0.45cm]{logos/influxdb.png}\\ InfluxDB};
+        
+        \draw[arrow] (kafka) -- (telegraf) node[midway, above, font=\tiny\sffamily] {JSON};
+        \draw[arrow] (telegraf) -- (influx) node[midway, above, font=\tiny\sffamily] {Line Protocol};
+    \end{tikzpicture}
+    
+    \vspace{0.3cm}
+    
     \begin{columns}[t]
         \begin{column}{0.48\textwidth}
             \begin{block}{Colletta e Ingestione (Telegraf)}
                 \footnotesize
                 \begin{itemize}
-                    \item \textbf{Consumo da Kafka}: Telegraf consuma i JSON prodotti dalle query Flink.
-                    \item \textbf{Preprocessing con Starlark}: Per la Query 2, uno script custom deserializza, mappa i tag e formatta i tipi per evitare conflitti di schema.
-                    \item \textbf{Scrittura su InfluxDB}: I dati strutturati sono scritti nel database tramite API v2.
-                \end{itemize}
-            \end{block}
-            
-            \begin{block}{Organizzazione dei Bucket}
-                \footnotesize
-                \begin{itemize}
-                    \item \textbf{\texttt{flights-data}}: Contiene i risultati elaborati delle query analitiche dei voli.
-                    \item \textbf{\texttt{flink-metrics}}: Contiene le telemetrie prestazionali inviate in modo asincrono da Flink.
+                    \item \textbf{Consumo da Kafka (Extract)}: Legge in tempo reale i messaggi JSON prodotti dalle query Flink.
+                    \item \textbf{Preprocessing con Starlark (Transform)}: Esegue la deserializzazione, mappa i tag e corregge i tipi per prevenire conflitti di schema.
+                    \item \textbf{Scrittura su InfluxDB (Load)}: Carica i dati nel database tramite \textbf{API v2} ad alte prestazioni.
                 \end{itemize}
             \end{block}
         \end{column}
-
+ 
         \begin{column}{0.48\textwidth}
-            \begin{block}{Schema dei Dati (Tag \& Timestamp)}
+            \begin{block}{Struttura InfluxDB \& Data Schema}
                 \footnotesize
+                \textbf{Organizzazione Bucket:}
                 \begin{itemize}
-                    \item \textbf{Query 1}:
-                        \begin{itemize}\scriptsize
-                            \item \textbf{Tag}: \texttt{airline}
-                            \item \textbf{Timestamp}: \texttt{window\_start}
-                        \end{itemize}
-                    \item \textbf{Query 2}:
-                        \begin{itemize}\scriptsize
-                            \item \textbf{Tag}: \texttt{rank}, \texttt{window\_type}
-                            \item \textbf{Timestamp}: \texttt{window\_start}
-                        \end{itemize}
-                    \item \textbf{Query 3}:
-                        \begin{itemize}\scriptsize
-                            \item \textbf{Tag}: \texttt{airline}, \texttt{window\_type}, \texttt{hour}
-                            \item \textbf{Timestamp}: \texttt{window\_start}
-                        \end{itemize}
-                    \item \textbf{Nota}: I timestamp corrispondono al tempo dell'evento (\textit{Event-Time}) e non al momento di scrittura.
+                    \scriptsize
+                    \item \texttt{flights-data}: Risultati analitici dei voli.
+                    \item \texttt{flink-metrics}: Telemetrie prestazionali di Flink.
                 \end{itemize}
+                
+                \vspace{0.15cm}
+                \textbf{Schema dei Dati (Tag):}
+                \vskip 0.05cm
+                \centering
+                \renewcommand{\arraystretch}{1.2}
+                \begin{tabular}{ll}
+                    \hline
+                    \textbf{Misura / Query} & \textbf{Tag Principali} \\ \hline
+                    Query 1 (Performance) & \texttt{airline} \\
+                    Query 2 (Airport Rank) & \texttt{rank}, \texttt{window\_type} \\
+                    Query 3 (Delay Distr.) & \texttt{airline}, \texttt{window\_type}, \texttt{hour} \\ \hline
+                \end{tabular}
+                \vskip 0.1cm
+                \flushleft
+                \tiny \textbf{Nota}: Tutti i timestamp corrispondono all'Event-Time della finestra (\texttt{window\_start}) e non al momento di scrittura.
             \end{block}
         \end{column}
     \end{columns}
