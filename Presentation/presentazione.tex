@@ -1093,11 +1093,11 @@ for time.Now().Before(deadline) {
     \end{tikzpicture}
     \end{adjustbox}
 
-    % Listing in sovraimpressione
-    \vspace*{-2.9cm}
-    \hspace*{-0.2cm}
-    \begin{minipage}{0.50\textwidth}
-        \begin{flinkcodebox}{Query 1 implementation: AggregateFunction}
+    % Listing in sovraimpressione (posizionamento assoluto)
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=north west, xshift=0.5cm, yshift=-4.4cm] at (current page.north west) {
+            \begin{minipage}{0.50\textwidth}
+                \begin{flinkcodebox}{Query 1 implementation: AggregateFunction}
 DataStream<Query1Result> q1 = stream
     .keyBy(FlightRecord::getAirline)
     .window(TumblingEventTimeWindows.of(Time.hours(1)))
@@ -1105,8 +1105,10 @@ DataStream<Query1Result> q1 = stream
         new Q1Aggregator(), 
         new Q1WindowProcessor()
     );
-        \end{flinkcodebox}
-    \end{minipage}
+                \end{flinkcodebox}
+            \end{minipage}
+        };
+    \end{tikzpicture}
 \end{frame}
 
 \begin{frame}[fragile]{Topologia Flink: Focus Query 2}
@@ -1225,11 +1227,11 @@ DataStream<Query1Result> q1 = stream
     \end{tikzpicture}
     \end{adjustbox}
 
-    % Listing in sovraimpressione
-    \vspace*{-3cm}
-    \hspace*{-6cm}
-    \begin{minipage}{0.56\textwidth}
-        \begin{flinkcodebox}{Query 2: Local-Global Aggregation \& Min-Heap}
+    % Listing in sovraimpressione (posizionamento assoluto)
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=north west, xshift=1cm, yshift=-5.4cm] at (current page.north west) {
+            \begin{minipage}{0.56\textwidth}
+                \begin{flinkcodebox}{Query 2: Local-Global Aggregation \& Min-Heap}
 DataStream<AirportDelayCount> localCounts = stream
     .filter(r -> r.getArrDelay() > 15)
     .keyBy(FlightRecord::getOriginAirport)
@@ -1239,12 +1241,13 @@ DataStream<AirportDelayCount> localCounts = stream
 DataStream<Top10Airports> globalTop10 = localCounts
     .keyBy(AirportDelayCount::getWindowEnd)
     .process(new Top10ProcessFunction());
-        \end{flinkcodebox}
-    \end{minipage}
-
+                \end{flinkcodebox}
+            \end{minipage}
+        };
+    \end{tikzpicture}
 \end{frame}
 
-\begin{frame}{Topologia Flink: Focus Query 3}
+\begin{frame}[fragile]{Topologia Flink: Focus Query 3}
     \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
     \centering
     \begin{adjustbox}{max width=0.98\textwidth, max height=0.82\textheight}
@@ -1351,15 +1354,30 @@ DataStream<Top10Airports> globalTop10 = localCounts
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (0, 0) {
+        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (28, 5) {
             \textbf{Query 3: Delay Distribution}\\[0.15cm]
-            \textbullet\ \textbf{Filtri Combinati}: Selezione aeroporti di partenza target e voli attivi.\\[0.1cm]
-            \textbullet\ \textbf{Chiave Composita}: Partizionamento su \texttt{Tuple2(airline, scheduledHour)}.\\[0.1cm]
-            \textbullet\ \textbf{Finestre Parallele}: Calcolo contemporaneo su Tumbling 1d, Tumbling 7d e Global.\\[0.1cm]
-            \textbullet\ \textbf{DDSketch}: Struttura probabilistica in memoria per calcolare la distribuzione e stima dei percentili in tempo lineare.
+            Dettagli su DDSketch e Stato:\\[0.05cm]
+            \quad -- \textbf{Mappatura Bin Logaritmici}: $i = \lceil \log_{\gamma}(x) \rceil$ con $\gamma = \frac{1 + \alpha}{1 - \alpha}$ ($\alpha = 0.01$, errore 1\%).\\[0.05cm]
+            \quad -- \textbf{Calcolo dei Percentili}: Stima del quantile $q$ nel bin $i$: $x_q = \frac{2\gamma^i}{\gamma+1}$ in tempo lineare.\\[0.05cm]
+            \quad -- \textbf{Footprint Costante}: DDSketch memorizza solo le frequenze dei bin (max 2048 bin) per footprint ridotto.\\[0.05cm]
+            \quad -- \textbf{Proprietà di Merge}: Fusione $O(1)$ di sketch diversi per aggregare finestre temporali concorrenti.
         };
     \end{tikzpicture}
     \end{adjustbox}
+
+    % Listing in sovraimpressione (posizionamento assoluto)
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=north west, xshift=1cm, yshift=-2.4cm] at (current page.north west) {
+            \begin{minipage}{0.56\textwidth}
+                \begin{flinkcodebox}{Query 3: DDSketch Integration in State}
+DataStream<Query3Result> q3 = stream
+    .keyBy(r -> Tuple2.of(r.getAirline(), r.getHourOfDay()))
+    .window(TumblingEventTimeWindows.of(Time.days(1)))
+    .process(new Q3DDSketchProcessFunction());
+                \end{flinkcodebox}
+            \end{minipage}
+        };
+    \end{tikzpicture}
 \end{frame}
 
 \begin{frame}[fragile]{Gestione del Disordine e Qualità del Dato}
