@@ -823,7 +823,7 @@ for time.Now().Before(deadline) {
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
         mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=6.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=6pt, align=left}
+        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=20.5cm, minimum height=20.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (EVIDENZIATI)
                 \node[source] (KafkaSource) {\lblKafkaSource};
@@ -915,7 +915,7 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (9.2, 0.8) {
+        \node[card] at (25.2, 0.8) {
             \textbf{Pipeline Ingestione \& Data Quality}\\[0.15cm]
             \textbullet\ \textbf{Kafka Source}: Lettura parallela distribuita dal topic \texttt{flights-stream} (parallelismo 6).\\[0.1cm]
             \textbullet\ \textbf{Watermark}: Assegnazione timestamp logico ad eventi con tolleranza \textbf{OutOfOrderness} (2 min).\\[0.1cm]
