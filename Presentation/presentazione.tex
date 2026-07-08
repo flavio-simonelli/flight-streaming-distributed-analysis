@@ -43,6 +43,9 @@
 \definecolor{flinkGenericColor}{RGB}{227, 26, 28}
 \definecolor{flinkStreamColor}{RGB}{0, 102, 204}
 
+% --- GLOBAL FONT SIZE FOR FLINK DAG NODES ---
+\newcommand{\dagfontsize}{\fontsize{12.5pt}{20.0pt}\selectfont}
+
 % --- MACRO PER OBIETTIVI DELLE QUERY ---
 \newcommand{\queryobjective}[1]{
     \vspace{-0.5cm}
@@ -716,7 +719,7 @@ for time.Now().Before(deadline) {
         \node[filter, right=of Watermark] (Preprocessing) {\lblPreprocessing};
 
         %% BRANCH QUERY 1
-        \node[filter, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
+        \node[filter, above right=6.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
         \node[map, right=of Q1_Filter] (Q1_Map) {\lblQOneMap};
         \node[keyby, right=of Q1_Map] (Q1_KeyBy) {\lblQOneKeyBy};
         \node[window, right=of Q1_KeyBy] (Q1_WinAgg) {\lblQOneWinAgg};
@@ -744,7 +747,7 @@ for time.Now().Before(deadline) {
         \node[sink, right=of Q2_RankG] (Q2_SinkG) {\lblQTwoSinkGlob};
 
         %% BRANCH QUERY 3
-        \node[filter, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
+        \node[filter, below right=6.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
         \node[filter, right=of Q3_Filter1] (Q3_Filter2) {\lblQThreeFilterTwo};
         \node[map, right=of Q3_Filter2] (Q3_Map) {\lblQThreeMap};
         \node[keyby, right=of Q3_Map] (Q3_KeyBy) {\lblQThreeKeyBy};
@@ -828,7 +831,7 @@ for time.Now().Before(deadline) {
                 \node[filter, right=of Watermark] (Preprocessing) {\lblPreprocessing};
 
                 %% BRANCH QUERY 1 (DISATTIVATI)
-                \node[muted, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
+                \node[muted, above right=6.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
                 \node[muted, right=of Q1_Filter] (Q1_Map) {\lblQOneMap};
                 \node[muted, right=of Q1_Map] (Q1_KeyBy) {\lblQOneKeyBy};
                 \node[muted, right=of Q1_KeyBy] (Q1_WinAgg) {\lblQOneWinAgg};
@@ -856,7 +859,7 @@ for time.Now().Before(deadline) {
                 \node[muted, right=of Q2_RankG] (Q2_SinkG) {\lblQTwoSinkGlob};
 
                 %% BRANCH QUERY 3 (DISATTIVATI)
-                \node[muted, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
+                \node[muted, below right=6.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
                 \node[muted, right=of Q3_Filter1] (Q3_Filter2) {\lblQThreeFilterTwo};
                 \node[muted, right=of Q3_Filter2] (Q3_Map) {\lblQThreeMap};
                 \node[muted, right=of Q3_Map] (Q3_KeyBy) {\lblQThreeKeyBy};
@@ -945,7 +948,7 @@ for time.Now().Before(deadline) {
                 \node[muted, right=of Watermark] (Preprocessing) {\lblPreprocessing};
 
                 %% BRANCH QUERY 1 (EVIDENZIATO)
-                \node[filter, above right=3.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
+                \node[filter, above right=6.6cm and 0.5cm of Preprocessing] (Q1_Filter) {\lblQOneFilter};
                 \node[map, right=of Q1_Filter] (Q1_Map) {\lblQOneMap};
                 \node[keyby, right=of Q1_Map] (Q1_KeyBy) {\lblQOneKeyBy};
                 \node[window, right=of Q1_KeyBy] (Q1_WinAgg) {\lblQOneWinAgg};
@@ -973,7 +976,7 @@ for time.Now().Before(deadline) {
                 \node[muted, right=of Q2_RankG] (Q2_SinkG) {\lblQTwoSinkGlob};
 
                 %% BRANCH QUERY 3 (DISATTIVATI)
-                \node[muted, below right=3.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
+                \node[muted, below right=6.8cm and 0.5cm of Preprocessing] (Q3_Filter1) {\lblQThreeFilterOne};
                 \node[muted, right=of Q3_Filter1] (Q3_Filter2) {\lblQThreeFilterTwo};
                 \node[muted, right=of Q3_Filter2] (Q3_Map) {\lblQThreeMap};
                 \node[muted, right=of Q3_Map] (Q3_KeyBy) {\lblQThreeKeyBy};
