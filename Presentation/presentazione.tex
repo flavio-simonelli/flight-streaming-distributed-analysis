@@ -1262,7 +1262,7 @@ DataStream<Top10Airports> globalTop10 = localCounts
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
         mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=7.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
+        card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=20.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (DISATTIVATI)
                 \node[muted] (KafkaSource) {\lblKafkaSource};
@@ -1354,7 +1354,7 @@ DataStream<Top10Airports> globalTop10 = localCounts
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (28, 5) {
+        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (32, 4) {
             \textbf{Query 3: Delay Distribution}\\[0.15cm]
             Dettagli su DDSketch e Stato:\\[0.05cm]
             \quad -- \textbf{Mappatura Bin Logaritmici}: $i = \lceil \log_{\gamma}(x) \rceil$ con $\gamma = \frac{1 + \alpha}{1 - \alpha}$ ($\alpha = 0.01$, errore 1\%).\\[0.05cm]
@@ -1367,11 +1367,12 @@ DataStream<Top10Airports> globalTop10 = localCounts
 
     % Listing in sovraimpressione (posizionamento assoluto)
     \begin{tikzpicture}[remember picture, overlay]
-        \node[anchor=north west, xshift=1cm, yshift=-2.4cm] at (current page.north west) {
-            \begin{minipage}{0.56\textwidth}
+        \node[anchor=north west, xshift=0.5cm, yshift=-2cm] at (current page.north west) {
+            \begin{minipage}{0.50\textwidth}
                 \begin{flinkcodebox}{Query 3: DDSketch Integration in State}
 DataStream<Query3Result> q3 = stream
-    .keyBy(r -> Tuple2.of(r.getAirline(), r.getHourOfDay()))
+    .keyBy(r -> 
+            Tuple2.of(r.getAirline(), r.getHourOfDay()))
     .window(TumblingEventTimeWindows.of(Time.days(1)))
     .process(new Q3DDSketchProcessFunction());
                 \end{flinkcodebox}
