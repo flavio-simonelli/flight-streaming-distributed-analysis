@@ -229,11 +229,11 @@
 }
 
 % --- NODE LABELS FOR FLINK DAG ---
-\newcommand{\lblKafkaSource}{\textbf{Kafka Source}\\(\texttt{flights-stream})}
-\newcommand{\lblWatermark}{\textbf{Watermark Assignment}\\(Bounded OOO, delay = 30m)}
+\newcommand{\lblKafkaSource}{\textbf{Kafka Source}\\\texttt{flights-stream}}
+\newcommand{\lblWatermark}{\textbf{Watermark Assignment}\\watermark delay}
 \newcommand{\lblPreprocessing}{\textbf{Logical Filter}\\(Inconsistenze logiche)}
 
-\newcommand{\lblQOneFilter}{\textbf{Airline Filter}\\(AA, DL, UA, WN)}
+\newcommand{\lblQOneFilter}{\textbf{Airline Filter}\\AA, DL, UA, WN}
 \newcommand{\lblQOneMap}{\textbf{Map}\\(FlightRecord $\rightarrow$ AirlinePerformanceEvent)}
 \newcommand{\lblQOneKeyBy}{\textbf{KeyBy}\\(\texttt{airline})}
 \newcommand{\lblQOneWinAgg}{\textbf{Tumbling Window (1h)}\\(Allowed Lateness)\\+ Performance Aggregator}
@@ -823,7 +823,7 @@ for time.Now().Before(deadline) {
         sink/.style={fill=green!25, line width=1pt},
         muted/.style={fill=black!3, draw=black!12, text=black!25},
         mutedline/.style={draw=black!10},
-        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=20.5cm, minimum height=20.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner sep=8pt, align=left}
+        card/.style={fill=white, draw=blue!50, rounded corners=4pt, line width=1.2pt, text width=30.5cm, minimum height=17.2cm, font=\fontsize{24.5pt}{26.5pt}\selectfont, inner sep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (EVIDENZIATI)
                 \node[source] (KafkaSource) {\lblKafkaSource};
@@ -915,11 +915,15 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card] at (25, 0) {
+        \node[card, font=\fontsize{24pt}{26pt}\selectfont] at (28, 0) {
             \textbf{Pipeline Ingestione \& Data Quality}\\[0.15cm]
             \textbullet\ \textbf{Kafka Source}: Lettura parallela distribuita dal topic \texttt{flights-stream} (parallelismo 6).\\[0.1cm]
             \textbullet\ \textbf{Watermark}: Assegnazione timestamp logico ad eventi con tolleranza \textbf{OutOfOrderness} (2 min).\\[0.1cm]
-            \textbullet\ \textbf{Data Quality Filter}: Scarto di record incompleti, nulli o logicamente incoerenti (es. durata volo negativa).
+            \textbullet\ \textbf{Logical Inconsistency Filter}: Pipeline di filtraggio sequenziale a 4 stadi:\\[0.05cm]
+            \quad -- \textbf{Null Safety}: Elimina i record nulli per prevenire \texttt{NullPointerException}.\\[0.05cm]
+            \quad -- \textbf{Schema Completeness}: Verifica presenza dei campi chiave/temporali essenziali.\\[0.05cm]
+            \quad -- \textbf{Temporal Parse}: Scarta record con event-time non valido (\texttt{Long.MIN\_VALUE}) o ora \texttt{< 0}.\\[0.05cm]
+            \quad -- \textbf{Logical Consistency}: Scarta record contemporaneamente \texttt{cancelled} e \texttt{diverted}.
         };
     \end{tikzpicture}
     \end{adjustbox}
