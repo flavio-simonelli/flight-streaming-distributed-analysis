@@ -1430,53 +1430,63 @@ DataStream<Query3Result> q3 = stream
     \end{columns}
 \end{frame}
 
-\begin{frame}[fragile]{Gestione del Disordine e Qualità del Dato}
-    \begin{columns}[c]
-        \begin{column}{0.52\textwidth}
-            \textbf{Normalizzazione del dato}
-            \begin{itemize}
-                \item I record con ritardi mancanti vengono impostati a zero (assunzione conservativa di puntualità).
-            \end{itemize}
-            \textbf{Sincronizzazione in Event-Time}
-            \begin{itemize}
-                \item \textbf{Bounded-Out-of-Orderness}: Ritardo massimo del watermark configurabile a start-time via YAML.
-                \item \textbf{Idleness Detection}: Le partizioni Kafka inattive vengono marcate come temporaneamente *idle* per non bloccare il watermark globale.
-                \item \textbf{Allowed Lateness}: Le finestre accumulano record tardivi entro una tolleranza extra, emettendo aggiornamenti incrementali.
-                \item \textbf{Side Outputs}: I record definitivamente tardivi vengono deviati in canali di telemetria dedicati.
-            \end{itemize}
+\begin{frame}{Metriche di Telemetria: Standard vs Custom}
+    \begin{columns}[t]
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Metriche di Monitoraggio}
+                \scriptsize
+                \begin{itemize}
+                    \item \textbf{Metriche Standard (Flink \& JVM)}:
+                    \begin{itemize}
+                        \scriptsize
+                        \item \textbf{JVM}: CPU, memoria Heap/Non-Heap, GC, thread attivi.
+                        \item \textbf{Runtime}: Latenza/dimensione checkpoint, backpressure.
+                        \item \textbf{I/O}: Kafka Consumer Lag per partizione.
+                    \end{itemize}
+                    \item \textbf{Metriche Custom (Performance \& Business)}:
+                    \begin{itemize}
+                        \scriptsize
+                        \item \textbf{Data Quality}: record con anomalie logiche (\texttt{discarded\_records\_count}).
+                        \item \textbf{Record Tardivi}: record persi oltre allowed lateness, lateness max, percentili.
+                        \item \textbf{Latenza E2E}: da ingestion a emissione (min, max, media) tracciati su percentili.
+                        \item \textbf{Tempo Operatore}: tempo CPU locale dell'operatore (\texttt{operator\_ms}).
+                    \end{itemize}
+                \end{itemize}
+            \end{block}
         \end{column}
 
-        \begin{column}{0.46\textwidth}
-            \begin{flinkcodebox}{Flink Watermarking \& Lateness}
-WatermarkStrategy<FlightRecord> strategy =
-    WatermarkStrategy.<FlightRecord>forBoundedOutOfOrderness(
-        Duration.ofMinutes(config.getWatermarkDelayMin())
-    )
-    .withTimestampAssigner((event, timestamp) -> event.getEventTime())
-    .withIdleness(Duration.ofSeconds(10));
-
-DataStream<FlightRecord> timedStream = 
-    stream.assignTimestampsAndWatermarks(strategy);
-
-windowedStream
-    .allowedLateness(Time.minutes(config.getAllowedLatenessMin()))
-    .sideOutputLateData(lateTag)
-            \end{flinkcodebox}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Come Catturiamo le Metriche Custom}
+                \scriptsize
+                Le metriche custom sono integrate nelle pipeline via API native:
+                \begin{itemize}
+                    \item \textbf{Flink MetricGroup API}: Registrate in \texttt{open()} tramite \texttt{getMetricGroup()} (\texttt{Counter} per conteggi, \texttt{Gauge} per percentili e lateness).
+                    \item \textbf{Stima Percentili con DDSketch}: Accumulatori DDSketch per percentili (p50/90/95/99) con footprint $O(1)$ ed errore relativo $\le 1\%$.
+                    \item \textbf{Fault-Tolerance (ListState)}: Accumulatori salvati nello stato operatore (\texttt{CheckpointedFunction}) per consistenza ai checkpoint.
+                    \item \textbf{AWS Clock Sync}: Sincronizzazione Chrony NTP su EC2 per le metriche E2E, con tetti locali anti-skew (\texttt{Math.max(0, latencyMs)}).
+                \end{itemize}
+            \end{block}
         \end{column}
     \end{columns}
 \end{frame}
+
+
 
 \begin{frame}[fragile]{Fault Tolerance e Garanzie di Consegna E2E}
     \begin{columns}[c]
         \begin{column}{0.54\textwidth}
             \textbf{Exactly-Once Interno}
             \begin{itemize}
+                \scriptsize
                 \item Snapshot asincroni barriera-basati (algoritmo di Chandy-Lamport).
-                \item Salvataggio persistente su storage distribuito (HDFS locale / Amazon S3 su cloud).
-                \item In caso di crash, lo stato degli operatori e degli accumulatori delle finestre viene ripristinato esattamente alla barriera pre-fallimento.
+                \item Salvataggio persistente su storage distribuito (HDFS locale / Amazon S3).
+                \item \textbf{State Backend}: \texttt{hashmap} (stato in JVM Heap memory, che massimizza il throughput evitando I/O e serializzazione su disco).
+                \item \textbf{Adaptive Scheduler}: recupero rapido dai guasti e ridistribuzione dinamica del parallelismo in base alle risorse/slot attivi.
+                \item In caso di crash, lo stato e gli accumulatori vengono ripristinati esattamente alla barriera pre-fallimento.
             \end{itemize}
             \textbf{Garanzie End-to-End Ibride}
             \begin{itemize}
+                \scriptsize
                 \item Il Sink Kafka è impostato a \textit{At-Least-Once} (per evitare il forte overhead del protocollo transazionale distributed 2PC).
                 \item A valle, InfluxDB agisce in modalità idempotente: i duplicati generati dal restore di Flink presentano chiavi primarie e timestamp identici, sovrascrivendo i record precedenti.
                 \item \textbf{Risultato}: Garanzia matematica dell'Exactly-Once End-to-End con throughput nativo.
@@ -1497,47 +1507,6 @@ env.getCheckpointConfig()
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
   );
                 \end{flinkcodebox}
-            \end{block}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}[fragile]{Sistema di Osservabilità e Telemetria}
-    \begin{columns}[c]
-        \begin{column}{0.54\textwidth}
-            \textbf{Raccolta delle Metric API di Flink}
-            \begin{itemize}
-                \item \textbf{Data Quality}: Counter cumulativo dei record scartati per anomalie di business.
-                \item \textbf{Record Tardivi}: Counter per i record scartati oltre l'allowed lateness, gauge per la lateness massima e percentili di lateness stimati con DDSketch.
-                \item \textbf{Latenza end-to-end}: Calcolo al trigger di finestra tramite i timestamp di ingestion nel sistema:
-                \begin{itemize}
-                    \item \textit{Newest E2E Latency}: Tempo di transito del record più recente.
-                    \item \textit{Oldest E2E Latency}: Tempo di transito del record più vecchio.
-                    \item \textit{Average E2E Latency}: Latenza media dei record della finestra.
-                \end{itemize}
-            \end{itemize}
-            \textbf{Bypass del Broker per le Metriche}
-            \begin{itemize}
-                \item Integrazione nativa di `InfluxdbReporterFactory`.
-                \item Flink invia le telemetrie in modalità asincrona a InfluxDB direttamente, risparmiando banda a Kafka.
-            \end{itemize}
-        \end{column}
-
-        \begin{column}{0.44\textwidth}
-            \begin{block}{\scriptsize Metric Registration in Flink (Java)}
-                \begin{alltt}
-public class TelemetryMapper extends RichMapFunction<...> {
-    private transient Counter discardedCounter;
-    private transient Gauge<Long> e2eLatencyGauge;
-
-    @Override
-    public void open(Configuration parameters) {
-        this.discardedCounter = getRuntimeContext()
-            .getMetricGroup()
-            .counter("discarded_records_count");
-    }
-}
-                \end{alltt}
             \end{block}
         \end{column}
     \end{columns}
