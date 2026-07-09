@@ -1526,20 +1526,19 @@ DataStream<Query3Result> q3 = stream
 \begin{frame}[fragile]{Fault Tolerance e Garanzie di Consegna E2E}
     \begin{columns}[c]
         \begin{column}{0.54\textwidth}
-            \textbf{Exactly-Once Interno}
+            \textbf{Stato Exactly-Once}
             \begin{itemize}
                 \scriptsize
-                \item Snapshot asincroni barriera-basati (algoritmo di Chandy-Lamport).
-                \item Salvataggio persistente su storage distribuito (HDFS locale / Amazon S3).
-                \item \textbf{State Backend}: \texttt{hashmap} (stato in JVM Heap memory, che massimizza il throughput evitando I/O e serializzazione su disco).
-                \item \textbf{Adaptive Scheduler}: recupero rapido dai guasti e ridistribuzione dinamica del parallelismo in base alle risorse/slot attivi.
+                \item \textbf{Storage}: Salvataggio persistente su storage distribuito (HDFS locale / Amazon S3).
+                \item \textbf{State Backend}: \texttt{hashmap}; stato in JVM Heap memory, che massimizza il throughput evitando I/O e serializzazione su disco.
+                \item \textbf{Adaptive Scheduler}: recupero rapido dai guasti fino al massimo parallelismo impostato.
                 \item In caso di crash, lo stato e gli accumulatori vengono ripristinati esattamente alla barriera pre-fallimento.
             \end{itemize}
-            \textbf{Garanzie End-to-End Ibride}
+            \textbf{Consegna At-Least-Once}
             \begin{itemize}
                 \scriptsize
-                \item Il Sink Kafka è impostato a \textit{At-Least-Once} (per evitare il forte overhead del protocollo transazionale distributed 2PC).
-                \item A valle, InfluxDB agisce in modalità idempotente: i duplicati generati dal restore di Flink presentano chiavi primarie e timestamp identici, sovrascrivendo i record precedenti.
+                \item Il Sink Kafka è impostato a \textit{At-Least-Once} per evitare il forte overhead del protocollo transazionale distributed 2PC.
+                \item InfluxDB agisce in modalità idempotente: i duplicati generati da Flink presentano chiavi primarie e timestamp identici, sovrascrivendo i record precedenti.
                 \item \textbf{Risultato}: Garanzia matematica dell'Exactly-Once End-to-End con throughput nativo.
             \end{itemize}
         \end{column}
@@ -1563,7 +1562,7 @@ env.getCheckpointConfig()
 
 % --- SEZIONE 4 ---
 \section{Infrastruttura di Deployment}\label{sec:deployment_infrastructure}
-\SectionFrame[Architettura multi-container locale e automazione cloud del cluster distribuito su AWS EC2 tramite CloudFormation e Route 53.]{Infrastruttura di Deployment}
+\SectionFrame[Architettura multi-container e automazione cloud del cluster distribuito su AWS EC2 tramite CloudFormation.]{Infrastruttura di Deployment}
 
 \begin{frame}{Deployment: Topologia architetturale}
     \begin{columns}[T]
@@ -1572,10 +1571,10 @@ env.getCheckpointConfig()
         
             \begin{itemize}
                 \item Provisioning automatizzato dell'infrastruttura tramite template AWS CloudFormation.
-                \item Creazione di una VPC dedicata, security group e Private Hosted Zone Route 53 per la risoluzione DNS interna.
+                \item Creazione di una VPC dedicata, security group e Private Hosted Zone Route 53.
                 \item Distribuzione delle build e delle configurazioni tramite bucket Amazon S3 privato.
                 \item Avvio automatico delle istanze EC2 con bootstrap di Docker, download degli artefatti e deploy dei container locali.
-                \item La risoluzione DNS interna evita di dipendere da indirizzi IP variabili delle istanze EC2.
+                \item La risoluzione DNS interna evita di dipendere dagli indirizzi IP variabili delle istanze EC2.
             \end{itemize}
         \end{column}
 
@@ -1645,7 +1644,7 @@ env.getCheckpointConfig()
 \SectionFrame[Campagne sperimentali condotte sul cluster cloud AWS: analisi di parallelismo e scalabilità, impatto del disordine temporale e overhead del checkpointing.]{Valutazione Sperimentale}
 
 \begin{frame}{Valutazione: Throughput e parallelismo}
-    \begin{columns}[T]
+    \begin{columns}[c]
         \begin{column}{0.48\textwidth}
             \centering
         
@@ -1751,7 +1750,7 @@ env.getCheckpointConfig()
             \end{minipage}
         };
 
-        \node[anchor=north east,text width=0.31\textwidth,align=left] at ([xshift=-0.45cm,yshift=-1.45cm]current page.north east) {%
+        \node[anchor=north east,text width=0.31\textwidth,align=left] at ([xshift=-1.65cm,yshift=-1.45cm]current page.north east) {%
             \begin{itemize}
                 \footnotesize
                 \setlength\itemsep{0.05cm}
@@ -1760,7 +1759,7 @@ env.getCheckpointConfig()
             \end{itemize}
         };
 
-        \node[anchor=south west,text width=0.30\textwidth,align=left] at ([xshift=0.55cm,yshift=0.88cm]current page.south west) {%
+        \node[anchor=south west,text width=0.30\textwidth,align=left] at ([xshift=0.85cm,yshift=1.58cm]current page.south west) {%
             \begin{itemize}
                 \footnotesize
                 \setlength\itemsep{0.05cm}
@@ -1773,7 +1772,7 @@ env.getCheckpointConfig()
 
 % --- SEZIONE 6 ---
 \section{Risultati Analitici}\label{sec:analytical_results}
-\SectionFrame[Analisi dei risultati di business: andamenti orari dei ritardi, granularità temporale delle classifiche aeroportuali e impatto della perdita dati.]{Risultati Analitici}
+\SectionFrame[Analisi dei risultati di business: andamenti orari dei ritardi, classifiche aeroportuali e impatto della perdita dati.]{Risultati Analitici}
 
 \iffalse
 \begin{frame}{Risultati: Query 1 e Query 3}
@@ -1954,11 +1953,10 @@ env.getCheckpointConfig()
                 \setlength\itemsep{0.10cm}
                 \item Trend principali e profili dei percentili restano molto simili.
                 \item La perdita casuale riduce la numerosità disponibile e può alterare leggermente conteggi o posizioni ravvicinate.
-                \item Non emergono scostamenti sistematici evidenti nelle metriche normalizzate.
-                \item Il risultato resta valido assumendo perdita uniforme e indipendente dal ritardo.
+                \item Non emergono scostamenti sistematici evidenti nelle metriche.
             \end{itemize}
 
-            \vspace{0.20cm}
+            \vspace{0.80cm}
 
             \CropQOneDashboard{Q1_AA_l10.png}
 
