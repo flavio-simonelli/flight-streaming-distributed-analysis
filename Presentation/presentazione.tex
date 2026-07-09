@@ -697,7 +697,7 @@ for time.Now().Before(deadline) {
         arrow/.style={-Stealth, line width=1.2pt, draw=structure}
     ]
         \node[box] (kafka) {\includegraphics[height=0.45cm]{logos/kafka.png}\\ Kafka};
-        \node[box, right=of kafka] (telegraf) {\includegraphics[height=0.45cm]{logos/telegraf.png}\\ Telegraf \\ \fontsize{5pt}{6pt}\selectfont(Starlark Script)};
+        \node[box, right=of kafka] (telegraf) {\includegraphics[height=0.45cm]{logos/telegraf.png}\\ Telegraf};
         \node[box, right=of telegraf] (influx) {\includegraphics[height=0.45cm]{logos/influxdb.png}\\ InfluxDB};
         
         \draw[arrow] (kafka) -- (telegraf) node[midway, above, font=\tiny\sffamily] {JSON};
