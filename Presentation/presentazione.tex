@@ -662,21 +662,21 @@ for time.Now().Before(deadline) {
 
     \begin{columns}[t]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Ingestion e Ingress Buffering}
+            \begin{block}{Kafka Ingress}
                 \footnotesize
                 \begin{itemize}
                     \item \textbf{Topic \texttt{flights-stream}}: 6 partizioni (mapping 1:1 con il parallelismo di Flink).
-                    \item \textbf{Scrittura Ingress}: Chiave nulla in \textbf{Round-Robin} per distribuire uniformemente il carico.
+                    \item \textbf{Scrittura Ingress}: Chiave nulla in Round-Robin per distribuire uniformemente il carico.
                 \end{itemize}
             \end{block}
         \end{column}
 
         \begin{column}{0.48\textwidth}
-            \begin{block}{Instradamento Output}
+            \begin{block}{Kafka Egress}
                 \footnotesize
                 \begin{itemize}
-                    \item \textbf{Topic Dedicati}: Un topic per query e finestra temporale.
-                    \item \textbf{Partizionamento}:
+                    \item \textbf{Topic Dedicati}: per query e finestra temporale.
+                    \item \textbf{Routing}:
                         \begin{itemize}\footnotesize
                             \item \textbf{Q1}: su \texttt{airline}.
                             \item \textbf{Q2}: su \texttt{origin\_airport\_id}.
