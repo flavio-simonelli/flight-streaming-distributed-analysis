@@ -1087,20 +1087,18 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (30, -4) {
-            \textbf{Query 1: Airline Performance}\\[0.15cm]
-            Dettagli delle operazioni nello stato:\\[0.05cm]
-            -- \textbf{Accumulatore Locale} (\texttt{Q1Aggregator}):\\
+        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=10pt] at (30, -2) {
+            \textbf{Accumulatore Locale} (\texttt{Q1Aggregator}):\\
             \quad \textbullet\ \texttt{acc.total++}\\
             \quad \textbullet\ Se cancellato: \texttt{acc.cancelled++}\\
             \quad \textbullet\ Altrimenti: \texttt{acc.sumDelay += r.getDepDelay()};\\
             \quad\quad\ \ Se deviato: \texttt{acc.diverted++}
             \\
             \quad\quad\ \ altrimenti: \texttt{acc.completed++}\\[0.05cm]
-            -- \textbf{Processamento Finestra} (\texttt{Q1WindowProcessor}):\\
+            \textbf{Processamento Finestra} (\texttt{Q1WindowProcessor}):\\
             \quad \textbullet\ \texttt{avgDelay = sumDelay/countDelay}\\
             \quad \textbullet\ \texttt{cancelRate = (cancelled/total)*100}\\
-            \quad \textbullet\ \texttt{lateRate = (lateDepartures/(total-cancelled))*100}
+            \quad \textbullet\ \texttt{lateRate = (lateDep/(tot-canc))*100}
         };
     \end{tikzpicture}
     \end{adjustbox}
@@ -1233,12 +1231,10 @@ DataStream<Query1Result> q1 = stream
 
         %% FLOATING CARD
         \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (10, 6) {
-            \textbf{Query 2: Airport Top-10}\\[0.15cm]
-            Classifica degli aeroporti con ritardi severi.\\[0.05cm]
-            \quad -- \textbf{Aggregazione locale}: conteggio per \texttt{originAirport}.\\[0.05cm]
-            \quad -- \textbf{Aggregazione globale}: raggruppamento per \texttt{windowEnd}.\\[0.05cm]
-            \quad -- \textbf{MapState}: accumulo fino al timer su watermark.\\[0.05cm]
-            \quad -- \textbf{Min-Heap Top-10}: mantiene solo i 10 aeroporti peggiori.
+            -- \textbf{Aggregazione locale}: conteggio per \texttt{originAirport}.\\[0.05cm]
+            -- \textbf{Aggregazione globale}: raggruppamento per \texttt{windowEnd}.\\[0.05cm]
+            -- \textbf{MapState}: accumulo fino alla ricezione del watermark da tutti gli aggregatori.\\[0.05cm]
+            -- \textbf{Min-Heap Top-10}: mantiene solo i 10 aeroporti peggiori.
         };
 
     \end{tikzpicture}
@@ -1248,7 +1244,7 @@ DataStream<Query1Result> q1 = stream
     \begin{tikzpicture}[remember picture, overlay]
         \node[anchor=north west, xshift=1cm, yshift=-4.9cm] at (current page.north west) {
             \begin{minipage}{0.56\textwidth}
-                \begin{flinkcodebox}{Query 2: Local-Global Aggregation \& Min-Heap}
+                \begin{flinkcodebox}{Query 2: Local-Global Aggregation}
 DataStream<AirportDelayCount> localCounts = stream
     .filter(r -> r.getArrDelay() > 15)
     .keyBy(FlightRecord::getOriginAirport)
