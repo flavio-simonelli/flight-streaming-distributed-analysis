@@ -375,7 +375,7 @@
         \begin{column}{0.48\textwidth}
             \begin{enumerate}\setcounter{enumi}{3}
                 \item \textbf{Infrastruttura di Deployment}
-                \\{\scriptsize Container locali ed AWS CloudFormation con Route 53}
+                \\{\scriptsize Docker e AWS CloudFormation}
                 \vspace{0.35cm}
 
                 \item \textbf{Valutazione Sperimentale}
@@ -383,7 +383,7 @@
                 \vspace{0.35cm}
 
                 \item \textbf{Risultati Analitici}
-                \\{\scriptsize Analisi dei ritardi, granularità ed effetto della perdita dati}
+                \\{\scriptsize Analisi dei ritardi ed effetto della perdita dati}
             \end{enumerate}
         \end{column}
     \end{columns}
@@ -413,7 +413,7 @@
 
 % --- SEZIONE 2 ---
 \section{Ingestion e Broker Layer}\label{sec:ingestion_and_broker_layer}\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su partizionamento Kafka.]{Ingestion e Broker Layer}
-\begin{frame}[fragile]{Flusso del Simulatore Go: Fase 1 (Preparazione)}
+\begin{frame}[fragile]{Flusso del Simulatore Go: Preparazione}
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
             \begin{block}{\footnotesize Scenari di Accelerazione}
@@ -432,8 +432,7 @@
                 \end{tabular}
             \end{block}
             \vskip 0.1cm
-            \begin{gocodebox}{Go - Iniezione Disordine (OOO)}
-// Se applicabile, inietta ritardo per disordine
+            \begin{gocodebox}{Go - Iniezione Disordine}
 if rand.Float64() < s.factor {
     delay := 1 + rand.Intn(s.maxDelay)
     publishAt = base.Add(time.Duration(delay) * time.Minute)
@@ -463,7 +462,7 @@ if rand.Float64() < s.factor {
                 \node[process, below=0.45cm of CheckCache] (Load) {Lettura Cache\\(pre-ordinati)};
                 \node[process, right=0.6cm of Load] (ParseTar) {Parsing CSV da Tar.gz\\Ordinamento Event-Time\\Salvataggio Cache GOB};
                 
-                \node[process, below=0.45cm of Load] (Schedule) {Calcolo Tempo di Invio (PublishAt)\\e Iniezione Disordine (OOO)};
+                \node[process, below=0.45cm of Load] (Schedule) {Calcolo Tempo di Invio\\e Iniezione Disordine};
                 \node[process, below=0.4cm of Schedule] (Sort) {Ordinamento Stabile dei Record\\rispetto a PublishAt};
                 
                 \node[draw=none, fill=none, below=0.4cm of Sort] (DotsOut) {$\dots$};
@@ -495,7 +494,7 @@ if rand.Float64() < s.factor {
     \end{columns}
 \end{frame}
 
-\begin{frame}[fragile]{Flusso del Simulatore Go: Fase 2 (Replay Loop)}
+\begin{frame}[fragile]{Flusso del Simulatore Go: Replay Loop}
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
             \begin{gocodebox}{Go - Attesa Ibrida (Wait)}
@@ -513,7 +512,7 @@ for time.Now().Before(deadline) {
                 \scriptsize
                 \begin{itemize}
                     \item \textbf{Serializzazione JSON}: Ciascun record viene convertito in JSON prima della trasmissione.
-                    \item \textbf{Bilanciamento Round-Robin}: Messaggi inviati con chiave nulla (\texttt{Key: nil}) per distribuire uniformemente il carico tra le partizioni del topic.
+                    \item \textbf{Bilanciamento Round-Robin}: Messaggi inviati con chiave null per distribuire uniformemente il carico tra le partizioni del topic.
                     \item \textbf{Batching Ottimizzato}: Dimensione batch a 100 record e \texttt{BatchTimeout} a 2ms per massimizzare il throughput senza ritardare l'invio.
                     \item \textbf{Scrittura Asincrona}: Il writer opera asincronamente per evitare di bloccare il loop di temporizzazione millesimale del simulatore.
                 \end{itemize}
@@ -539,12 +538,12 @@ for time.Now().Before(deadline) {
                 
                 \node[decision, below=0.45cm of LoopCheck] (CheckCancel) {Simulazione\\annullata?};
                 
-                \node[process, below=0.45cm of CheckCancel] (CalcWait) {Calcolo attesa residua rispetto a prec.\\(targetWait / SpeedupFactor)};
+                \node[process, below=0.45cm of CheckCancel] (CalcWait) {Calcolo attesa residua rispetto\\al record precedente};
                 
-                \node[decision, below=0.5cm of CalcWait] (CheckWait) {Attesa residua\\(targetWait) $>$ 0?};
+                \node[decision, below=0.5cm of CalcWait] (CheckWait) {Attesa residua $>$ 0?};
                 \node[process, right=0.6cm of CheckWait] (Wait) {Attesa Ibrida\\(Sleep / Busy Wait)};
                 
-                \node[sink, below=0.5cm of CheckWait] (Write) {Scrittura Record nel Sink\\(Topic Kafka / Console)};
+                \node[sink, below=0.5cm of CheckWait] (Write) {Scrittura Record\\nel Sink};
                 
                 \node[process, below=0.45cm of Write] (Update) {Aggiorna contatori e riferimenti\\temporali per il record successivo};
 
@@ -607,7 +606,7 @@ for time.Now().Before(deadline) {
         \node[draw=none, fill=white, inner sep=1.5pt, anchor=west, font=\fontsize{3.5pt}{4.5pt}\selectfont] at (5.6, 0.4) {\textbf{Query 3} (Key: null)};
 
         %% NODI LOGHI APPLICAZIONE (SENZA CONTORNO / SCRITTA / SFONDO)
-        \node[draw=none, fill=none] (Sim) at (0, 0.8) {\includegraphics[height=0.6cm]{logos/go.png}};
+        \node[draw=none, fill=none] (Sim) at (-0.5, 0.8) {\includegraphics[height=0.6cm]{logos/go.png}};
         \node[draw=none, fill=none] (Flink) at (4.4, 0.8) {\includegraphics[height=0.55cm]{logos/flink.png}};
         \node[draw=none, fill=none] (Telegraf) at (10.0, 0.8) {\includegraphics[height=0.55cm]{logos/telegraf.png}\ \includegraphics[height=0.55cm]{logos/influxdb.png}};
         
@@ -663,15 +662,15 @@ for time.Now().Before(deadline) {
     \end{tikzpicture}
     \end{adjustbox}
 
-    \vskip 0.1cm
+    \vskip -0.25cm
 
     \begin{columns}[t]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Ingestion \& Ingress Buffering}
+            \begin{block}{Ingestion e Ingress Buffering}
                 \footnotesize
                 \begin{itemize}
                     \item \textbf{Topic \texttt{flights-stream}}: 6 partizioni (mapping 1:1 con il parallelismo di Flink).
-                    \item \textbf{Scrittura Ingress}: Chiave nulla (\texttt{Key: nil}) in \textbf{Round-Robin} per distribuire uniformemente il carico.
+                    \item \textbf{Scrittura Ingress}: Chiave nulla in \textbf{Round-Robin} per distribuire uniformemente il carico.
                 \end{itemize}
             \end{block}
         \end{column}
@@ -683,9 +682,9 @@ for time.Now().Before(deadline) {
                     \item \textbf{Topic Dedicati}: Un topic per query e finestra temporale.
                     \item \textbf{Partizionamento}:
                         \begin{itemize}\footnotesize
-                            \item \textbf{Q1}: su \texttt{airline} (ordinamento locale).
+                            \item \textbf{Q1}: su \texttt{airline}.
                             \item \textbf{Q2}: su \texttt{origin\_airport\_id}.
-                            \item \textbf{Q3}: chiave nulla (round-robin).
+                            \item \textbf{Q3}: chiave nulla.
                         \end{itemize}
                 \end{itemize}
             \end{block}
@@ -693,7 +692,7 @@ for time.Now().Before(deadline) {
     \end{columns}
 \end{frame}
 
-\begin{frame}[fragile]{Persistenza e Ingest: Telegraf \& InfluxDB}
+\begin{frame}[fragile]{Persistenza: Telegraf e InfluxDB}
     % Diagramma del flusso visivo in alto
     \centering
     \begin{tikzpicture}[
@@ -713,18 +712,18 @@ for time.Now().Before(deadline) {
     
     \begin{columns}[t]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Colletta e Ingestione (Telegraf)}
+            \begin{block}{Raccolta e Salvataggio}
                 \footnotesize
                 \begin{itemize}
-                    \item \textbf{Consumo da Kafka (Extract)}: Legge in tempo reale i messaggi JSON prodotti dalle query Flink.
-                    \item \textbf{Preprocessing con Starlark (Transform)}: Esegue la deserializzazione, mappa i tag e corregge i tipi per prevenire conflitti di schema.
-                    \item \textbf{Scrittura su InfluxDB (Load)}: Carica i dati nel database tramite \textbf{API v2} ad alte prestazioni.
+                    \item \textbf{Consumo da Kafka}: Legge in tempo reale i messaggi JSON prodotti dalle query Flink.
+                    \item \textbf{Preprocessing con Starlark}: Esegue la deserializzazione, mappa i tag e corregge i tipi per prevenire conflitti di schema.
+                    \item \textbf{Scrittura su InfluxDB}: Carica i dati nel database tramite \texttt{API v2} ad alte prestazioni.
                 \end{itemize}
             \end{block}
         \end{column}
  
         \begin{column}{0.48\textwidth}
-            \begin{block}{Struttura InfluxDB \& Data Schema}
+            \begin{block}{Struttura InfluxDB}
                 \footnotesize
                 \textbf{Organizzazione Bucket:}
                 \begin{itemize}
@@ -734,20 +733,20 @@ for time.Now().Before(deadline) {
                 \end{itemize}
                 
                 \vspace{0.15cm}
-                \textbf{Schema dei Dati (Tag):}
+                \textbf{Schema dei Dati:}
                 \vskip 0.05cm
                 \centering
                 \renewcommand{\arraystretch}{1.2}
                 \begin{tabular}{ll}
                     \hline
                     \textbf{Misura / Query} & \textbf{Tag Principali} \\ \hline
-                    Query 1 (Performance) & \texttt{airline} \\
-                    Query 2 (Airport Rank) & \texttt{rank}, \texttt{window\_type} \\
-                    Query 3 (Delay Distr.) & \texttt{airline}, \texttt{window\_type}, \texttt{hour} \\ \hline
+                    Query 1 & \texttt{airline} \\
+                    Query 2 & \texttt{rank}, \texttt{window\_type} \\
+                    Query 3 & \texttt{airline}, \texttt{window\_type}, \texttt{hour} \\ \hline
                 \end{tabular}
                 \vskip 0.1cm
                 \flushleft
-                \tiny \textbf{Nota}: Tutti i timestamp corrispondono all'Event-Time della finestra (\texttt{window\_start}) e non al momento di scrittura.
+                \tiny \textbf{Nota}: Tutti i timestamp corrispondono all'Event-Time dell'inizio della finestra e non al momento di scrittura.
             \end{block}
         \end{column}
     \end{columns}
@@ -1495,19 +1494,17 @@ DataStream<Query3Result> q3 = stream
 
         \begin{column}{0.44\textwidth}
             \centering
-            \begin{block}{\scriptsize Configurazione Checkpoint}
-                \begin{flinkcodebox}{Java Checkpointing Configuration}
+            \begin{flinkcodebox}{Java Checkpointing Configuration}
 env.enableCheckpointing(30000); // 30s
 env.getCheckpointConfig()
-  .setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    .setCheckpointingMode(EXACTLY_ONCE);
 env.getCheckpointConfig()
-  .setMinPauseBetweenCheckpoints(10000); // 10s
+    .setMinPauseBetweenCheckpoints(10000); // 10s
 env.getCheckpointConfig()
-  .setExternalizedCheckpointCleanup(
-    ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
-  );
-                \end{flinkcodebox}
-            \end{block}
+    .setExternalizedCheckpointCleanup(
+        RETAIN_ON_CANCELLATION
+    );
+            \end{flinkcodebox}
         \end{column}
     \end{columns}
 \end{frame}
