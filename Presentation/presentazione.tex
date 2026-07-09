@@ -22,6 +22,7 @@
 \tcbuselibrary{listings}
 \usepackage{mathtools}
 \usepackage{adjustbox}
+\usepackage{booktabs}
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.geometric}
 
@@ -1479,39 +1480,41 @@ DataStream<Query3Result> q3 = stream
 \end{frame}
 
 \begin{frame}{Metriche di Telemetria: Standard vs Custom}
-    \begin{columns}[t]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Metriche di Monitoraggio}
-                \scriptsize
-                \begin{itemize}
-                    \item \textbf{Metriche Standard}:
-                    \begin{itemize}
-                        \scriptsize
-                        \item \textbf{JVM}: CPU, memoria Heap/Non-Heap, GC, thread attivi.
-                        \item \textbf{Runtime}: Latenza/dimensione checkpoint, backpressure.
-                        \item \textbf{I/O}: Kafka Consumer Lag per partizione.
-                    \end{itemize}
-                    \item \textbf{Metriche Custom}:
-                    \begin{itemize}
-                        \scriptsize
-                        \item \textbf{Data Quality}: record con anomalie logiche.
-                        \item \textbf{Record Tardivi}: record persi oltre allowed lateness, lateness max, percentili.
-                        \item \textbf{Latenza E2E}: da ingestion a emissione tracciati su percentili.
-                        \item \textbf{Tempo Operatore}: tempo CPU locale dell'operatore.
-                    \end{itemize}
-                \end{itemize}
+    \vspace{-0.15cm}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.40\textwidth}
+            \begin{block}{\footnotesize Catalogo Metriche}
+                \centering
+                \renewcommand{\arraystretch}{1.16}
+                \setlength{\tabcolsep}{2pt}
+                \tiny
+                \begin{tabular}{p{0.18\linewidth}p{0.26\linewidth}p{0.43\linewidth}}
+                    \toprule
+                    \textbf{Tipo} & \textbf{Area} & \textbf{Metriche} \\
+                    \midrule
+                    Standard & JVM & CPU, memoria Heap/Non-Heap, GC, thread attivi. \\ \hline
+                    Standard & Runtime & Latenza/dimensione checkpoint, backpressure. \\ \hline
+                    Standard & I/O & Kafka Consumer Lag per partizione. \\
+                    \midrule[\heavyrulewidth]
+                    Custom & Data Quality & record con anomalie logiche. \\ \hline
+                    Custom & Record Tardivi & record persi oltre allowed lateness, lateness max, percentili. \\ \hline
+                    Custom & Latenza E2E & da ingestion a emissione tracciati su percentili. \\ \hline
+                    Custom & Tempo Operatore & tempo CPU locale dell'operatore. \\
+                    \bottomrule
+                \end{tabular}
             \end{block}
         \end{column}
 
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Come Catturiamo le Metriche Custom}
+        \begin{column}{0.55\textwidth}
+            \begin{block}{\footnotesize Come Catturiamo le Metriche Custom}
                 \scriptsize
-                Le metriche custom sono integrate nelle pipeline via API native:
                 \begin{itemize}
-                    \item \textbf{Flink MetricGroup API}: Registrate in \texttt{open()} tramite \texttt{getMetricGroup()}. \texttt{Counter} per conteggi, \texttt{Gauge} per percentili e lateness.
-                    \item \textbf{Stima Percentili con DDSketch}: Accumulatori DDSketch per percentili con footprint $O(1)$ ed errore relativo $\le 1\%$.
-                    \item \textbf{Fault-Tolerance}: Accumulatori salvati nello stato operatore per consistenza ai checkpoint.
-                    \item \textbf{AWS Clock Sync}: Sincronizzazione Chrony NTP su EC2 per le metriche E2E, con tetti locali anti-skew .
+                    \item Integrate nelle pipeline via API native.
+                    \item Registrazione in \texttt{open()} tramite \texttt{getMetricGroup()}.
+                    \item \texttt{Counter} per conteggi e \texttt{Gauge} per percentili/lateness.
+                    \item Percentili stimati con accumulatori DDSketch a footprint $O(1)$ ed errore relativo $\le 1\%$.
+                    \item Accumulatori salvati nello stato operatore per consistenza ai checkpoint.
+                    \item Metriche E2E con Chrony NTP su EC2 e tetti locali anti-skew.
                 \end{itemize}
             \end{block}
         \end{column}
