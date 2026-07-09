@@ -276,38 +276,38 @@
 % --- NODE LABELS FOR FLINK DAG ---
 \newcommand{\lblKafkaSource}{\textbf{Kafka Source}\\\texttt{flights-stream}}
 \newcommand{\lblWatermark}{\textbf{Watermark Assignment}\\watermark delay}
-\newcommand{\lblPreprocessing}{\textbf{Logical Filter}\\(Inconsistenze logiche)}
+\newcommand{\lblPreprocessing}{\textbf{Logical Filter}\\Inconsistenze logiche}
 
 \newcommand{\lblQOneFilter}{\textbf{Airline Filter}\\AA, DL, UA, WN}
-\newcommand{\lblQOneMap}{\textbf{Map}\\(FlightRecord $\rightarrow$ AirlinePerformanceEvent)}
-\newcommand{\lblQOneKeyBy}{\textbf{KeyBy}\\(\texttt{airline})}
-\newcommand{\lblQOneWinAgg}{\textbf{Tumbling Window (1h)}\\(Allowed Lateness)\\+ Performance Aggregator}
-\newcommand{\lblQOneSink}{\textbf{Kafka Sink}\\(\texttt{flights-q1-results})}
+\newcommand{\lblQOneMap}{\textbf{Map}\\FlightRecord $\rightarrow$ AirlinePerformanceEvent}
+\newcommand{\lblQOneKeyBy}{\textbf{KeyBy}\\\texttt{airline}}
+\newcommand{\lblQOneWinAgg}{\textbf{Tumbling Window (1h)}\\+ Allowed Lateness\\+ Performance Aggregator}
+\newcommand{\lblQOneSink}{\textbf{Kafka Sink}\\\texttt{flights-q1-results}}
 
-\newcommand{\lblQTwoFilter}{\textbf{Active Flight Filter}\\(Not Diverted/Cancelled)}
-\newcommand{\lblQTwoMap}{\textbf{Map}\\(FlightRecord $\rightarrow$ RankAirportsEvent)}
-\newcommand{\lblQTwoKeyBy}{\textbf{KeyBy}\\(\texttt{originAirport})}
-\newcommand{\lblQTwoWAggOne}{\textbf{Tumbling Window (1h)}\\(Allowed Lateness)\\+ Stats Aggregation}
-\newcommand{\lblQTwoWAggSix}{\textbf{Tumbling Window (6h)}\\(Allowed Lateness)\\+ Stats Aggregation}
+\newcommand{\lblQTwoFilter}{\textbf{Active Flight Filter}\\Not Diverted/Cancelled}
+\newcommand{\lblQTwoMap}{\textbf{Map}\\FlightRecord $\rightarrow$ RankAirportsEvent}
+\newcommand{\lblQTwoKeyBy}{\textbf{KeyBy}\\\texttt{originAirport}}
+\newcommand{\lblQTwoWAggOne}{\textbf{Tumbling Window (1h)}\\+ Allowed Lateness\\+ Stats Aggregation}
+\newcommand{\lblQTwoWAggSix}{\textbf{Tumbling Window (6h)}\\+ Allowed Lateness\\+ Stats Aggregation}
 \newcommand{\lblQTwoWAggGlob}{\textbf{Global Window (24h)}\\+ Stats Aggregation}
-\newcommand{\lblQTwoKByOne}{\textbf{KeyBy}\\(\texttt{windowEnd})}
-\newcommand{\lblQTwoKBySix}{\textbf{KeyBy}\\(\texttt{windowEnd})}
-\newcommand{\lblQTwoKByGlob}{\textbf{KeyBy}\\(\texttt{windowEnd})}
-\newcommand{\lblQTwoRank}{\textbf{RankProcessor}\\(Top 10 Aeroporti)}
-\newcommand{\lblQTwoSinkOne}{\textbf{Kafka Sink}\\(\texttt{flights-q2-1h})}
-\newcommand{\lblQTwoSinkSix}{\textbf{Kafka Sink}\\(\texttt{flights-q2-6h})}
-\newcommand{\lblQTwoSinkGlob}{\textbf{Kafka Sink}\\(\texttt{flights-q2-glob})}
+\newcommand{\lblQTwoKByOne}{\textbf{KeyBy}\\\texttt{windowEnd}}
+\newcommand{\lblQTwoKBySix}{\textbf{KeyBy}\\\texttt{windowEnd}}
+\newcommand{\lblQTwoKByGlob}{\textbf{KeyBy}\\\texttt{windowEnd}}
+\newcommand{\lblQTwoRank}{\textbf{RankProcessor}\\Top 10 Aeroporti}
+\newcommand{\lblQTwoSinkOne}{\textbf{Kafka Sink}\\\texttt{flights-q2-1h}}
+\newcommand{\lblQTwoSinkSix}{\textbf{Kafka Sink}\\\texttt{flights-q2-6h}}
+\newcommand{\lblQTwoSinkGlob}{\textbf{Kafka Sink}\\\texttt{flights-q2-glob}}
 
-\newcommand{\lblQThreeFilterOne}{\textbf{Airline Filter}\\(AA, DL, UA, WN)}
-\newcommand{\lblQThreeFilterTwo}{\textbf{Active Flight Filter}\\(Not Diverted/Cancelled)}
-\newcommand{\lblQThreeMap}{\textbf{Map}\\(FlightRecord $\rightarrow$ DelayDistributionEvent)}
-\newcommand{\lblQThreeKeyBy}{\textbf{KeyBy}\\(\texttt{airline, hour})}
-\newcommand{\lblQThreeWAggOneD}{\textbf{Tumbling Window (1d)}\\(Allowed Lateness)\\+ DDSketch (Quantili)}
-\newcommand{\lblQThreeWAggSevenD}{\textbf{Tumbling Window (7d)}\\(Allowed Lateness)\\+ DDSketch (Quantili)}
+\newcommand{\lblQThreeFilterOne}{\textbf{Airline Filter}\\AA, DL, UA, WN}
+\newcommand{\lblQThreeFilterTwo}{\textbf{Active Flight Filter}\\Not Diverted/Cancelled}
+\newcommand{\lblQThreeMap}{\textbf{Map}\\FlightRecord $\rightarrow$ DelayDistributionEvent}
+\newcommand{\lblQThreeKeyBy}{\textbf{KeyBy}\\\texttt{airline, hour}}
+\newcommand{\lblQThreeWAggOneD}{\textbf{Tumbling Window (1d)}\\+ Allowed Lateness\\+ DDSketch (Quantili)}
+\newcommand{\lblQThreeWAggSevenD}{\textbf{Tumbling Window (7d)}\\+ Allowed Lateness\\+ DDSketch (Quantili)}
 \newcommand{\lblQThreeWAggGlob}{\textbf{Global Window}\\+ DDSketch (Quantili)}
-\newcommand{\lblQThreeSinkOneD}{\textbf{Kafka Sink}\\(\texttt{flights-q3-1d})}
-\newcommand{\lblQThreeSinkSevenD}{\textbf{Kafka Sink}\\(\texttt{flights-q3-7d})}
-\newcommand{\lblQThreeSinkGlob}{\textbf{Kafka Sink}\\(\texttt{flights-q3-glob})}
+\newcommand{\lblQThreeSinkOneD}{\textbf{Kafka Sink}\\\texttt{flights-q3-1d}}
+\newcommand{\lblQThreeSinkSevenD}{\textbf{Kafka Sink}\\\texttt{flights-q3-7d}}
+\newcommand{\lblQThreeSinkGlob}{\textbf{Kafka Sink}\\\texttt{flights-q3-glob}}
 
 % --- METADATI TITOLO ---
 \title[Sky Analytics Stream]{Sky Analytics Stream}
@@ -708,18 +708,18 @@ for time.Now().Before(deadline) {
     
     \begin{columns}[t]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Raccolta e Salvataggio}
+            \begin{block}{Telegraf}
                 \footnotesize
                 \begin{itemize}
-                    \item \textbf{Consumo da Kafka}: Legge in tempo reale i messaggi JSON prodotti dalle query Flink.
-                    \item \textbf{Preprocessing con Starlark}: Esegue la deserializzazione, mappa i tag e corregge i tipi per prevenire conflitti di schema.
-                    \item \textbf{Scrittura su InfluxDB}: Carica i dati nel database tramite \texttt{API v2} ad alte prestazioni.
+                    \item \textbf{Consumo Asincrono da Kafka}: Agisce da consumer multi-topic disaccoppiando l'elaborazione dallo storage.
+                    \item \textbf{Normalizzazione e Tagging}: Esegue la deserializzazione, mappa i tag e corregge i tipi per prevenire conflitti di schema.
+                    \item \textbf{Bulk Loading via Line Protocol}: Converte le metriche nel formato nativo di InfluxDB e le scrive tramite caricamenti massivi HTTP v2, ottimizzando le performance di I/O.
                 \end{itemize}
             \end{block}
         \end{column}
  
         \begin{column}{0.48\textwidth}
-            \begin{block}{Struttura InfluxDB}
+            \begin{block}{InfluxDB}
                 \footnotesize
                 \textbf{Organizzazione Bucket:}
                 \begin{itemize}
@@ -750,7 +750,7 @@ for time.Now().Before(deadline) {
 
 % --- SEZIONE 3 ---
 \section{Stream Processing Core (Apache Flink)}\label{sec:stream_processing_core}
-\SectionFrame[Architettura della topologia computazionale concorrente, gestione del tempo logico, ottimizzazioni di memoria, DDSketch e dettagli delle query.]{Apache Flink}
+\SectionFrame[Architettura della topologia computazionale, gestione del tempo logico, metriche di performance, DDSketch e dettagli delle query.]{Apache Flink}
 
 \begin{frame}{Topologia del Flusso Streaming (DAG)}
     \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
