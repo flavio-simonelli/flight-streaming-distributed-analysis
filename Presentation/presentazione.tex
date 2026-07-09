@@ -874,8 +874,8 @@ for time.Now().Before(deadline) {
         keyby/.style={fill=red!10},
         window/.style={fill=green!12},
         sink/.style={fill=green!25, line width=1pt},
-        muted/.style={fill=black!3, draw=black!12, text=black!25},
-        mutedline/.style={draw=black!10},
+        muted/.style={fill=white, draw=black!6, text=black!15},
+        mutedline/.style={draw=black!6},
         card/.style={fill=white, draw=structure, rounded corners=6pt, line width=2pt, text width=28.5cm, font=\fontsize{24.5pt}{26.5pt}\selectfont, inner xsep=35pt, inner ysep=25pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (EVIDENZIATI)
@@ -971,10 +971,10 @@ for time.Now().Before(deadline) {
         \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (28, 0) {
             \textbf{Logical Inconsistency Filter}\\[0.15cm]
             Pipeline di filtraggio sequenziale a 4 stadi:\\[0.05cm]
-            \quad -- \textbf{Null Safety}: Elimina i record nulli per prevenire \texttt{NullPointerException}.\\[0.05cm]
-            \quad -- \textbf{Schema Completeness}: Verifica presenza dei campi chiave/temporali essenziali.\\[0.05cm]
-            \quad -- \textbf{Temporal Parse}: Scarta record con event-time non valido o ora \texttt{< 0}.\\[0.05cm]
-            \quad -- \textbf{Logical Consistency}: Scarta record contemporaneamente \texttt{cancelled} e \texttt{diverted}.
+            -- \textbf{Null Safety}: Elimina i record nulli per prevenire \texttt{NullPointerException}.\\[0.05cm]
+            -- \textbf{Schema Completeness}: Verifica presenza dei campi chiave/temporali essenziali.\\[0.05cm]
+            -- \textbf{Temporal Parse}: Scarta record con event-time non valido o ora \texttt{< 0}.\\[0.05cm]
+            -- \textbf{Logical Consistency}: Scarta record contemporaneamente \texttt{cancelled} e \texttt{diverted}.
         };
     \end{tikzpicture}
     \end{adjustbox}
@@ -993,8 +993,8 @@ for time.Now().Before(deadline) {
         keyby/.style={fill=red!10},
         window/.style={fill=green!12},
         sink/.style={fill=green!25, line width=1pt},
-        muted/.style={fill=black!3, draw=black!12, text=black!25},
-        mutedline/.style={draw=black!10},
+        muted/.style={fill=white, draw=black!6, text=black!15},
+        mutedline/.style={draw=black!6},
         card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=20cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (DISATTIVATI)
@@ -1134,8 +1134,8 @@ DataStream<Query1Result> q1 = stream
         keyby/.style={fill=red!10},
         window/.style={fill=green!12},
         sink/.style={fill=green!25, line width=1pt},
-        muted/.style={fill=black!3, draw=black!12, text=black!25},
-        mutedline/.style={draw=black!10},
+        muted/.style={fill=white, draw=black!6, text=black!15},
+        mutedline/.style={draw=black!6},
         card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=23.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
     ]
         %% INGESTIONE E PREPROCESSING (DISATTIVATI)
@@ -1273,8 +1273,8 @@ DataStream<Top10Airports> globalTop10 = localCounts
         keyby/.style={fill=red!10},
         window/.style={fill=green!12},
         sink/.style={fill=green!25, line width=1pt},
-        muted/.style={fill=black!3, draw=black!12, text=black!25},
-        mutedline/.style={draw=black!10},
+        muted/.style={fill=white, draw=black!6, text=black!15},
+        mutedline/.style={draw=black!6},
         card/.style={fill=white, draw=structure, rounded corners=4pt, line width=1.8pt, text width=20.5cm, minimum height=3.2cm, font=\fontsize{5.5pt}{7pt}\selectfont, inner xsep=12pt, inner ysep=8pt, align=left}
     ]
                 %% INGESTIONE E PREPROCESSING (DISATTIVATI)
