@@ -1395,17 +1395,56 @@ DataStream<Query3Result> q3 = stream
 \end{frame}
 
 \begin{frame}{Stima dei Percentili: Algoritmo DDSketch}
+    \vspace{-0.2cm}
+    \begin{center}
+    \begin{adjustbox}{max width=0.9\textwidth}
+    \begin{tikzpicture}[
+        every node/.style={font=\fontsize{5.5pt}{6.5pt}\selectfont\sffamily},
+        axis/.style={-Stealth, thick, draw=structure!80},
+        tick/.style={thick, draw=structure!80},
+        box/.style={draw=structure!30, fill=teal!3, rounded corners=2pt, align=center}
+    ]
+        % Draw main axis
+        \draw[axis] (0,0) -- (10.5,0) node[right, font=\fontsize{6pt}{7pt}\selectfont] {$x$ (Valore Ritardo)};
+        
+        % Draw tick marks and values
+        \draw[tick] (1, 0.08) -- (1, -0.08) node[below=2pt] {$0$};
+        \draw[tick] (3, 0.08) -- (3, -0.08) node[below=2pt] {$\gamma^{i-2}$};
+        \draw[tick] (5, 0.08) -- (5, -0.08) node[below=2pt] {$\gamma^{i-1}$};
+        \draw[tick] (7.5, 0.08) -- (7.5, -0.08) node[below=2pt] {$\gamma^{i}$};
+        \draw[tick] (10, 0.08) -- (10, -0.08) node[below=2pt] {$\gamma^{i+1}$};
+        
+        % Vertical grid-like boundaries
+        \draw[dashed, black!20] (3, 0) -- (3, 0.6);
+        \draw[dashed, black!20] (5, 0) -- (5, 0.6);
+        \draw[dashed, black!20] (7.5, 0) -- (7.5, 0.6);
+        \draw[dashed, black!20] (10, 0) -- (10, 0.6);
+        
+        % Bins representation
+        \node[above=3pt] at (4, 0) {Bucket $i-1$};
+        \node[above=3pt, font=\bfseries\color{structure}] at (6.25, 0) {Bucket $i$};
+        \node[above=3pt] at (8.75, 0) {Bucket $i+1$};
+        
+        % Double-headed arrow for interval width
+        \draw[Stealth-Stealth, draw=orange!80, line width=0.8pt] (5, -0.6) -- (7.5, -0.6)
+            node[midway, below=1pt, text=orange!90!black] {Rapporto $\gamma = \frac{1+\alpha}{1-\alpha}$};
+            
+        % Error annotation
+        \node[box, right=1.5cm, yshift=0.9cm] at (0, 0) {Mappatura Indice:\\$i = \lfloor \log_\gamma(x) \rfloor$};
+        \node[box, fill=red!2, draw=red!15, text=red!80!black, right=5.2cm, yshift=0.9cm] at (0, 0) {Errore Relativo Garantito:\\$\le \alpha$ per qualsiasi valore nel Bucket};
+    \end{tikzpicture}
+    \end{adjustbox}
+    \end{center}
+
+    \vspace{-0.1cm}
     \begin{columns}[t]
         \begin{column}{0.48\textwidth}
             \begin{block}{Principio di Funzionamento}
                 \footnotesize
-                DDSketch è un algoritmo probabilistico per la stima dei quantili su flussi di dati continui:
                 \begin{itemize}
-                    \item \textbf{Errore Relativo Garantito}: Garantisce che l'errore relativo sul valore stimato sia limitato da $\alpha$:
-                    \[ \left| \frac{x_q - \tilde{x}_q}{x_q} \right| \le \alpha \]
-                    A differenza di KLL (errore sul rango), mantiene alta precisione sulle code di distribuzioni asimmetriche.
-                    \item \textbf{Mappatura dei Bin}: I valori $x$ sono inseriti in indici di bin logaritmici $i = \lceil \log_{\gamma}(x) \rceil$, dove $\gamma = \frac{1 + \alpha}{1 - \alpha}$.
-                    \item \textbf{Mergeability}: Due sketch possono essere uniti in tempo $O(1)$, ideale per aggregare finestre temporali concorrenti.
+                    \item \textbf{Errore Relativo Garantito ($\alpha \le 1\%$)}: L'errore è proporzionale al valore reale ($\pm 1\%$). Ottimo per code lunghe rispetto agli algoritmi basati sul rango (KLL).
+                    \item \textbf{Mappatura Logaritmica}: I valori $x$ sono mappati nei bin mostrati sopra con base $\gamma = \frac{1 + \alpha}{1 - \alpha}$. La larghezza cresce per mantenere l'errore costante.
+                    \item \textbf{Mergeability Totale}: Permette l'unione algebrica di più sketch in tempo $O(1)$ per l'analisi distribuita.
                 \end{itemize}
             \end{block}
         \end{column}
@@ -1413,12 +1452,10 @@ DataStream<Query3Result> q3 = stream
         \begin{column}{0.48\textwidth}
             \begin{block}{Parametri Usati \& Rationale}
                 \footnotesize
-                Nel sistema è stato configurato con:
                 \begin{itemize}
-                    \item \textbf{Parametri}: $\alpha = 0.01$ (errore rel. massimo $\le 1\%$) e $m = 2048$ bin massimi tramite \texttt{CollapsingLowestDenseStore}.
-                    \item \textbf{Footprint Costante ($O(1)$)}: La struttura non memorizza i singoli valori, assicurando che lo stato su Flink non cresca all'aumentare dei record. Previene rischi di heap exhaustion.
-                    \item \textbf{Risoluzione Elevata}: Con 2048 bin si copre un range dinamico da $80\,\mu\text{s}$ a oltre un anno logico, sufficiente per qualsiasi ritardo aereo.
-                    \item \textbf{Efficienza del Checkpoint}: Uno sketch compatto riduce le dimensioni dei checkpoint di Flink su HDFS/S3.
+                    \item \textbf{Bins Limitati ($m = 2048$)}: Ottenuto tramite collassamento dei bin minori (\texttt{CollapsingLowestDenseStore}).
+                    \item \textbf{Stato Costante ($O(1)$)}: Salva solo le frequenze dei bin, eliminando il rischio di *heap exhaustion* su Apache Flink.
+                    \item \textbf{Risoluzione Elevata}: Copre latenze da $80\,\mu\text{s}$ a oltre 1 anno, mantenendo compatti i checkpoint su HDFS/S3.
                 \end{itemize}
             \end{block}
         \end{column}
