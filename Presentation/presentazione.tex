@@ -391,18 +391,18 @@
 
 % --- SEZIONE 1 ---
 \section{Architettura e Flusso}\label{sec:architecture_and_flow}
-\SectionFrame[Panoramica del sistema streaming ed interazione asincrona tra il generatore di carico, il message broker, Flink e lo stack di persistenza e visualizzazione.]{Architettura e Flusso}
+\SectionFrame[Panoramica dei componenti del sistema e del flusso di dati: diagrammi ad alto livello.]{Architettura e Flusso}
 
 \begin{frame}{Big Data Stack e Flow Diagram}
     \begin{columns}[b]
-        \begin{column}{0.30\textwidth}
+        \begin{column}{0.33\textwidth}
             \centering
             \includegraphics[width=\linewidth,height=0.52\textheight,keepaspectratio]{../Report/graphs/BigDataStack.png}
             \vskip 0.2cm
             \small Big Data Stack
         \end{column}
 
-        \begin{column}{0.66\textwidth}
+        \begin{column}{0.63\textwidth}
             \centering
             \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{../Report/graphs/InteractionDiagram.png}
             \vskip 0.2cm
@@ -412,7 +412,7 @@
 \end{frame}
 
 % --- SEZIONE 2 ---
-\section{Ingestion e Broker Layer}\label{sec:ingestion_and_broker_layer}\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su partizionamento Kafka.]{Ingestion e Broker Layer}
+\section{Ingestion e Broker Layer}\label{sec:ingestion_and_broker_layer}\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su Kafka.]{Ingestion e Broker Layer}
 \begin{frame}[fragile]{Simulatore Go: Preparazione}
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
@@ -497,7 +497,7 @@ if rand.Float64() < s.factor {
 \begin{frame}[fragile]{Simulatore Go: Replay Loop}
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
-            \begin{gocodebox}{Go - Attesa Ibrida (Wait)}
+            \begin{gocodebox}{Go - Attesa Ibrida}
 // Sleep per la gran parte della attesa
 if d > w.spinThreshold {
     <-time.After(d - w.spinThreshold)
@@ -678,8 +678,8 @@ for time.Now().Before(deadline) {
                     \item \textbf{Topic Dedicati}: per query e finestra temporale.
                     \item \textbf{Routing}:
                         \begin{itemize}\footnotesize
-                            \item \textbf{Q1}: su \texttt{airline}.
-                            \item \textbf{Q2}: su \texttt{origin\_airport\_id}.
+                            \item \textbf{Q1}: chiave \texttt{airline}.
+                            \item \textbf{Q2}: chiave \texttt{origin\_airport\_id}.
                             \item \textbf{Q3}: chiave nulla.
                         \end{itemize}
                 \end{itemize}
