@@ -413,7 +413,7 @@
 
 % --- SEZIONE 2 ---
 \section{Ingestion e Broker Layer}\label{sec:ingestion_and_broker_layer}\SectionFrame[Il simulatore custom in Go per la generazione di flussi accelerati e disordinati ed il buffering distribuito basato su partizionamento Kafka.]{Ingestion e Broker Layer}
-\begin{frame}[fragile]{Flusso del Simulatore Go: Preparazione}
+\begin{frame}[fragile]{Simulatore Go: Preparazione}
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
             \begin{block}{\footnotesize Scenari di Accelerazione}
@@ -460,9 +460,9 @@ if rand.Float64() < s.factor {
                 
                 \node[decision, below=0.45cm of CheckSHA1] (CheckCache) {Cache binaria GOB\\presente?};
                 \node[process, below=0.45cm of CheckCache] (Load) {Lettura Cache\\(pre-ordinati)};
-                \node[process, right=0.6cm of Load] (ParseTar) {Parsing CSV da Tar.gz\\Ordinamento Event-Time\\Salvataggio Cache GOB};
+                \node[process, left=0.6cm of Load] (ParseTar) {Parsing CSV da Tar.gz\\Ordinamento Event-Time\\Salvataggio Cache GOB};
                 
-                \node[process, below=0.45cm of Load] (Schedule) {Calcolo Tempo di Invio\\e Iniezione Disordine};
+                \node[process, below=0.45cm of Load] (Schedule) {Calcolo Publish At\\e Iniezione Disordine};
                 \node[process, below=0.4cm of Schedule] (Sort) {Ordinamento Stabile dei Record\\rispetto a PublishAt};
                 
                 \node[draw=none, fill=none, below=0.4cm of Sort] (DotsOut) {$\dots$};
@@ -477,13 +477,13 @@ if rand.Float64() < s.factor {
                     \draw (CheckSHA1.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (DownloadTar.south);
                     \draw (CheckSHA1) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (CheckCache);
                     
-                    \draw (DownloadTar.west) -- ++(-0.3,0) |- (CheckCache.west);
+                    \draw (DownloadTar.west) -- ++(-0.3,0) |- (ParseTar.west);
                     
                     \draw (CheckCache) -- node[left, font=\tiny\sffamily, draw=none] {Sì} (Load);
-                    \draw (CheckCache.east) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (ParseTar.north);
+                    \draw (CheckCache.west) -| node[near start, above, font=\tiny\sffamily, draw=none] {No} (ParseTar.north);
                     
                     \draw (Load) -- (Schedule);
-                    \draw (ParseTar.south) |- (Schedule.east);
+                    \draw (ParseTar.south) |- (Schedule.west);
                     
                     \draw (Schedule) -- (Sort);
                     \draw (Sort) -- (DotsOut);
@@ -494,11 +494,11 @@ if rand.Float64() < s.factor {
     \end{columns}
 \end{frame}
 
-\begin{frame}[fragile]{Flusso del Simulatore Go: Replay Loop}
+\begin{frame}[fragile]{Simulatore Go: Replay Loop}
     \begin{columns}[c]
         \begin{column}{0.44\textwidth}
             \begin{gocodebox}{Go - Attesa Ibrida (Wait)}
-// Sleep per la gran parte della durata
+// Sleep per la gran parte della attesa
 if d > w.spinThreshold {
     <-time.After(d - w.spinThreshold)
 }
@@ -511,10 +511,10 @@ for time.Now().Before(deadline) {
             \begin{block}{\scriptsize Pubblicazione su Apache Kafka}
                 \scriptsize
                 \begin{itemize}
-                    \item \textbf{Serializzazione JSON}: Ciascun record viene convertito in JSON prima della trasmissione.
-                    \item \textbf{Bilanciamento Round-Robin}: Messaggi inviati con chiave null per distribuire uniformemente il carico tra le partizioni del topic.
-                    \item \textbf{Batching Ottimizzato}: Dimensione batch a 100 record e \texttt{BatchTimeout} a 2ms per massimizzare il throughput senza ritardare l'invio.
-                    \item \textbf{Scrittura Asincrona}: Il writer opera asincronamente per evitare di bloccare il loop di temporizzazione millesimale del simulatore.
+                    \item \textbf{Serializzazione JSON}: Conversione del record in JSON prima dell'invio.
+                    %\item \textbf{Bilanciamento Round-Robin}: Invio con chiave null per distribuire uniformemente il carico tra le partizioni.
+                    \item \textbf{Batching Ottimizzato}: Batch di 100 record e timeout a 2ms per massimizzare il throughput mantenendo la logica streaming.
+                    \item \textbf{Scrittura Asincrona}: Scrittura non bloccante per preservare la temporizzazione millesimale del simulatore.
                 \end{itemize}
             \end{block}
         \end{column}
@@ -538,15 +538,13 @@ for time.Now().Before(deadline) {
                 
                 \node[decision, below=0.45cm of LoopCheck] (CheckCancel) {Simulazione\\annullata?};
                 
-                \node[process, below=0.45cm of CheckCancel] (CalcWait) {Calcolo attesa residua rispetto\\al record precedente};
+                \node[process, below=0.45cm of CheckCancel] (CalcWait) {Calcolo attesa residua rispetto\\al tempo corrente};
                 
                 \node[decision, below=0.5cm of CalcWait] (CheckWait) {Attesa residua $>$ 0?};
                 \node[process, right=0.6cm of CheckWait] (Wait) {Attesa Ibrida\\(Sleep / Busy Wait)};
                 
                 \node[sink, below=0.5cm of CheckWait] (Write) {Scrittura Record\\nel Sink};
                 
-                \node[process, below=0.45cm of Write] (Update) {Aggiorna contatori e riferimenti\\temporali per il record successivo};
-
                 %% COLLEGAMENTI
                 \begin{scope}[arrows={-Stealth[scale=0.8]}, line width=0.5pt]
                     \draw (DotsIn) -- (LoopCheck);
@@ -564,10 +562,8 @@ for time.Now().Before(deadline) {
                     
                     \draw (Wait.south) |- (Write.east);
                     
-                    \draw (Write) -- (Update);
-                    
                     %% Loopback a LoopCheck
-                    \draw (Update.east) -- ++(2.8,0) |- (LoopCheck.east);
+                    \draw (Write.south) -- ++(0,-0.4) -- ++(3.8,0) |- (LoopCheck.east);
                 \end{scope}
             \end{tikzpicture}
             \end{adjustbox}
