@@ -1087,16 +1087,20 @@ for time.Now().Before(deadline) {
                 \end{scope}
         
         %% FLOATING CARD
-        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (33, -4) {
+        \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (30, -4) {
             \textbf{Query 1: Airline Performance}\\[0.15cm]
             Dettagli delle operazioni nello stato:\\[0.05cm]
-            \quad -- \textbf{Accumulatore Locale} (\texttt{Q1Aggregator}):\\
-            \quad\quad \textbullet\ \texttt{acc.total++}\\
-            \quad\quad \textbullet\ Se cancellato: \texttt{acc.cancelled++}\\
-            \quad\quad \textbullet\ Altrimenti: \texttt{acc.sumDelay += r.getDepDelay()}\\[0.05cm]
-            \quad -- \textbf{Processamento Finestra} (\texttt{Q1WindowProcessor}):\\
-            \quad\quad \textbullet\ \texttt{avgDelay = sumDelay / (total - cancelled)}\\
-            \quad\quad \textbullet\ \texttt{cancelRate = (cancelled / total) * 100}
+            -- \textbf{Accumulatore Locale} (\texttt{Q1Aggregator}):\\
+            \quad \textbullet\ \texttt{acc.total++}\\
+            \quad \textbullet\ Se cancellato: \texttt{acc.cancelled++}\\
+            \quad \textbullet\ Altrimenti: \texttt{acc.sumDelay += r.getDepDelay()};\\
+            \quad\quad\ \ Se deviato: \texttt{acc.diverted++}
+            \\
+            \quad\quad\ \ altrimenti: \texttt{acc.completed++}\\[0.05cm]
+            -- \textbf{Processamento Finestra} (\texttt{Q1WindowProcessor}):\\
+            \quad \textbullet\ \texttt{avgDelay = sumDelay/countDelay}\\
+            \quad \textbullet\ \texttt{cancelRate = (cancelled/total)*100}\\
+            \quad \textbullet\ \texttt{lateRate = (lateDepartures/(total-cancelled))*100}
         };
     \end{tikzpicture}
     \end{adjustbox}
@@ -1104,8 +1108,8 @@ for time.Now().Before(deadline) {
     % Listing in sovraimpressione (posizionamento assoluto)
     \begin{tikzpicture}[remember picture, overlay]
         \node[anchor=north west, xshift=0.5cm, yshift=-4.4cm] at (current page.north west) {
-            \begin{minipage}{0.50\textwidth}
-                \begin{flinkcodebox}{Query 1 implementation: AggregateFunction}
+            \begin{minipage}{0.47\textwidth}
+                \begin{flinkcodebox}{Q1: AggregateFunction}
 DataStream<Query1Result> q1 = stream
     .keyBy(FlightRecord::getAirline)
     .window(TumblingEventTimeWindows.of(Time.hours(1)))
