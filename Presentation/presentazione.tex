@@ -22,6 +22,7 @@
 \tcbuselibrary{listings}
 \usepackage{mathtools}
 \usepackage{adjustbox}
+\usepackage{booktabs}
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.geometric}
 
@@ -717,7 +718,7 @@ for time.Now().Before(deadline) {
                 \end{itemize}
             \end{block}
         \end{column}
- 
+
         \begin{column}{0.48\textwidth}
             \begin{block}{InfluxDB}
                 \footnotesize
@@ -752,7 +753,7 @@ for time.Now().Before(deadline) {
 \section{Stream Processing Core (Apache Flink)}\label{sec:stream_processing_core}
 \SectionFrame[Architettura della topologia computazionale, gestione del tempo logico, metriche di performance, DDSketch e dettagli delle query.]{Apache Flink}
 
-\begin{frame}{Topologia del Flusso Streaming (DAG)}
+\begin{frame}{Topologia del Flusso Streaming}
     \providecommand{\dagfontsize}{\fontsize{6pt}{7.2pt}\selectfont}
     \centering
     \begin{adjustbox}{max width=0.98\textwidth, max height=0.82\textheight}
@@ -1368,12 +1369,8 @@ DataStream<Top10Airports> globalTop10 = localCounts
         
         %% FLOATING CARD
         \node[card, fill=teal!4, draw=structure, line width=0.8pt, font=\fontsize{24pt}{35pt}\selectfont, inner xsep=30pt, inner ysep=30pt] at (32, 4) {
-            \textbf{Query 3: Delay Distribution}\\[0.15cm]
-            Dettagli su DDSketch e Stato:\\[0.05cm]
-            \quad -- \textbf{Mappatura Bin Logaritmici}: $i = \lceil \log_{\gamma}(x) \rceil$ con $\gamma = \frac{1 + \alpha}{1 - \alpha}$ ($\alpha = 0.01$, errore 1\%).\\[0.05cm]
-            \quad -- \textbf{Calcolo dei Percentili}: Stima del quantile $q$ nel bin $i$: $x_q = \frac{2\gamma^i}{\gamma+1}$ in tempo lineare.\\[0.05cm]
-            \quad -- \textbf{Footprint Costante}: DDSketch memorizza solo le frequenze dei bin (max 2048 bin) per footprint ridotto.\\[0.05cm]
-            \quad -- \textbf{Proprietà di Merge}: Fusione $O(1)$ di sketch diversi per aggregare finestre temporali concorrenti.
+            -- \textbf{Errore Relativo -- $\alpha = 1\%$}: L'errore è proporzionale al valore reale. Garantito per qualsiasi valore nel bucket.\\[0.05cm]
+            -- \textbf{Bins Limitati -- $m = 2048$}: Ottenuto tramite collassamento dei bin minori. Copre latenze da $80\,\mu\text{s}$ a oltre 1 anno.
         };
     \end{tikzpicture}
     \end{adjustbox}
@@ -1394,7 +1391,7 @@ DataStream<Query3Result> q3 = stream
     \end{tikzpicture}
 \end{frame}
 
-\begin{frame}{Stima dei Percentili: Algoritmo DDSketch}
+\begin{frame}[fragile]{Stima dei Percentili: Algoritmo DDSketch}
     \vspace{-0.2cm}
     \begin{center}
     \begin{adjustbox}{max width=0.9\textwidth}
@@ -1430,72 +1427,94 @@ DataStream<Query3Result> q3 = stream
             node[midway, below=1pt, text=orange!90!black] {Rapporto $\gamma = \frac{1+\alpha}{1-\alpha}$};
             
         % Error annotation
-        \node[box, right=1.5cm, yshift=0.9cm] at (0, 0) {Mappatura Indice:\\$i = \lfloor \log_\gamma(x) \rfloor$};
+        \node[box, right=1.5cm, yshift=0.9cm] at (0, 0) {Mappatura Indice:\\$i = \lceil \log_\gamma(x) \rceil$};
         \node[box, fill=red!2, draw=red!15, text=red!80!black, right=5.2cm, yshift=0.9cm] at (0, 0) {Errore Relativo Garantito:\\$\le \alpha$ per qualsiasi valore nel Bucket};
     \end{tikzpicture}
     \end{adjustbox}
     \end{center}
 
-    \vspace{-0.1cm}
+    \vspace{-0.9cm}
     \begin{columns}[t]
         \begin{column}{0.48\textwidth}
-            \begin{block}{Principio di Funzionamento}
+            \begin{block}{Principio di Funzionamento{\raisebox{0.55ex}{\fontsize{4pt}{4pt}\selectfont 1}}}
                 \footnotesize
                 \begin{itemize}
-                    \item \textbf{Errore Relativo Garantito ($\alpha \le 1\%$)}: L'errore è proporzionale al valore reale ($\pm 1\%$). Ottimo per code lunghe rispetto agli algoritmi basati sul rango (KLL).
                     \item \textbf{Mappatura Logaritmica}: I valori $x$ sono mappati nei bin mostrati sopra con base $\gamma = \frac{1 + \alpha}{1 - \alpha}$. La larghezza cresce per mantenere l'errore costante.
                     \item \textbf{Mergeability Totale}: Permette l'unione algebrica di più sketch in tempo $O(1)$ per l'analisi distribuita.
+                    \item \textbf{Stato Costante}: Salva solo le frequenze dei bin, eliminando il rischio di heap exhaustion su Apache Flink.
                 \end{itemize}
             \end{block}
         \end{column}
 
         \begin{column}{0.48\textwidth}
-            \begin{block}{Parametri Usati \& Rationale}
-                \footnotesize
-                \begin{itemize}
-                    \item \textbf{Bins Limitati ($m = 2048$)}: Ottenuto tramite collassamento dei bin minori (\texttt{CollapsingLowestDenseStore}).
-                    \item \textbf{Stato Costante ($O(1)$)}: Salva solo le frequenze dei bin, eliminando il rischio di *heap exhaustion* su Apache Flink.
-                    \item \textbf{Risoluzione Elevata}: Copre latenze da $80\,\mu\text{s}$ a oltre 1 anno, mantenendo compatti i checkpoint su HDFS/S3.
-                \end{itemize}
+            \begin{block}{\footnotesize Confronto Algoritmi di Sketches{\raisebox{0.55ex}{\fontsize{3pt}{3pt}\selectfont 2}}}
+                \centering
+                \tiny
+                \resizebox{\textwidth}{!}{%
+                    \begin{tabular}{lccccc}
+                    \hline
+                    \textbf{Characteristic} & \textbf{KLL Sketch} & \textbf{Moments} & \textbf{DDSketch} & \textbf{UDDSketch} & \textbf{ReqSketch (HRA)} \\ \hline
+                    Sketching approach & Sampling & Summary & Summary & Summary & Sampling \\
+                    High Tail Accuracy & Non-Skewed & Synthetic & All & All & All \\
+                    High Non-Tail Accuracy & All & Synthetic & All & All & All \\
+                    Insertion Speed & Medium & Medium & High & Low & Low \\
+                    Query Speed & High & Low & High & High & Medium \\
+                    Merge Speed & Medium & High & Medium & Low & Low \\
+                    Adaptability & Inconsistent & Low & High & High & Inconsistent \\ \hline
+                    \end{tabular}%
+                }
             \end{block}
         \end{column}
     \end{columns}
+
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=south west, xshift=0.45cm, yshift=0.12cm] at (current page.south west) {
+            \begin{minipage}{0.92\textwidth}
+                \rule{0.34\textwidth}{0.25pt}\\[0.04cm]
+                \fontsize{3.6pt}{4.2pt}\selectfont
+                \textsuperscript{1} C. Masson, J. E. Rim, H. K. Lee. \href{https://doi.org/10.14778/3352063.3352135}{DDSketch: A Fast and Fully-Mergeable Quantile Sketch with Relative-Error Guarantees}. PVLDB, 12(12): 2195-2205, 2019.\\[-0.02cm]
+                \textsuperscript{2} L. Fernando, H. Bindra, K. Daudjee. \href{https://doi.org/10.48786/edbt.2023.34}{An Experimental Analysis of Quantile Sketches over Data Streams}. EDBT, pp. 424-436, 2023.
+            \end{minipage}
+        };
+    \end{tikzpicture}
 \end{frame}
 
 \begin{frame}{Metriche di Telemetria: Standard vs Custom}
-    \begin{columns}[t]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Metriche di Monitoraggio}
-                \scriptsize
-                \begin{itemize}
-                    \item \textbf{Metriche Standard (Flink \& JVM)}:
-                    \begin{itemize}
-                        \scriptsize
-                        \item \textbf{JVM}: CPU, memoria Heap/Non-Heap, GC, thread attivi.
-                        \item \textbf{Runtime}: Latenza/dimensione checkpoint, backpressure.
-                        \item \textbf{I/O}: Kafka Consumer Lag per partizione.
-                    \end{itemize}
-                    \item \textbf{Metriche Custom (Performance \& Business)}:
-                    \begin{itemize}
-                        \scriptsize
-                        \item \textbf{Data Quality}: record con anomalie logiche (\texttt{discarded\_records\_count}).
-                        \item \textbf{Record Tardivi}: record persi oltre allowed lateness, lateness max, percentili.
-                        \item \textbf{Latenza E2E}: da ingestion a emissione (min, max, media) tracciati su percentili.
-                        \item \textbf{Tempo Operatore}: tempo CPU locale dell'operatore (\texttt{operator\_ms}).
-                    \end{itemize}
-                \end{itemize}
+    \vspace{-0.15cm}
+    \begin{columns}[T,onlytextwidth]
+        \begin{column}{0.40\textwidth}
+            \begin{block}{\footnotesize Catalogo Metriche}
+                \centering
+                \renewcommand{\arraystretch}{1.16}
+                \setlength{\tabcolsep}{2pt}
+                \tiny
+                \begin{tabular}{p{0.18\linewidth}p{0.26\linewidth}p{0.43\linewidth}}
+                    \toprule
+                    \textbf{Tipo} & \textbf{Area} & \textbf{Metriche} \\
+                    \midrule
+                    Standard & JVM & CPU, memoria Heap/Non-Heap, GC, thread attivi. \\ \hline
+                    Standard & Runtime & Latenza/dimensione checkpoint, backpressure. \\ \hline
+                    Standard & I/O & Kafka Consumer Lag per partizione. \\
+                    \midrule[\heavyrulewidth]
+                    Custom & Data Quality & record con anomalie logiche. \\ \hline
+                    Custom & Record Tardivi & record persi oltre allowed lateness, lateness max, percentili. \\ \hline
+                    Custom & Latenza E2E & da ingestion a emissione tracciati su percentili. \\ \hline
+                    Custom & Tempo Operatore & tempo CPU locale dell'operatore. \\
+                    \bottomrule
+                \end{tabular}
             \end{block}
         \end{column}
 
-        \begin{column}{0.48\textwidth}
-            \begin{block}{Come Catturiamo le Metriche Custom}
+        \begin{column}{0.55\textwidth}
+            \begin{block}{\footnotesize Come Catturiamo le Metriche Custom}
                 \scriptsize
-                Le metriche custom sono integrate nelle pipeline via API native:
                 \begin{itemize}
-                    \item \textbf{Flink MetricGroup API}: Registrate in \texttt{open()} tramite \texttt{getMetricGroup()} (\texttt{Counter} per conteggi, \texttt{Gauge} per percentili e lateness).
-                    \item \textbf{Stima Percentili con DDSketch}: Accumulatori DDSketch per percentili (p50/90/95/99) con footprint $O(1)$ ed errore relativo $\le 1\%$.
-                    \item \textbf{Fault-Tolerance (ListState)}: Accumulatori salvati nello stato operatore (\texttt{CheckpointedFunction}) per consistenza ai checkpoint.
-                    \item \textbf{AWS Clock Sync}: Sincronizzazione Chrony NTP su EC2 per le metriche E2E, con tetti locali anti-skew (\texttt{Math.max(0, latencyMs)}).
+                    \item Integrate nelle pipeline via API native.
+                    \item Registrazione in \texttt{open()} tramite \texttt{getMetricGroup()}.
+                    \item \texttt{Counter} per conteggi e \texttt{Gauge} per percentili/lateness.
+                    \item Percentili stimati con accumulatori DDSketch a footprint $O(1)$ ed errore relativo $\le 1\%$.
+                    \item Accumulatori salvati nello stato operatore per consistenza ai checkpoint.
+                    \item Metriche E2E con Chrony NTP su EC2 e tetti locali anti-skew.
                 \end{itemize}
             \end{block}
         \end{column}
