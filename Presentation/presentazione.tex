@@ -1646,10 +1646,9 @@ env.getCheckpointConfig()
         \end{column}
 
         \begin{column}{0.48\textwidth}
-            \textbf{Discussione dei Risultati}
             \begin{itemize}
                 \footnotesize
-                \item \textbf{Scenari Slow \& Medium}: Il throughput in ingresso è limitato dalla sorgente ($\approx 300$ ev/s e $\approx 3.000$ ev/s). $P=1$ è già sovradimensionato: lo scale-out non porta incrementi.
+                \item \textbf{Scenari Slow e Medium}: Il throughput in ingresso è limitato dalla sorgente ($\approx 300$ ev/s e $\approx 3.000$ ev/s). $P=1$ è già sovradimensionato: lo scale-out non porta incrementi.
                 \item \textbf{Scenario Fast}: L'ingestion si stabilizza a regime a $\approx 8.500$ ev/s indipendentemente da $P$.
                 \item Tuttavia, il throughput in uscita a regime aumenta all'aumentare di $P$:
                 \begin{itemize}
