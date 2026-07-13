@@ -1436,6 +1436,13 @@ DataStream<Query3Result> q3 = stream
         \end{column}
 
         \begin{column}{0.48\textwidth}
+            \begin{block}{\footnotesize Formula di Query}
+                \scriptsize
+                La stima del valore $\tilde{X}_q$ associato al quantile $q$ nel bucket $i$ è calcolata come valore medio del bucket:
+                \vspace{-0.2cm}
+                \[ \tilde{X}_q = \frac{2\gamma^i}{\gamma + 1} \]
+            \end{block}
+            \vspace{-0.15cm}
             \begin{block}{\footnotesize Confronto Algoritmi di Sketches{\raisebox{0.55ex}{\fontsize{3pt}{3pt}\selectfont 2}}}
                 \centering
                 \tiny
